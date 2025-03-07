@@ -81,7 +81,6 @@ export class CameraController {
         const zoomDelta = event.deltaY > 0 ? -this.zoomSpeed : this.zoomSpeed; // Zoom in or out
         this.scrollFactor = (this.scrollFactor || 1.0) + zoomDelta; // Adjust scroll factor
         this.scrollFactor = Math.max(0.5, Math.min(1.5, this.scrollFactor)); // Clamp zoom range
-        console.log(`Scroll factor: ${this.scrollFactor}`); // Log current zoom level
     }
 
     // Update camera position to follow the target
@@ -91,22 +90,20 @@ export class CameraController {
         // Compute current world-space center
         const box = new THREE.Box3().setFromObject(this.target);
         const center = box.getCenter(new THREE.Vector3());
+        // const avatarTopY = box.max.y;
     
         const camDirection = new THREE.Vector3();
         this.camera.getWorldDirection(camDirection);
+        camDirection.normalize();
+        const pitch = Math.asin(Math.max(-1, Math.min(1, camDirection.y)));
+        const factor = Math.abs(pitch) / (Math.PI / 2);
         camDirection.y = 0;
         camDirection.normalize();
     
-        const viewDirection = new THREE.Vector3();
-        this.camera.getWorldDirection(viewDirection);
-        viewDirection.normalize();
-        const pitch = Math.asin(Math.max(-1, Math.min(1, viewDirection.y)));
-        const factor = Math.abs(pitch) / (Math.PI / 2);
-    
         // Adjusted offsets relative to center
-        const aheadOffset = new THREE.Vector3(0, 0, 2.5); // Behind center at same height
-        const downOffset = new THREE.Vector3(0, 2, 0);   // Above center when looking down
-        const upOffset = new THREE.Vector3(0, -1, 0.5);  // Below and closer when looking up
+        const aheadOffset = new THREE.Vector3(0, 1, 2.5); // Behind center at same height
+        const downOffset = new THREE.Vector3(0, 3, 0);   // Above center when looking down
+        const upOffset = new THREE.Vector3(0, 0, 0.5);  // Below and closer when looking up
         let cameraOffset = (pitch < 0) ? aheadOffset.clone().lerp(downOffset, factor) : aheadOffset.clone().lerp(upOffset, factor);
     
         const horizontalOffset = camDirection.clone().multiplyScalar(-cameraOffset.z);
