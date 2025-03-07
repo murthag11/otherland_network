@@ -1,0 +1,53 @@
+type Size = 
+ record {
+   float64;
+   float64;
+   float64;
+ };
+type Scale = 
+ record {
+   float64;
+   float64;
+   float64;
+ };
+type Position = 
+ record {
+   float64;
+   float64;
+   float64;
+ };
+type KhetType = 
+ variant {
+   Avatar;
+   Entity;
+   InteractiveObject;
+   MobileObject;
+   SceneObject;
+ };
+type Khet = 
+ record {
+   animations: opt vec text;
+   code: opt text;
+   gltfDataRef: record {
+                  principal;
+                  text;
+                  nat;
+                };
+   khetId: text;
+   khetType: KhetType;
+   originalSize: Size;
+   position: Position;
+   scale: Scale;
+   textures: opt vec record {
+                       text;
+                       blob;
+                     };
+ };
+service : {
+  abortKhetUpload: (text) -> ();
+  clearAllKhets: (principal) -> ();
+  getKhet: (text) -> (opt Khet) query;
+  getSceneObjectKhets: () -> (vec Khet) query;
+  storeKhet: (Khet, principal, text, nat) -> (opt text);
+  storeKhetChunk: (text, nat, blob) -> ();
+}

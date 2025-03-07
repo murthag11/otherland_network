@@ -1,0 +1,8 @@
+service : {
+  clearBlobs: () -> ();
+  deleteBlob: (text) -> ();
+  finalizeBlob: (text, nat, nat) -> (opt text);
+  getBlobChunk: (text, nat) -> (opt blob) query;
+  getBlobSize: (text) -> (opt nat) query;
+  storeBlobChunk: (text, nat, blob) -> ();
+}

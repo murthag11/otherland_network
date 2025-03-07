@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Otherland Network</title>
+  <script type="module" crossorigin src="/assets/index-BpIJHO4f.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-CF-5xhYd.css">
+</head>
+
+<body>
+
+    <!-- Game Area -->
+    <canvas id="canvas"></canvas>
+
+    <!-- Start Menu -->
+    <div id="start-overlay">
+
+        <!-- Enter VR world -->
+        <button id="start-btn">Start</button>
+
+        <!-- Clear World -->
+        <button id="clear-khets-btn">Clear All Khets</button>
+
+        <!-- Upload Block -->
+        <div id="upload-block">
+            <h2>Upload 3D Data</h2>
+            <select id="khet-type">
+                <option value="SceneObject">Scene Object</option>
+                <option value="InteractiveObject">Interactive Object</option>
+                <option value="MobileObject">Mobile Object</option>
+                <option value="Entity">Entity</option>
+                <option value="Avatar">Avatar</option>
+            </select>
+            <input type="file" id="upload-khet" accept=".glb" multiple>
+            <label>Position (x, y, z):</label>
+            <input type="number" id="pos-x" placeholder="X" step="0.1">
+            <input type="number" id="pos-y" placeholder="Y" step="0.1">
+            <input type="number" id="pos-z" placeholder="Z" step="0.1">
+            <label>Scale (x, y, z):</label>
+            <input type="number" id="scale-x" placeholder="X" step="0.1" value="1">
+            <input type="number" id="scale-y" placeholder="Y" step="0.1" value="1">
+            <input type="number" id="scale-z" placeholder="Z" step="0.1" value="1">
+        </div>
+    </div>
+
+    <!-- Game Menu -->
+    <div id="menu">
+        <h1>Otherland Network</h1>
+
+        <!-- Main Menu Buttons -->
+        <div id="main-page" class="page active">
+            <button id="home-btn">Home</button>
+            <button id="avatar-btn">Avatar</button>
+            <button id="settings-btn">Settings</button>
+            <button id="close-btn">Resume</button>
+        </div>
+
+        <!-- Settings Page -->
+        <div id="settings-page" class="page">
+            <h2>Settings</h2>
+            <label><input type="checkbox" id="toggle-chat" checked> Show Chat</label><br>
+            <label><input type="checkbox" id="toggle-friends" checked> Show Friends List</label><br>
+            <label><input type="checkbox" id="toggle-map" checked> Show Map</label><br>
+            <button id="back-settings-btn">Back</button>
+        </div>
+
+        <!-- Avatar Page -->
+        <div id="avatar-page" class="page">
+            <h2>Select Avatar</h2>
+            <button data-avatar="1">Avatar 1</button>
+            <button data-avatar="2">Avatar 2</button>
+            <button data-avatar="3">Avatar 3</button>
+            <button data-avatar="4">Avatar 4</button>
+            <button data-avatar="5">Avatar 5</button>
+            <button data-avatar="6">Avatar 6</button>
+            <button data-avatar="7">Avatar 7</button>
+            <button data-avatar="8">Avatar 8</button>
+            <button data-avatar="9">Avatar 9</button>
+            <button data-avatar="10">Avatar 10</button>
+            <button id="back-avatar-btn">Back</button>
+        </div>
+    </div>
+
+    <!-- UI Areas -->
+    <div id="chat">
+        <h3>Group Chat</h3>
+        <div id="chat-messages"></div>
+        <input type="text" id="chat-input" placeholder="Type a message...">
+        <button id="send-chat-btn">Send</button>
+    </div>
+    <div id="friends-list">Friends List</div>
+    <div id="own-info">Own Information</div>
+    <div id="map">Map Area</div>
+
+    <!-- Scripts-->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/PointerLockControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
+</body>
+</html>

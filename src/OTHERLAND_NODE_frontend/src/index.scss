@@ -1,0 +1,111 @@
+body { margin: 0; }
+canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+#start-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    justify-content:center;
+    align-items: center;
+}
+#menu, #chat, #friends-list, #own-info, #map {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    font-family: Arial, sans-serif;
+    padding: 10px;
+    border-radius: 5px;
+}
+#menu {
+    display: none;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    flex-direction: column;
+    align-items: center;
+    width: 300px;
+}
+#menu h1 {
+    margin: 0 0 20px 0;
+    font-size: 24px;
+}
+#menu button {
+    display: block;
+    width: 150px;
+    padding: 10px;
+    margin: 10px 0;
+    background: #444;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+}
+#close-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #ccc; // Optional: lighter background
+}
+#menu .page {
+    display: none; /* Hide pages by default */
+}
+#menu .page.active {
+    display: block; /* Show active page */
+}
+#chat {
+    bottom: 10px;
+    left: 10px;
+    width: 250px;
+    height: 150px;
+}
+#chat h3 {
+    margin: 0;
+}
+#chat #chat-messages {
+    height: 100px;
+    overflow-y: auto;
+    border: 1px solid #fff;
+    padding: 5px;
+}
+#chat #chat-input {
+    float: left;
+    width: 190px;
+    margin-top: 5px;
+}
+#chat #send-chat-btn {
+    float: left;
+}
+#friends-list {
+    top: 10px;
+    left: 10px;
+    width: 200px;
+    height: 200px;
+}
+#own-info {
+    top: 10px;
+    right: 10px;
+    width: 200px;
+    height: 100px;
+}
+#map {
+    bottom: 10px;
+    right: 10px;
+    width: 200px;
+    height: 200px;
+}
+#avatar-page {
+    max-height: 300px;
+    overflow-y: auto; /* Scrollable */
+}
+#avatar-page button {
+    width: 100%;
+    margin: 5px 0;
+}
