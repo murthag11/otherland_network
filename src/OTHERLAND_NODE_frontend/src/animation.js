@@ -1,4 +1,4 @@
-import { controls, world, scene, camera, avatarMesh, avatarBody, ground, groundBody, sceneObjects, renderer, khetState, cameraController } from './viewer.js';
+import { controls, world, scene, camera, avatarMesh, avatarBody, sceneObjects, renderer, khetState, cameraController } from './viewer.js';
 import { keys } from './menu.js';
 
 const animationMixers = [];
@@ -12,73 +12,86 @@ export function animate() {
 
     khetState.executors.forEach(executor => executor());
 
-    if (avatarMesh && avatarBody && controls.locked) {
-        console.log('Avatar movement active');
-        console.log(`Avatar position: ${avatarMesh.position.toArray()}, Camera position: ${camera.position.toArray()}`);
-    
-        const camDirection = new THREE.Vector3();
-        camera.getWorldDirection(camDirection);
-        camDirection.y = 0;
-        camDirection.normalize();
-    
-        const baseSpeed = 4.0;
-        const walkSpeed = keys.has('shift') ? baseSpeed * 2 : baseSpeed; // Double speed when Shift is pressed
-        const forward = camDirection.clone().multiplyScalar(walkSpeed);
-        const right = new THREE.Vector3().crossVectors(camDirection, new THREE.Vector3(0, 1, 0)).normalize().multiplyScalar(walkSpeed);
-    
-        const moveVelocity = new CANNON.Vec3(0, avatarBody.velocity.y, 0);
-        if (keys.has('w')) moveVelocity.vadd(new CANNON.Vec3(forward.x, 0, forward.z), moveVelocity);
-        if (keys.has('s')) moveVelocity.vadd(new CANNON.Vec3(-forward.x, 0, -forward.z), moveVelocity);
-        if (keys.has('a')) moveVelocity.vadd(new CANNON.Vec3(-right.x, 0, -right.z), moveVelocity);
-        if (keys.has('d')) moveVelocity.vadd(new CANNON.Vec3(right.x, 0, right.z), moveVelocity);
-        avatarBody.velocity.set(moveVelocity.x, avatarBody.velocity.y, moveVelocity.z);
-    
-        // Check grounding using physics contacts (updated to check all scene objects)
-        avatarBody.isGrounded = false;
-        world.contacts.forEach(contact => {
-            sceneObjects.forEach(obj => {
-                if (obj.userData && obj.userData.body) {
-                    if ((contact.bi === avatarBody && contact.bj === obj.userData.body) || 
-                        (contact.bi === obj.userData.body && contact.bj === avatarBody)) {
-                        avatarBody.isGrounded = true;
+    if (controls.isLocked) {
+        if (avatarMesh && avatarBody) {
+            // Existing avatar movement code
+            console.log('Avatar movement active');
+            console.log(`Avatar position: ${avatarMesh.position.toArray()}, Camera position: ${camera.position.toArray()}`);
+
+            const camDirection = new THREE.Vector3();
+            camera.getWorldDirection(camDirection);
+            camDirection.y = 0;
+            camDirection.normalize();
+
+            const baseSpeed = 4.0;
+            const walkSpeed = keys.has('shift') ? baseSpeed * 2 : baseSpeed; // Double speed when Shift is pressed
+            const forward = camDirection.clone().multiplyScalar(walkSpeed);
+            const right = new THREE.Vector3().crossVectors(camDirection, new THREE.Vector3(0, 1, 0)).normalize().multiplyScalar(walkSpeed);
+
+            const moveVelocity = new CANNON.Vec3(0, avatarBody.velocity.y, 0);
+            if (keys.has('w')) moveVelocity.vadd(new CANNON.Vec3(forward.x, 0, forward.z), moveVelocity);
+            if (keys.has('s')) moveVelocity.vadd(new CANNON.Vec3(-forward.x, 0, -forward.z), moveVelocity);
+            if (keys.has('a')) moveVelocity.vadd(new CANNON.Vec3(-right.x, 0, -right.z), moveVelocity);
+            if (keys.has('d')) moveVelocity.vadd(new CANNON.Vec3(right.x, 0, right.z), moveVelocity);
+            avatarBody.velocity.set(moveVelocity.x, avatarBody.velocity.y, moveVelocity.z);
+
+            // Check grounding using physics contacts
+            avatarBody.isGrounded = false;
+            world.contacts.forEach(contact => {
+                sceneObjects.forEach(obj => {
+                    if (obj.userData && obj.userData.body) {
+                        if ((contact.bi === avatarBody && contact.bj === obj.userData.body) || 
+                            (contact.bi === obj.userData.body && contact.bj === avatarBody)) {
+                            avatarBody.isGrounded = true;
+                        }
                     }
-                }
+                });
             });
-        });
 
-        // Jumping logic
-        if (keys.has(' ') && avatarBody.canJump && avatarBody.isGrounded) {
-            const jumpForce = 5;
-            avatarBody.velocity.y = jumpForce;
-            avatarBody.canJump = false;
-        }
-
-        // Reset canJump when landing
-        if (avatarBody.isGrounded && !avatarBody.wasGrounded) {
-            avatarBody.lastLandingTime = performance.now();
-            avatarBody.canJump = true;
-        }
-        avatarBody.wasGrounded = avatarBody.isGrounded;
-
-        if (avatarBody.lastLandingTime) {
-            const timeSinceLanding = (performance.now() - avatarBody.lastLandingTime) / 1000;
-            if (timeSinceLanding >= 0.5 && !avatarBody.isGrounded) {
+            // Jumping logic
+            if (keys.has(' ') && avatarBody.canJump && avatarBody.isGrounded) {
+                const jumpForce = 5;
+                avatarBody.velocity.y = jumpForce;
                 avatarBody.canJump = false;
             }
+
+            // Reset canJump when landing
+            if (avatarBody.isGrounded && !avatarBody.wasGrounded) {
+                avatarBody.lastLandingTime = performance.now();
+                avatarBody.canJump = true;
+            }
+            avatarBody.wasGrounded = avatarBody.isGrounded;
+
+            if (avatarBody.lastLandingTime) {
+                const timeSinceLanding = (performance.now() - avatarBody.lastLandingTime) / 1000;
+                if (timeSinceLanding >= 0.5 && !avatarBody.isGrounded) {
+                    avatarBody.canJump = false;
+                }
+            }
+
+            // Sync mesh with body and keep upright
+            avatarBody.quaternion.set(0, 0, 0, 1); // Keep avatar upright
+            avatarMesh.position.copy(avatarBody.position);
+            avatarMesh.position.y -= avatarMesh.sizeY / 2; // Base at physics body center minus half height
+            const targetQuaternion = new THREE.Quaternion().setFromUnitVectors(
+                new THREE.Vector3(0, 0, 1),
+                camDirection
+            );
+            avatarMesh.quaternion.slerp(targetQuaternion, 0.1);
+
+            // Update camera to follow avatar
+            cameraController.update();
+        } else {
+
+            // Move Spectator Camera
+            const moveSpeed = 0.1;
+            if (keys.has('w')) controls.moveForward(moveSpeed);
+            if (keys.has('s')) controls.moveForward(-moveSpeed);
+            if (keys.has('a')) controls.moveRight(-moveSpeed);
+            if (keys.has('d')) controls.moveRight(moveSpeed);
+            if (keys.has(' ')) camera.position.y += moveSpeed;
+            if (keys.has('control')) camera.position.y -= moveSpeed;
         }
-    
-        // Sync mesh with body and keep upright
-        avatarBody.quaternion.set(0, 0, 0, 1); // Keep avatar upright
-        avatarMesh.position.copy(avatarBody.position);
-        avatarMesh.position.y -= avatarMesh.sizeY / 2; // Base at physics body center minus half height
-        const targetQuaternion = new THREE.Quaternion().setFromUnitVectors(
-            new THREE.Vector3(0, 0, 1),
-            camDirection
-        );
-        avatarMesh.quaternion.slerp(targetQuaternion, 0.1);
-    
-        // Update camera
-        cameraController.update();
     }
 
     // Sync all scene objects with their physics bodies
@@ -88,7 +101,7 @@ export function animate() {
             obj.quaternion.copy(obj.userData.body.quaternion);
         }
     });
-    
+
     animationMixers.forEach(mixer => mixer.update(delta));
     renderer.render(scene, camera);
 }

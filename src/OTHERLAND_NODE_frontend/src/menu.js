@@ -8,7 +8,6 @@ document.addEventListener('pointerlockchange', () => {
     const menu = document.getElementById('menu');
     if (!document.pointerLockElement) {
         menu.style.display = 'flex'; // Show the menu when pointer lock is released
-        controls.locked = false;     // Update controls state to unlocked
         keys.clear();                // Clear any active key presses
         const closeBtn = document.getElementById('close-btn');
         closeBtn.disabled = true;    // Disable the close button temporarily
@@ -34,7 +33,6 @@ document.addEventListener('keydown', event => {
         if (!isMenuVisible) {
             menu.style.display = 'flex'; // Show the menu if it's not visible
             controls.unlock();           // Unlock the pointer controls
-            controls.locked = false;     // Update controls state
             keys.clear();                // Clear active keys
         }
     }
@@ -54,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
     startBtn.addEventListener('click', () => {
         document.getElementById('start-overlay').style.display = 'none';
         controls.lock();          // Lock the pointer for game control
-        controls.locked = true;   // Update controls state to locked
+        canvas.focus();           // Focus on the canvas for input
     });
 
     // **Clear Khets Button**
@@ -77,7 +75,6 @@ document.addEventListener('DOMContentLoaded', () => {
         menu.style.display = 'none';           // Hide the game menu
         startOverlay.style.display = 'flex';   // Show the start overlay
         controls.unlock();                     // Unlock pointer controls
-        controls.locked = false;               // Update controls state
         keys.clear();                          // Clear active keys
     });
 
@@ -101,9 +98,8 @@ document.addEventListener('DOMContentLoaded', () => {
     closeBtn.addEventListener('click', () => {
         const menu = document.getElementById('menu');
         menu.style.display = 'none'; // Hide the menu
-        canvas.focus();              // Focus on the canvas for input
         controls.lock();             // Lock the pointer for game control
-        controls.locked = true;      // Update controls state
+        canvas.focus();              // Focus on the canvas for input
     });
 
     // **UI Toggle Checkboxes**

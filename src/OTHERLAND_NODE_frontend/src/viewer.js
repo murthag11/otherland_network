@@ -20,7 +20,6 @@ camera.position.set(0, 1, 2); // Position camera slightly above and back from or
 
 // Initialize pointer lock controls for first-person navigation
 export const controls = new THREE.PointerLockControls(camera, renderer.domElement);
-controls.locked = false; // Track whether controls are locked (initially unlocked)
 
 // **Mouse Movement Handling**
 // Define pitch constraints to prevent camera flipping
@@ -78,7 +77,7 @@ export class CameraController {
 
     // Handle zooming with the mouse wheel
     handleScroll(event) {
-        if (!this.target || !controls.locked) return; // Only zoom if target exists and controls are locked
+        if (!this.target || !controls.isLocked) return; // Only zoom if target exists and controls are locked
         const zoomDelta = event.deltaY > 0 ? -this.zoomSpeed : this.zoomSpeed; // Zoom in or out
         this.scrollFactor = (this.scrollFactor || 1.0) + zoomDelta; // Adjust scroll factor
         this.scrollFactor = Math.max(0.5, Math.min(1.5, this.scrollFactor)); // Clamp zoom range
