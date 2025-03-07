@@ -10,8 +10,7 @@ using esprima for code interpretation
 written by Grok3
 
 `To do`
-- If no Avatar, Spectator Camera (Float, Ctrl/Space)
-- Correct Mesh to Physics
+- Correct Khet Size when Scale is in use.
 - Local Khet cache
 - Style Menu and Areas
 - Universal Loading Bar

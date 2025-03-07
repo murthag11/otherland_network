@@ -220,6 +220,11 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
             await new Promise((resolve) => {
                 loader.parse(gltfData.buffer, '', (gltf) => {
                     const object = gltf.scene;
+
+                    // Scale Object
+                    object.scale.set(khet.scale[0], khet.scale[1], khet.scale[2]);
+
+                    // Add Object to Scene
                     scene.add(object);
                     sceneObjects.push(object);
 
@@ -236,8 +241,6 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                         khet.position[2] - center.z  // Center Z
                     );
                     console.log(minY);
-                    
-                    object.scale.set(khet.scale[0], khet.scale[1], khet.scale[2]);
 
                     // Physics body setup
                     let shape;
