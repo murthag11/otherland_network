@@ -87,11 +87,12 @@ export class CameraController {
     update() {
         if (!this.target) return;
     
-        // Compute current world-space center
+        // Get the avatar's bounding box and center
         const box = new THREE.Box3().setFromObject(this.target);
         const center = box.getCenter(new THREE.Vector3());
-        // const avatarTopY = box.max.y;
+        this.minDistance = box.max.y - box.min.y;
     
+        // Camera direction and pitch angle
         const camDirection = new THREE.Vector3();
         this.camera.getWorldDirection(camDirection);
         camDirection.normalize();
@@ -100,7 +101,7 @@ export class CameraController {
         camDirection.y = 0;
         camDirection.normalize();
     
-        // Adjusted offsets relative to center
+        // Adjusted offsets depending on camera pitch angle
         const aheadOffset = new THREE.Vector3(0, 1, 2.5); // Behind center at same height
         const downOffset = new THREE.Vector3(0, 3, 0);   // Above center when looking down
         const upOffset = new THREE.Vector3(0, 0, 0.5);  // Below and closer when looking up
@@ -109,28 +110,42 @@ export class CameraController {
         const horizontalOffset = camDirection.clone().multiplyScalar(-cameraOffset.z);
         const finalOffset = new THREE.Vector3(horizontalOffset.x, cameraOffset.y, horizontalOffset.z);
         const idealPos = center.clone().add(finalOffset); // Use center instead of this.target.position
-    
-        // Raycasting
-        const rayDir = idealPos.clone().sub(center).normalize();
-        this.raycaster.set(center, rayDir);
-        const objectsToCheck = sceneObjects.filter(obj => obj !== this.target);
-        const intersects = this.raycaster.intersectObjects(objectsToCheck, true);
-        let finalPos = idealPos;
-        const avatarDistance = idealPos.distanceTo(center);
-    
-        if (intersects.length > 0 && intersects[0].distance < finalOffset.length()) {
-            const newDist = Math.max(intersects[0].distance * 0.9, this.minDistance);
-            finalPos = center.clone().add(rayDir.multiplyScalar(newDist));
-        } else if (avatarDistance < this.minDistance) {
-            finalPos = center.clone().add(rayDir.multiplyScalar(this.minDistance));
-        }
-    
-        const directionToFinal = finalPos.clone().sub(center);
+
+        // Apply scroll factor while respecting minimal Distance
+        const directionToFinal = idealPos.clone().sub(center);
         const baseDistance = directionToFinal.length();
         const scrollFactor = this.scrollFactor || 1.0;
-        const adjustedDistance = baseDistance * scrollFactor;
+        const adjustedDistance = Math.max(baseDistance * scrollFactor, this.minDistance);
         const adjustedPos = center.clone().add(directionToFinal.normalize().multiplyScalar(adjustedDistance));
-        this.camera.position.copy(adjustedPos);
+
+        // Raycasting and obstruction checking
+        const rayOriginOffset = new THREE.Vector3(0, this.minDistance * 0.5, 0); // 50% of height
+        const rayOrigin = center.clone().add(rayOriginOffset);
+        const rayDir = adjustedPos.clone().sub(center).normalize();
+        this.raycaster.set(rayOrigin, rayDir);
+        
+        // Check intersections with scene objects (excluding the avatar)
+        const objectsToCheck = sceneObjects.filter(obj => obj !== this.target);
+        const intersects = this.raycaster.intersectObjects(objectsToCheck, true);
+        let finalPos = adjustedPos;
+
+        // Check for obstructions and adjust position
+        if (intersects.length > 0 && intersects[0].distance < idealPos.distanceTo(rayOrigin)) {
+
+            // Move camera to 90% of the obstruction distance, but not closer than minDistance
+            const newDist = Math.max(intersects[0].distance * 0.9, this.minDistance);
+            finalPos = center.clone().add(rayDir.multiplyScalar(newDist));
+        } else if (idealPos.distanceTo(center) < this.minDistance) {
+
+            // Ensure camera stays outside avatar if no intersections
+            finalPos = center.clone().add(rayDir.multiplyScalar(this.minDistance));
+        }
+
+        this.camera.position.copy(finalPos);
+
+        console.log(`Camera x: ${this.camera.position.x}, Center x: ${center.x}, Ideal x: ${idealPos.x}`);
+        console.log(`Camera y: ${this.camera.position.y}, Center y: ${center.y}, Ideal y: ${idealPos.y}`);
+        console.log(`Camera z: ${this.camera.position.z}, Center z: ${center.z}, Ideal z: ${idealPos.z}`);
     }
 
     // Set the target mesh and initialize camera position
@@ -140,8 +155,9 @@ export class CameraController {
 
             // Compute the bounding box and get the center
             const box = new THREE.Box3().setFromObject(mesh);
+            const size = box.getSize(new THREE.Vector3());
+            this.minDistance = box.max.y - box.min.y;
             const center = box.getCenter(new THREE.Vector3());
-            this.targetCenter = center; // Store for reference (optional)
     
             // Set initial camera position behind and level with the center
             const direction = new THREE.Vector3(0, 0, -1); // Backward direction
