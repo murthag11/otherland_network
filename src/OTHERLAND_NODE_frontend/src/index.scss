@@ -1,111 +1,269 @@
-body { margin: 0; }
+// Variables for consistent theming
+$primary-color: #00d4ff;
+$secondary-color: #ffffff;
+$background-dark: rgba(0, 0, 0, 0.9);
+$background-semi: rgba(0, 0, 0, 0.7);
+$accent-color: #ff007a;
+$font-family: 'Orbitron', Arial, sans-serif;
+
+// Mixins for reusability
+@mixin flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+@mixin button-style {
+  padding: 12px 20px;
+  background: linear-gradient(45deg, $primary-color, $accent-color);
+  color: $secondary-color;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: transform 0.2s, opacity 0.2s;
+  &:hover {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+}
+
+// Base styles
+body {
+  margin: 0;
+  background: #0a0a0a;
+  font-family: $font-family;
+  overflow: hidden;
+}
+
 canvas {
-    width: 100%;
-    height: 100%;
-    display: block;
+  width: 100vw;
+  height: 100vh;
+  display: block;
 }
+
+// Start Overlay
 #start-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.7);
-    display: flex;
-    justify-content:center;
-    align-items: center;
+  @include flex-center;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: $background-semi;
+  z-index: 1000;
+
+  #start-btn, #clear-khets-btn {
+    @include button-style;
+    margin: 15px;
+  }
+
+  #upload-block {
+    background: $background-dark;
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid $primary-color;
+    box-shadow: 0 0 15px rgba($primary-color, 0.3);
+
+    h2 {
+      color: $primary-color;
+      margin: 0 0 15px;
+      font-size: 20px;
+    }
+
+    select, input {
+      display: block;
+      width: 100%;
+      margin: 10px 0;
+      padding: 8px;
+      background: #222;
+      color: $secondary-color;
+      border: 1px solid $primary-color;
+      border-radius: 5px;
+    }
+
+    label {
+      color: $secondary-color;
+      margin: 10px 0 5px;
+    }
+  }
 }
-#menu, #chat, #friends-list, #own-info, #map {
-    position: absolute;
-    background: rgba(0, 0, 0, 0.8);
-    color: #fff;
-    font-family: Arial, sans-serif;
-    padding: 10px;
-    border-radius: 5px;
-}
+
+// Game Menu
 #menu {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: $background-dark;
+  color: $secondary-color;
+  padding: 20px;
+  border-radius: 15px;
+  border: 1px solid $primary-color;
+  box-shadow: 0 0 20px rgba($primary-color, 0.2);
+  width: 90%;
+  max-width: 400px;
+  z-index: 999;
+
+  h1 {
+    margin: 0 0 20px;
+    font-size: 28px;
+    color: $primary-color;
+    text-shadow: 0 0 5px rgba($primary-color, 0.5);
+  }
+
+  .page {
     display: none;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
-    flex-direction: column;
-    align-items: center;
-    width: 300px;
-}
-#menu h1 {
-    margin: 0 0 20px 0;
-    font-size: 24px;
-}
-#menu button {
-    display: block;
-    width: 150px;
-    padding: 10px;
+    &.active {
+      display: block;
+    }
+  }
+
+  button {
+    @include button-style;
+    width: 100%;
     margin: 10px 0;
-    background: #444;
-    color: #fff;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 16px;
-}
-#close-btn:disabled {
+  }
+
+  #close-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    background-color: #ccc; // Optional: lighter background
-}
-#menu .page {
-    display: none; /* Hide pages by default */
-}
-#menu .page.active {
-    display: block; /* Show active page */
-}
-#chat {
-    bottom: 10px;
-    left: 10px;
-    width: 250px;
-    height: 150px;
-}
-#chat h3 {
-    margin: 0;
-}
-#chat #chat-messages {
-    height: 100px;
+    background: #444;
+  }
+
+  #settings-page, #avatar-page {
+    h2 {
+      color: $primary-color;
+      margin: 0 0 15px;
+    }
+
+    label {
+      color: $secondary-color;
+      margin: 10px 0;
+      display: block;
+    }
+
+    input[type="checkbox"] {
+      margin-right: 10px;
+    }
+  }
+
+  #avatar-page {
+    max-height: 50vh;
     overflow-y: auto;
-    border: 1px solid #fff;
-    padding: 5px;
+  }
 }
-#chat #chat-input {
-    float: left;
-    width: 190px;
-    margin-top: 5px;
+
+// UI Areas
+#chat, #friends-list, #own-info, #map {
+  position: fixed;
+  background: $background-dark;
+  color: $secondary-color;
+  padding: 15px;
+  border-radius: 10px;
+  border: 1px solid $primary-color;
+  box-shadow: 0 0 10px rgba($primary-color, 0.2);
 }
-#chat #send-chat-btn {
-    float: left;
+
+#chat {
+  bottom: 20px;
+  left: 20px;
+  width: 300px;
+  max-height: 30vh;
+
+  h3 {
+    margin: 0 0 10px;
+    color: $primary-color;
+  }
+
+  #chat-messages {
+    height: 150px;
+    overflow-y: auto;
+    border: 1px solid $primary-color;
+    padding: 10px;
+    background: #111;
+    margin-bottom: 10px;
+  }
+
+  #chat-input {
+    width: calc(100% - 70px);
+    padding: 8px;
+    background: #222;
+    color: $secondary-color;
+    border: 1px solid $primary-color;
+    border-radius: 5px;
+  }
+
+  #send-chat-btn {
+    @include button-style;
+    width: 60px;
+    padding: 8px;
+    margin-left: 10px;
+  }
 }
+
 #friends-list {
-    top: 10px;
-    left: 10px;
-    width: 200px;
-    height: 200px;
+  top: 20px;
+  left: 20px;
+  width: 250px;
+  height: 300px;
 }
+
 #own-info {
-    top: 10px;
-    right: 10px;
-    width: 200px;
-    height: 100px;
+  top: 20px;
+  right: 20px;
+  width: 250px;
+  height: 120px;
 }
+
 #map {
+  bottom: 20px;
+  right: 20px;
+  width: 250px;
+  height: 250px;
+}
+
+// Responsive Design
+@media (max-width: 768px) {
+  #menu {
+    width: 95%;
+    max-width: none;
+    padding: 15px;
+  }
+
+  #chat {
+    width: 90%;
+    left: 5%;
     bottom: 10px;
-    right: 10px;
-    width: 200px;
+    max-height: 25vh;
+  }
+
+  #friends-list, #own-info, #map {
+    width: 45%;
+  }
+
+  #friends-list {
+    top: 10px;
+    left: 5%;
     height: 200px;
-}
-#avatar-page {
-    max-height: 300px;
-    overflow-y: auto; /* Scrollable */
-}
-#avatar-page button {
-    width: 100%;
-    margin: 5px 0;
+  }
+
+  #own-info {
+    top: 220px;
+    right: 5%;
+    height: 100px;
+  }
+
+  #map {
+    bottom: 10px;
+    right: 5%;
+    height: 200px;
+  }
+
+  #start-overlay {
+    #upload-block {
+      width: 90%;
+      padding: 15px;
+    }
+  }
 }
