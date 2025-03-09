@@ -1,6 +1,6 @@
 // Import necessary components from viewer.js and khet.js
-import { controls, canvas } from './viewer.js';
-import { clearAllKhets } from './khet.js';
+import { controls, canvas, scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController, avatarMesh, avatarBody } from './viewer.js';
+import { khetController, clearAllKhets, loadKhet } from './khet.js';
 
 // ### Pointer Lock State Handling
 // Listen for changes in the pointer lock state to manage menu visibility
@@ -46,13 +46,41 @@ document.addEventListener('keyup', event => {
 // ### Menu Navigation and UI Toggling
 // Wait for the DOM to load before setting up event listeners
 document.addEventListener('DOMContentLoaded', () => {
+    let selectedAvatarId = null;
+
+    // **Main Menu**
+    const mainPage = document.getElementById('main-page');
+
     // **Start Button**
     // Start the game by hiding the start overlay and locking controls
     const startBtn = document.getElementById('start-btn');
-    startBtn.addEventListener('click', () => {
+    startBtn.addEventListener('click', async () => {
         document.getElementById('start-overlay').style.display = 'none';
         controls.lock();          // Lock the pointer for game control
         canvas.focus();           // Focus on the canvas for input
+
+        // Load Avatar
+        if (selectedAvatarId) { 
+            try {
+                const { avatarMesh: newAvatarMesh, avatarBody: newAvatarBody } = await loadKhet(selectedAvatarId, {
+                    scene,
+                    sceneObjects,
+                    world,
+                    groundMaterial,
+                    animationMixers,
+                    khetState,
+                    cameraController
+                });
+                if (newAvatarMesh && newAvatarBody) {
+                    
+                    // Update global avatar references from viewer.js
+                    window.avatarMesh = newAvatarMesh;
+                    window.avatarBody = newAvatarBody;
+                }
+            } catch (error) {
+                console.error('Failed to load avatar:', error);
+            }
+        }
     });
 
     // **Clear Khets Button**
@@ -63,17 +91,12 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Khets cleared from menu'); // Log confirmation
     });
 
-    // **Main Menu Page**
-    const mainPage = document.getElementById('main-page');
-
     // **Home Button**
     // Return to the start overlay and unlock controls
     const homeBtn = document.getElementById('home-btn');
     homeBtn.addEventListener('click', () => {
-        const menu = document.getElementById('menu');
-        const startOverlay = document.getElementById('start-overlay');
-        menu.style.display = 'none';           // Hide the game menu
-        startOverlay.style.display = 'flex';   // Show the start overlay
+        document.getElementById('menu').style.display = 'none';           // Hide the game menu
+        document.getElementById('start-overlay').style.display = 'flex';  // Show the start overlay
         controls.unlock();                     // Unlock pointer controls
         keys.clear();                          // Clear active keys
     });
@@ -81,7 +104,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // **Avatar Page**
     const avatarPage = document.getElementById('avatar-page');
     const avatarBtn = document.getElementById('avatar-btn');
-    avatarBtn.addEventListener('click', () => showPage(avatarPage)); // Show avatar selection page
+    avatarBtn.addEventListener('click', () => {
+        showPage(avatarPage); // Show avatar selection page
+        populateAvatarButtons(); // Load Avatars
+    });
     const backAvatarBtn = document.getElementById('back-avatar-btn');
     backAvatarBtn.addEventListener('click', () => showPage(mainPage)); // Return to main menu
 
@@ -126,14 +152,24 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // **Avatar Selection Buttons**
-    // Add click handlers to avatar selection buttons
-    const avatarButtons = avatarPage.querySelectorAll('button[data-avatar]');
-    avatarButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const avatarNum = button.getAttribute('data-avatar');
-            console.log(`Selected Avatar ${avatarNum}`); // Log selected avatar (placeholder)
+    // Populate avatar selection buttons
+    function populateAvatarButtons() {
+        const avatars = khetController.getAvatars();
+        const avatarButtonsContainer = avatarPage.querySelector('.avatar-buttons') || avatarPage;
+        avatarButtonsContainer.innerHTML = ''; // Clear existing buttons
+        avatars.forEach((avatar, index) => {
+            const button = document.createElement('button');
+            button.textContent = `Avatar ${index + 1}`;
+            button.setAttribute('data-avatar', avatar.khetId);
+            button.addEventListener('click', () => {
+                selectedAvatarId = avatar.khetId;
+                console.log(`Selected Avatar ${avatar.khetId}`);
+            });
+            avatarButtonsContainer.appendChild(button);
         });
-    });
+        const backButton = document.getElementById('back-avatar-btn');
+        avatarButtonsContainer.appendChild(backButton); // Re-append back button
+    }
 
     // **Page Switching Function**
     // Helper function to switch between menu pages

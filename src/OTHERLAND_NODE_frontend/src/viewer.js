@@ -199,14 +199,17 @@ document.getElementById('upload-khet').addEventListener('change', async (event) 
         const textures = event.target.files[1] ? { 'texture1': event.target.files[1] } : {}; // Optional texture file
         try {
 
+            // Read Code from Input or Agent
+            const khetCode = 'object.rotation.y += 0.01;';
+            
             // Create a Khet object with a simple rotation behavior
-            const khet = await createKhet(file, khetType, textures, 'object.rotation.y += 0.01;');
+            const khet = await createKhet(file, khetType, textures, khetCode);
 
             // Upload the Khet to the backend (hardcoded canister ID)
-            await uploadKhet(khet, 'be2us-64aaa-aaaaa-qaabq-cai');
-
-            // Load the uploaded Khet into the scene
-            const { avatarMesh: newAvatarMesh, avatarBody: newAvatarBody } = await loadKhet(khet.khetId, {
+            const khetWithRef = await uploadKhet(khet, 'be2us-64aaa-aaaaa-qaabq-cai');
+            
+            // Load the Khet into the scene
+            const { avatarMesh: newAvatarMesh, avatarBody: newAvatarBody } = await loadKhet(khetWithRef.khetId, {
                 scene,
                 sceneObjects,
                 world,

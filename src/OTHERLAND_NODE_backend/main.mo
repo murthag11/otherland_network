@@ -43,6 +43,11 @@ actor Node {
   stable var khetStore : [(Text, Khet)] = [];
   // In-memory HashMap for efficient Khet access
   var khets = HashMap.HashMap<Text, Khet>(10, Text.equal, Text.hash);
+  
+  // Stable storage for pending Khets (not yet finalized)
+  stable var pendingKhetStore : [(Text, Khet)] = [];
+  // In-memory HashMap for pending Khets
+  var pendingKhets = HashMap.HashMap<Text, Khet>(10, Text.equal, Text.hash);
 
   // Stable storage for chunk data, used during uploads
   stable var chunkStoreStable : [(Text, [(Nat, Blob)])] = [];
@@ -52,12 +57,14 @@ actor Node {
   // Preupgrade system function to save state before a canister upgrade
   system func preupgrade() {
     khetStore := Iter.toArray(khets.entries());          // Save Khets to stable storage
+    pendingKhetStore := Iter.toArray(pendingKhets.entries()); // Save pending Khets
     chunkStoreStable := Iter.toArray(chunkStore.entries()); // Save chunks to stable storage
   };
 
   // Postupgrade system function to restore state after an upgrade
   system func postupgrade() {
     khets := HashMap.fromIter<Text, Khet>(khetStore.vals(), 10, Text.equal, Text.hash); // Restore Khets
+    pendingKhets := HashMap.fromIter<Text, Khet>(pendingKhetStore.vals(), 10, Text.equal, Text.hash); // Restore pending Khets
     chunkStore := HashMap.fromIter<Text, [(Nat, Blob)]>(chunkStoreStable.vals(), 10, Text.equal, Text.hash); // Restore chunks
   };
 
@@ -79,6 +86,40 @@ actor Node {
     };
   };
 
+  // Initialize a Khet upload (store temporarily without finalizing)
+  public func initKhetUpload(khet : Khet) : async () {
+    //Debug.print("Initializing Khet upload: " # khet.khetId);
+    pendingKhets.put(khet.khetId, khet);
+  };
+
+  // Finalize a Khet upload after chunks are uploaded
+  public func finalizeKhetUpload(khetId : Text, storageCanisterId : Principal, blobId : Text, totalChunks : Nat) : async ?Text {
+    let khetOpt = pendingKhets.get(khetId);
+    switch (khetOpt) {
+      case (null) {
+        return ?"Khet not found in pending store";
+      };
+      case (?khet) {
+        let storageActor = actor (Principal.toText(storageCanisterId)) : actor {
+          finalizeBlob : (Text, Nat, Nat) -> async ?Text;
+        };
+        let finalizeResult = await storageActor.finalizeBlob(blobId, khet.gltfDataRef.2, totalChunks);
+        switch (finalizeResult) {
+          case (?error) {
+            return ?error; // Return error if finalization fails
+          };
+          case (null) {
+            khets.put(khet.khetId, khet);       // Move to permanent storage
+            pendingKhets.delete(khet.khetId);    // Remove from pending
+            chunkStore.delete(khet.khetId);      // Clean up chunks
+            //Debug.print("Khet finalized and stored: " # khet.khetId);
+            return null;                         // Success
+          };
+        };
+      };
+    };
+  };
+
   // Store a chunk of a Khet's data during upload
   public func storeKhetChunk(khetId : Text, chunkIndex : Nat, chunkData : Blob) : async () {
     let existingChunks = Option.get(chunkStore.get(khetId), []); // Get existing chunks or empty array
@@ -88,7 +129,11 @@ actor Node {
 
   // Query function to retrieve a Khet by its ID
   public query func getKhet(khetId : Text) : async ?Khet {
-    khets.get(khetId) // Return the Khet if found, otherwise null
+    let khet = khets.get(khetId);
+    switch (khet) {
+      case (?k) { return ?k; };
+      case (null) { return pendingKhets.get(khetId); }; // Check pending if not in main store
+    };
   };
 
   // Query function to get all Khets
@@ -108,8 +153,9 @@ actor Node {
     Array.map<(Text, Khet), Khet>(filteredKhets, func((_, khet) : (Text, Khet)) : Khet { khet }) // Extract Khet values
   };
 
-  // Abort a Khet upload by deleting its chunks
+  // Abort a Khet upload by deleting its chunks and pending entry
   public func abortKhetUpload(khetId : Text) : async () {
+    pendingKhets.delete(khetId);
     chunkStore.delete(khetId); // Remove temporary chunks for the given Khet ID
   };
 
@@ -120,6 +166,7 @@ actor Node {
     };
     await storageActor.clearBlobs(); // Clear all blobs in the storage canister
     khets := HashMap.HashMap<Text, Khet>(10, Text.equal, Text.hash); // Reset Khet storage
+    pendingKhets := HashMap.HashMap<Text, Khet>(10, Text.equal, Text.hash); // Reset pending Khet storage
     chunkStore := HashMap.HashMap<Text, [(Nat, Blob)]>(10, Text.equal, Text.hash); // Reset chunk storage
   };
 };

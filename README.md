@@ -88,6 +88,7 @@ Optional:
 
 `Grok Suggestions`
 
+document.getElementsByClassName("w-full max-w-3xl flex flex-col")[document.getElementsByClassName("w-full max-w-3xl flex flex-col").length - 1].style.maxWidth = "80rem";
 
 Viewer.js:
 
