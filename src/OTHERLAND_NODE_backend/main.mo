@@ -91,6 +91,11 @@ actor Node {
     khets.get(khetId) // Return the Khet if found, otherwise null
   };
 
+  // Query function to get all Khets
+  public query func getAllKhets() : async [Khet] {
+      Iter.toArray(khets.vals()) // Return all Khets
+  };
+
   // Query function to get all Khets of type SceneObject
   public query func getSceneObjectKhets() : async [Khet] {
     let allKhets = Iter.toArray(khets.entries()); // Get all Khets as an array

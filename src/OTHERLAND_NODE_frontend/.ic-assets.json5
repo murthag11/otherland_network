@@ -22,6 +22,13 @@
     "security_policy": "hardened"
   },
   {
+    "match": "*.woff2",
+    "headers": {
+      "Content-Security-Policy": "default-src 'self'; object-src 'none';  font-src fonts.gstatic.com"
+    },
+    "security_policy": "hardened"
+  },
+  {
     "match": "*.ico",
     "headers": {
       "Content-Security-Policy": "default-src 'self'; object-src 'none';"

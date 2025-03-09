@@ -10,7 +10,6 @@ using esprima for code interpretation
 written by Grok3
 
 `To do`
-- Correct Khet Size when Scale is in use.
 - Local Khet cache
 - Style Menu and Areas
 - Universal Loading Bar
@@ -18,6 +17,9 @@ written by Grok3
 - bash npm 5 moderate severity vulnerabilities
 - Peer.js WebRTC Communication
 - Audiofield (50m | 20 Sources Limit)
+- Objects can send other other obejcts code -> interactive environment
+- Connect to Orbit Wallet
+- SNS Dao
 
 
 `Plan`
