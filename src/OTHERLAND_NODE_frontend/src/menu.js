@@ -1,18 +1,18 @@
 // Import necessary components from viewer.js and khet.js
-import { controls, canvas, scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController, avatarMesh, avatarBody } from './viewer.js';
+import { controls, canvas, scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController, avatarMesh, avatarBody, loadTreeHouse } from './viewer.js';
 import { khetController, clearAllKhets, loadKhet } from './khet.js';
 
 // ### Pointer Lock State Handling
 // Listen for changes in the pointer lock state to manage menu visibility
 document.addEventListener('pointerlockchange', () => {
-    const menu = document.getElementById('menu');
+    const gameMenu = document.getElementById('game-menu');
     if (!document.pointerLockElement) {
-        menu.style.display = 'flex'; // Show the menu when pointer lock is released
-        keys.clear();                // Clear any active key presses
+        gameMenu.style.display = 'flex'; // Show the menu when pointer lock is released
+        keys.clear();                    // Clear any active key presses
         const closeBtn = document.getElementById('close-btn');
-        closeBtn.disabled = true;    // Disable the close button temporarily
+        closeBtn.disabled = true;        // Disable the close button temporarily
         setTimeout(() => {
-            closeBtn.disabled = false; // Re-enable the close button after 1.25 seconds
+            closeBtn.disabled = false;   // Re-enable the close button after 1.25 seconds
         }, 1250);
     }
 });
@@ -26,12 +26,13 @@ document.addEventListener('keydown', event => {
     const key = event.key.toLowerCase();
     keys.add(key); // Add pressed key to the set
 
+    // Handle ESC key seperatly
     if (key === 'escape') {
-        const menu = document.getElementById('menu');
-        const isMenuVisible = menu.style.display === 'flex';
+        const gameMenu = document.getElementById('game-menu');
+        const isMenuVisible = gameMenu.style.display === 'flex';
 
         if (!isMenuVisible) {
-            menu.style.display = 'flex'; // Show the menu if it's not visible
+            gameMenu.style.display = 'flex'; // Show the game menu if it's not visible
             controls.unlock();           // Unlock the pointer controls
             keys.clear();                // Clear active keys
         }
@@ -46,16 +47,22 @@ document.addEventListener('keyup', event => {
 // ### Menu Navigation and UI Toggling
 // Wait for the DOM to load before setting up event listeners
 document.addEventListener('DOMContentLoaded', () => {
+
+    // Declare Variables
     let selectedAvatarId = null;
+    const startScreen = document.getElementById('start-screen');
+    const mainMenu = document.getElementById('main-menu');
+    const accountSwitcher = document.getElementById('account-switcher');
+    const welcomeMessage = document.getElementById('welcome-message');
+    const tabs = document.querySelectorAll('.tab');
 
     // **Main Menu**
     const mainPage = document.getElementById('main-page');
 
-    // **Start Button**
-    // Start the game by hiding the start overlay and locking controls
-    const startBtn = document.getElementById('start-btn');
-    startBtn.addEventListener('click', async () => {
-        document.getElementById('start-overlay').style.display = 'none';
+    // Enter TreeHouse
+    const enterTreehouseBtn = document.getElementById('enter-treehouse-btn');
+    enterTreehouseBtn.addEventListener('click', async () => {
+        document.getElementById('main-menu').style.display = 'none';
         controls.lock();          // Lock the pointer for game control
         canvas.focus();           // Focus on the canvas for input
 
@@ -72,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     cameraController
                 });
                 if (newAvatarMesh && newAvatarBody) {
-                    
+
                     // Update global avatar references from viewer.js
                     window.avatarMesh = newAvatarMesh;
                     window.avatarBody = newAvatarBody;
@@ -179,4 +186,52 @@ document.addEventListener('DOMContentLoaded', () => {
         avatarPage.classList.remove('active');
         page.classList.add('active'); // Activate the selected page
     }
+
+    // Start Screen Buttons
+    const connectIIBtn = document.getElementById('connect-ii-btn');
+    const continueGuestBtn = document.getElementById('continue-guest-btn');
+    connectIIBtn.addEventListener('click', () => {
+        console.log('Connecting to Internet Identity...');
+        moveToAccountSwitcher(connectIIBtn);
+        showMainMenu();
+    });
+    continueGuestBtn.addEventListener('click', () => {
+        console.log('Continuing as guest...');
+        moveToAccountSwitcher(continueGuestBtn);
+        showMainMenu();
+    });
+
+    // Function to show main menu and hide start screen
+    function showMainMenu() {
+        startScreen.style.display = 'none';
+        mainMenu.style.display = 'block';
+    }
+
+    // Function to move button to account switcher
+    function moveToAccountSwitcher(button) {
+        const clonedButton = button.cloneNode(true);
+        accountSwitcher.innerHTML = '';
+        accountSwitcher.appendChild(clonedButton);
+    }
+
+    // Main Menu Buttons
+    const menuButtons = document.querySelectorAll('#menu-buttons button');
+    menuButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const tabId = button.id.replace('-btn', '-tab');
+            showTab(tabId);
+        });
+    });
+
+    // Function to show a specific tab
+    function showTab(tabId) {
+        welcomeMessage.style.display = 'none';
+        tabs.forEach(tab => {
+            tab.style.display = tab.id === tabId ? 'block' : 'none';
+        });
+    }
+
+    // Initially, show the start screen
+    startScreen.style.display = 'flex';
+    mainMenu.style.display = 'none';
 });

@@ -1,5 +1,6 @@
 // Import functions for managing Khet objects from khet.js
 import { createKhet, uploadKhet, loadKhet, loadSceneObjects } from './khet.js';
+import { animate } from './animation.js';
 
 // **Renderer Setup**
 // Get the canvas element from the DOM and initialize the WebGL renderer
@@ -254,7 +255,6 @@ async function loadFallbackGround() {
 
 // **Scene Initialization**
 // Import the animation function and initialize the scene
-import { animate } from './animation.js';
 (async () => {
 
     // Attempt to load scene objects from the backend

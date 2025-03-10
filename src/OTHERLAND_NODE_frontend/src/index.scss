@@ -31,6 +31,7 @@ $font-family: 'Orbitron', Arial, sans-serif;
   cursor: pointer;
   font-size: 16px;
   transition: transform 0.2s, opacity 0.2s;
+
   &:hover {
     transform: scale(1.05);
     opacity: 0.9;
@@ -51,9 +52,22 @@ canvas {
   display: block;
 }
 
-// Start Overlay
-#start-overlay {
+// Account Switcher
+#account-switcher {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 1001;
+
+  button {
+    @include button-style;
+  }
+}
+
+// Start Screen
+#start-screen {
   @include flex-center;
+  flex-direction: column;
   position: fixed;
   top: 0;
   left: 0;
@@ -62,44 +76,157 @@ canvas {
   background: $background-semi;
   z-index: 1000;
 
-  #start-btn, #clear-khets-btn {
+  button {
     @include button-style;
     margin: 15px;
   }
+}
 
-  #upload-block {
+// Main Menu
+#main-menu {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 999;
+
+  // Buttons
+  #menu-buttons {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 200px;
+    height: 100%;
     background: $background-dark;
-    padding: 20px;
-    border-radius: 10px;
-    border: 1px solid $primary-color;
-    box-shadow: 0 0 15px rgba($primary-color, 0.3);
+    padding: 40px 20px;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);
+
+    button {
+      @include button-style;
+      width: 100%;
+      margin: 20px 0;
+    }
+  }
+
+  #khet-type {
+    width: 300px;
+  }
+
+  // Tab Content
+  #tab-content {
+    position: absolute;
+    left: 220px;
+    top: 0;
+    width: calc(100% - 220px);
+    height: 100%;
+    background: $background-semi;
+    padding: 100px 20px;
+    overflow-y: auto;
+    color: $secondary-color;
 
     h2 {
       color: $primary-color;
       margin: 0 0 15px;
-      font-size: 20px;
     }
 
-    select, input {
-      display: block;
-      width: 100%;
-      margin: 10px 0;
-      padding: 8px;
-      background: #222;
+    h3 {
       color: $secondary-color;
+      margin: 15px 0 5px;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+
+      li {
+        padding: 5px 0;
+      }
+    }
+
+    button {
+      @include button-style;
+      margin: 5px 0;
+    }
+
+    .tab {
+      display: none;
+    }
+
+    #welcome-message {
+      color: $primary-color;
+      font-size: 24px;
+      text-align: center;
+      margin-top: 20%;
+    }
+
+    #khet-editor {
+      background: $background-dark;
+      padding: 15px;
+      border-radius: 10px;
       border: 1px solid $primary-color;
-      border-radius: 5px;
-    }
+      margin-top: 15px;
 
-    label {
-      color: $secondary-color;
-      margin: 10px 0 5px;
+      select,
+      input {
+        display: block;
+        width: 100%;
+        margin: 10px 0;
+        padding: 8px;
+        background: #222;
+        color: $secondary-color;
+        border: 1px solid $primary-color;
+        border-radius: 5px;
+      }
+
+      // Khet Type Selector and Upload Button
+      .upload-group {
+        display: flex;
+        align-items: center;
+        margin: 10px 0;
+
+        #khet-type {
+          width: 300px;
+          margin-right: 10px;
+        }
+
+        #upload-btn {
+          @include button-style;
+          width: 300px;
+        }
+      }
+
+      // X, Y, Z Input Group
+      .input-group {
+        display: flex;
+        align-items: center;
+        margin: 10px 0;
+
+        label {
+          margin-right: 10px;
+        }
+
+        input {
+          width: 100px;
+          margin-right: 10px;
+        }
+      }
+
+      label {
+        color: $secondary-color;
+        margin: 10px 0 5px;
+      }
     }
   }
 }
 
 // Game Menu
-#menu {
+#game-menu {
   position: fixed;
   display: none;
   top: 50%;
@@ -235,7 +362,18 @@ canvas {
 
 // Responsive Design
 @media (max-width: 768px) {
-  #menu {
+  #main-menu {
+    #menu-buttons {
+      width: 150px;
+    }
+
+    #tab-content {
+      left: 170px;
+      width: calc(100% - 170px);
+    }
+  }
+
+  #game-menu {
     width: 95%;
     max-width: none;
     padding: 15px;

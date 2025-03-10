@@ -10,42 +10,113 @@
 
 <body>
 
-    <!-- Game Area -->
-    <canvas id="canvas"></canvas>
+    <!-- Account Switcher (Top Right) -->
+    <div id="account-switcher">
+        <!-- Populated dynamically -->
+    </div>
 
-    <!-- Start Menu -->
-    <div id="start-overlay">
+    <!-- Start Screen -->
+    <div id="start-screen">
+        <button id="connect-ii-btn">Connect to Internet Identity</button>
+        <button id="continue-guest-btn">Continue as Guest</button>
+    </div>
 
-        <!-- Enter VR world -->
-        <button id="start-btn">Start</button>
+    <!-- Main Menu -->
+    <div id="main-menu">
+        <div id="menu-buttons">
+            <button id="otherland-btn">Otherland</button>
+            <button id="treehouse-btn">TreeHouse</button>
+            <button id="assets-btn">Assets</button>
+            <button id="store-btn">Store</button>
+            <button id="wallet-btn">Wallet</button>
+            <button id="settings-btn">Settings</button>
+        </div>
+        <div id="tab-content">
+            <div id="welcome-message">Welcome to Otherland Network</div>
+            <div id="otherland-tab" class="tab">
+                <h2>Otherland</h2>
+                <h3>Public Nodes</h3>
+                <ul>
+                    <li>PN1</li>
+                    <li>PN2</li>
+                </ul>
+                <h3>Private Nodes</h3>
+                <ul>
+                    <li>USER1</li>
+                    <li>Company_2</li>
+                </ul>
+            </div>
+            <div id="treehouse-tab" class="tab">
+                <h2>TreeHouse</h2>
 
-        <!-- Clear World -->
-        <button id="clear-khets-btn">Clear All Khets</button>
+                <!-- Enter VR world -->
+                <button id="enter-treehouse-btn">Enter TreeHouse</button>
 
-        <!-- Upload Block -->
-        <div id="upload-block">
-            <h2>Upload 3D Data</h2>
-            <select id="khet-type">
-                <option value="SceneObject">Scene Object</option>
-                <option value="InteractiveObject">Interactive Object</option>
-                <option value="MobileObject">Mobile Object</option>
-                <option value="Entity">Entity</option>
-                <option value="Avatar">Avatar</option>
-            </select>
-            <input type="file" id="upload-khet" accept=".glb" multiple>
-            <label>Position (x, y, z):</label>
-            <input type="number" id="pos-x" placeholder="X" step="0.1">
-            <input type="number" id="pos-y" placeholder="Y" step="0.1">
-            <input type="number" id="pos-z" placeholder="Z" step="0.1">
-            <label>Scale (x, y, z):</label>
-            <input type="number" id="scale-x" placeholder="X" step="0.1" value="1">
-            <input type="number" id="scale-y" placeholder="Y" step="0.1" value="1">
-            <input type="number" id="scale-z" placeholder="Z" step="0.1" value="1">
+                <!-- Clear World -->
+                <button id="clear-khets-btn">Clear All Khets</button>
+
+                <button>Invite Friends</button>
+                <button>Edit Environment</button>
+                <button>Node Settings</button>
+            </div>
+            <div id="assets-tab" class="tab">
+                <h2>Assets</h2>
+                <h3>List of Avatars</h3>
+                <!-- Placeholder -->
+                <h3>List of Nodes</h3>
+                <!-- Placeholder -->
+                <div id="khet-editor">
+                    <h3>KhetEditor</h3>
+                    <input type="file" id="upload-khet" accept=".glb" multiple>
+                    <div class="upload-group">
+                        <select id="khet-type">
+                            <option value="SceneObject">Scene Object</option>
+                            <option value="InteractiveObject">Interactive Object</option>
+                            <option value="MobileObject">Mobile Object</option>
+                            <option value="Entity">Entity</option>
+                            <option value="Avatar">Avatar</option>
+                        </select>
+                        <button id="upload-btn">Upload</button>
+                    </div>
+                    <div class="input-group">
+                        <label>Position (x, y, z):</label>
+                        <input type="number" id="pos-x" placeholder="X" step="0.1">
+                        <input type="number" id="pos-y" placeholder="Y" step="0.1">
+                        <input type="number" id="pos-z" placeholder="Z" step="0.1">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Scale (x, y, z):</label>
+                        <input type="number" id="scale-x" placeholder="X" step="0.1" value="1">
+                        <input type="number" id="scale-y" placeholder="Y" step="0.1" value="1">
+                        <input type="number" id="scale-z" placeholder="Z" step="0.1" value="1">
+                    </div> 
+                </div>
+            </div>
+            <div id="store-tab" class="tab">
+                <h2>Store</h2>
+                <div>Ad space</div>
+                <div>Portals</div>
+                <div>Khet Objects</div>
+                <div>Avatars</div>
+                <div>NFTs</div>
+            </div>
+            <div id="wallet-tab" class="tab">
+                <h2>Wallet</h2>
+                <div>Balance & Report</div>
+                <div>Spending Manager</div>
+                <div>Buy Cycles with ICP/BTC/ETC/SOL/DOGE/Credit card</div>
+                <div>NFT storage</div>
+            </div>
+            <div id="settings-tab" class="tab">
+                <h2>Settings</h2>
+                <!-- Placeholder -->
+            </div>
         </div>
     </div>
 
     <!-- Game Menu -->
-    <div id="menu">
+    <div id="game-menu">
         <h1>Otherland Network</h1>
 
         <!-- Main Menu Buttons -->
@@ -93,7 +164,10 @@
     <div id="own-info">Own Information</div>
     <div id="map">Map Area</div>
 
-    <!-- Scripts-->
+    <!-- Game Area -->
+    <canvas id="canvas"></canvas>
+
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/PointerLockControls.js"></script>

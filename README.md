@@ -10,7 +10,6 @@ using esprima for code interpretation
 written by Grok3
 
 `To do`
-- Local Khet cache
 - Style Menu and Areas
 - Universal Loading Bar
 - Interaction Points (Change Khet Values)
@@ -144,12 +143,7 @@ Code Execution Security:
 Issue: The createKhetCodeExecutor allows basic assignments but could be exploited if untrusted code is passed.
 Suggestion: Restrict code execution to a whitelist of trusted sources or further limit operations to predefined functions.
 
-Thought for
-35s
-Expand for details
-Thank you for your request. Below, I’ve provided improvement suggestions for main.mo, storage.mo, and menu.js based on a careful review of each file. These suggestions focus on enhancing error handling, efficiency, and user experience without altering the core functionality. Each suggestion is explained with a clear rationale and, where applicable, includes code snippets for clarity.
 
-Improvement Suggestions
 1. main.mo Improvements
 The main.mo file manages the backend logic for handling "Khets" (3D objects). While functional, it can benefit from better error handling and robustness when interacting with the storage canister.
 
