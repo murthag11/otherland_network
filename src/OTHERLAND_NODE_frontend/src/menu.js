@@ -3,11 +3,11 @@ import { controls, canvas, scene, sceneObjects, world, groundMaterial, animation
 import { khetController, clearAllKhets, loadKhet } from './khet.js';
 
 // ### Pointer Lock State Handling
-// Listen for changes in the pointer lock state to manage menu visibility
+// Listen for changes in the pointer lock state to manage game menu visibility
 document.addEventListener('pointerlockchange', () => {
     const gameMenu = document.getElementById('game-menu');
     if (!document.pointerLockElement) {
-        gameMenu.style.display = 'flex'; // Show the menu when pointer lock is released
+        gameMenu.style.display = 'flex'; // Show the game menu when pointer lock is released
         keys.clear();                    // Clear any active key presses
         const closeBtn = document.getElementById('close-btn');
         closeBtn.disabled = true;        // Disable the close button temporarily
@@ -21,7 +21,7 @@ document.addEventListener('pointerlockchange', () => {
 // Set to track currently pressed keys
 export const keys = new Set();
 
-// Handle key presses, including the Escape key to show the menu
+// Handle key presses, including the Escape key to show the game menu
 document.addEventListener('keydown', event => {
     const key = event.key.toLowerCase();
     keys.add(key); // Add pressed key to the set
@@ -102,8 +102,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Return to the start overlay and unlock controls
     const homeBtn = document.getElementById('home-btn');
     homeBtn.addEventListener('click', () => {
-        document.getElementById('menu').style.display = 'none';           // Hide the game menu
-        document.getElementById('start-overlay').style.display = 'flex';  // Show the start overlay
+        document.getElementById('game-menu').style.display = 'none';           // Hide the game menu
+        document.getElementById('main-menu').style.display = 'flex';  // Show the start overlay
         controls.unlock();                     // Unlock pointer controls
         keys.clear();                          // Clear active keys
     });
@@ -126,11 +126,11 @@ document.addEventListener('DOMContentLoaded', () => {
     backSettingsBtn.addEventListener('click', () => showPage(mainPage)); // Return to main menu
 
     // **Close Button**
-    // Resume the game by hiding the menu and locking controls
+    // Resume the game by hiding the game menu and locking controls
     const closeBtn = document.getElementById('close-btn');
     closeBtn.addEventListener('click', () => {
-        const menu = document.getElementById('menu');
-        menu.style.display = 'none'; // Hide the menu
+        const gameMenu = document.getElementById('game-menu');
+        gameMenu.style.display = 'none'; // Hide the game menu
         controls.lock();             // Lock the pointer for game control
         canvas.focus();              // Focus on the canvas for input
     });
@@ -162,20 +162,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // Populate avatar selection buttons
     function populateAvatarButtons() {
         const avatars = khetController.getAvatars();
-        const avatarButtonsContainer = avatarPage.querySelector('.avatar-buttons') || avatarPage;
+        const avatarButtonsContainer = avatarContainer.querySelector('.avatar-buttons') || avatarContainer;
         avatarButtonsContainer.innerHTML = ''; // Clear existing buttons
         avatars.forEach((avatar, index) => {
             const button = document.createElement('button');
-            button.textContent = `Avatar ${index + 1}`;
+            button.textContent = `Avatar ${avatar.khetId}`;
             button.setAttribute('data-avatar', avatar.khetId);
-            button.addEventListener('click', () => {
+            button.addEventListener('click', async () => {
                 selectedAvatarId = avatar.khetId;
                 console.log(`Selected Avatar ${avatar.khetId}`);
+
+                // Load Avatar
+                await loadKhet(khet.khetId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
+                console.log(`Avatar loaded sucessfully`);
             });
             avatarButtonsContainer.appendChild(button);
         });
         const backButton = document.getElementById('back-avatar-btn');
-        avatarButtonsContainer.appendChild(backButton); // Re-append back button
+        document.getElementById('avatar-page').appendChild(backButton); // Re-append back button
     }
 
     // **Page Switching Function**
