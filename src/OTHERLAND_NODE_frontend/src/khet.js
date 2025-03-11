@@ -4,6 +4,7 @@ import { Actor, HttpAgent } from '@dfinity/agent';
 import { Principal } from '@dfinity/principal';
 import { idlFactory as backendIdlFactory } from '../../declarations/OTHERLAND_NODE_backend';
 import { idlFactory as storageIdlFactory } from '../../declarations/Storage'; // Adjust path after dfx generate
+import { editProperty, pickupObject } from './interaction.js';
 
 function computeHash(data) {
     // Convert Uint8Array to string and compute a simple hash
@@ -32,16 +33,16 @@ function openDB() {
 }
 
 async function getFromCache(id) {
-    console.log("DB retrieval, ID: " + id);
+    //console.log("DB retrieval, ID: " + id);
     const db = await openDB();
     return new Promise((resolve, reject) => {
-        console.log("reading...");
+        //console.log("reading...");
         const transaction = db.transaction([STORE_NAME], 'readonly');
         const store = transaction.objectStore(STORE_NAME);
         const request = store.get(id);
         request.onsuccess = () => {
             const data = request.result ? request.result.data : null;
-            console.log(`Retrieved from cache for ID ${id}: ${data ? 'data found' : 'no data'}`);
+            //console.log(`Retrieved from cache for ID ${id}: ${data ? 'data found' : 'no data'}`);
             resolve(data);
         };
         request.onerror = () => {
@@ -53,15 +54,15 @@ async function getFromCache(id) {
 }
 
 async function saveToCache(id, data) {
-    console.log("DB storage, ID: " + id);
+    //console.log("DB storage, ID: " + id);
     const db = await openDB();
     return new Promise((resolve, reject) => {
-        console.log("writing...");
+        //console.log("writing...");
         const transaction = db.transaction([STORE_NAME], 'readwrite');
         const store = transaction.objectStore(STORE_NAME);
         const request = store.put({ id, data });
         request.onsuccess = () => {
-            console.log(`Successfully cached data for ID ${id}`);
+            //console.log(`Successfully cached data for ID ${id}`);
             resolve();
         };
         request.onerror = () => {
@@ -206,7 +207,7 @@ export function createKhetCodeExecutor(code, object) {
 
 // **Khet Constructor**
 // Asynchronously create a Khet object from a file and user inputs
-export async function createKhet(file, khetTypeStr, textures = {}, code = null) {
+export async function createKhet(file, khetTypeStr, textures = {}, code = null, interactionPoints = null) {
     const khetId = crypto.randomUUID(); // Generate a unique ID for the Khet
     const khetType = mapKhetType(khetTypeStr); // Map the type string to a Motoko variant
     const reader = new FileReader();
@@ -251,7 +252,8 @@ export async function createKhet(file, khetTypeStr, textures = {}, code = null) 
                         scale: [scaleX, scaleY, scaleZ], // Use input values for scale
                         textures: textureArray.length > 0 ? textureArray : [],
                         animations,
-                        code: code ? [code] : []
+                        code: code ? [code] : [],
+                        interactionPoints: interactionPoints ? [interactionPoints] : []
                     });
                 });
             });
@@ -425,10 +427,10 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                 let shape;
                 let body;
                 const isAvatar = 'Avatar' in khet.khetType;
-                const isSceneObject = 'SceneObject' in khet.khetType;
                 const debugPhysics = false;
                 let debugMesh; 
 
+                // Avatar Physics
                 if (isAvatar) {
                     
                     // Sphere for Avatar
@@ -449,9 +451,9 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                         debugMesh.position.copy(body.position);
                         scene.add(debugMesh);
                     }
-                } else if (isSceneObject) {
+                } else {
 
-                    // Trimesh for SceneObject (static)
+                    // Object Physics
                     const vertices = [];
                     const indices = [];
                     object.traverse(child => {
@@ -485,31 +487,6 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                         debugMesh.position.copy(body.position);
                         scene.add(debugMesh);
                     }
-                } else {
-
-                    // Box for other types
-                    const halfExtents = new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2);
-                    shape = new CANNON.Box(halfExtents);
-                    body = new CANNON.Body({ 
-                        mass: 'MobileObject' in khet.khetType ? 1 : 0,
-                        material: new CANNON.Material('khet') 
-                    });
-                    body.addShape(shape);
-
-                    // Position body so bottom is at khet.position[1]
-                    body.position.set(
-                        khet.position[0],
-                        khet.position[1] + halfExtents.y, // Center of box, bottom at khet.position[1]
-                        khet.position[2]
-                    );
-
-                    if (debugPhysics) {
-                        const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
-                        const material = new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: true });
-                        debugMesh = new THREE.Mesh(geometry, material);
-                        debugMesh.position.copy(body.position);
-                        scene.add(debugMesh);
-                    }
                 }
 
                 // Common physics properties
@@ -520,6 +497,7 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                 object.userData = { body, debugMesh };
                 console.log(`Khet ${khetId} initial position:`, object.position, 'Body position:', body.position);
 
+                // Avatar
                 if (isAvatar) {
                     const contactMaterial = new CANNON.ContactMaterial(groundMaterial, body.material, {
                         friction: 0.3,
@@ -529,6 +507,7 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                     body.isGrounded = false;
                 }
 
+                // Animations
                 if (khet.animations && khet.animations.length > 0) {
                     console.log(`Khet ${khetId} animations:`, khet.animations);
                     const mixer = new THREE.AnimationMixer(object);
@@ -539,6 +518,7 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                     animationMixers.push(mixer);
                 }
 
+                // Textures
                 if (khet.textures && khet.textures.length > 0) {
                     khet.textures.forEach(([name, blob]) => {
                         const textureLoader = new THREE.TextureLoader();
@@ -551,11 +531,42 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                     });
                 }
 
+                // Custom Code
                 if (khet.code && khet.code.length > 0) {
                     const executor = createKhetCodeExecutor(khet.code[0], object);
                     khetState.executors.push(executor);
                 }
 
+                // Interaction Points
+                if (khet.khetId && !isAvatar) {
+                    khet.interactionPoints = [
+                        {
+                            position: [0, 0.5, 0],
+                            type: 'edit',
+                            content: { property: 'color', value: 'red' },
+                            action: editProperty
+                        },
+                        {
+                            position: [1, 1, 1],
+                            type: 'pickup',
+                            content: null,
+                            action: pickupObject
+                        }
+                    ];
+                }
+                
+                // Add visual markers for interaction points
+                if (khet.interactionPoints) {
+                    khet.interactionPoints.forEach(point => {
+                        const markerGeometry = new THREE.SphereGeometry(0.1, 10, 10);
+                        const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                        const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+                        marker.position.set(point.position[0], point.position[1], point.position[2]);
+                        object.add(marker); // Attach marker to the Khet object
+                    });
+                }
+
+                // Avatar
                 if (isAvatar) {
                     console.log(`Setting avatar for Khet ${khetId}`);
                     result.avatarMesh = object;
@@ -579,7 +590,7 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
 
 // **Load Scene Objects**
 // Load all SceneObject Khets into the scene
-export async function loadSceneObjects({ scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController }) {
+export async function loadSceneObjects({ scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController }, spectatorMode = false ) {
     const agent = new HttpAgent({ host: 'http://127.0.0.1:4943' });
     if (process.env.DFX_NETWORK === 'local') {
         await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
@@ -628,6 +639,12 @@ export async function loadSceneObjects({ scene, sceneObjects, world, groundMater
             // Load non-avatar Khets into the scene
             if (!('Avatar' in khet.khetType)) {
                 await loadKhet(khet.khetId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
+            }
+
+            // Chose Standard Avatar
+            if (!spectatorMode) {   
+                console.log("Avatar gets selected automatically");
+                await loadKhet(khetController.getAvatars()[0].khetId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
             }
         }
         return allKhets.length > 0;

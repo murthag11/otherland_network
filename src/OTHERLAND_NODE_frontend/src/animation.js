@@ -1,5 +1,6 @@
 import { controls, world, scene, camera, avatarMesh, avatarBody, sceneObjects, renderer, khetState, cameraController } from './viewer.js';
 import { keys } from './menu.js';
+import { triggerInteraction } from './interaction.js';
 
 const animationMixers = [];
 
@@ -14,10 +15,44 @@ export function animate() {
 
     if (controls.isLocked) {
         if (avatarMesh && avatarBody) {
-            // Existing avatar movement code
-            console.log('Avatar movement active');
-            console.log(`Avatar position: ${avatarMesh.position.toArray()}, Camera position: ${camera.position.toArray()}`);
 
+            // Determine closest interaction point (consider checking only nearby Khets (e.g., within 5 units) if performance becomes an issue)
+            let closestPoint = null;
+            let minDistance = Infinity;
+
+            sceneObjects.forEach(obj => {
+                if (obj.userData && obj.userData.khet && obj.userData.khet.interactionPoints) {
+                    obj.userData.khet.interactionPoints.forEach(point => {
+
+                        // Convert local position to world position
+                        const pointWorldPosition = new THREE.Vector3(
+                            point.position[0],
+                            point.position[1],
+                            point.position[2]
+                        ).applyMatrix4(obj.matrixWorld);
+
+                        const distance = avatarMesh.position.distanceTo(pointWorldPosition);
+                        if (distance < 1.0 && distance < minDistance) { // Threshold of 1 unit
+                            minDistance = distance;
+                            closestPoint = { point, object: obj };
+                        }
+                        console.log(distance);
+                        
+                    });
+                }
+                console.log("Closest point:");
+                console.log(closestPoint);
+                
+                
+            });
+
+            // Handle interaction trigger
+            if (closestPoint && keys.has('f')) {
+                triggerInteraction(closestPoint.point, closestPoint.object);
+                keys.delete('f'); // Prevent repeated triggers
+            }
+
+            // Avatar movement code
             const camDirection = new THREE.Vector3();
             camera.getWorldDirection(camDirection);
             camDirection.y = 0;

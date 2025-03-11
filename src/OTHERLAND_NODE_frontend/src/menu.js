@@ -1,5 +1,5 @@
 // Import necessary components from viewer.js and khet.js
-import { controls, canvas, scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController, avatarMesh, avatarBody, loadTreeHouse } from './viewer.js';
+import { controls, canvas, scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController, setSelectedAvatarId, selectedAvatarId } from './viewer.js';
 import { khetController, clearAllKhets, loadKhet } from './khet.js';
 
 // ### Pointer Lock State Handling
@@ -49,7 +49,6 @@ document.addEventListener('keyup', event => {
 document.addEventListener('DOMContentLoaded', () => {
 
     // Declare Variables
-    let selectedAvatarId = null;
     const startScreen = document.getElementById('start-screen');
     const mainMenu = document.getElementById('main-menu');
     const accountSwitcher = document.getElementById('account-switcher');
@@ -67,6 +66,8 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.focus();           // Focus on the canvas for input
 
         // Load Avatar
+        console.log(selectedAvatarId);
+        
         if (selectedAvatarId) { 
             try {
                 const { avatarMesh: newAvatarMesh, avatarBody: newAvatarBody } = await loadKhet(selectedAvatarId, {
@@ -78,12 +79,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     khetState,
                     cameraController
                 });
-                if (newAvatarMesh && newAvatarBody) {
-
-                    // Update global avatar references from viewer.js
-                    window.avatarMesh = newAvatarMesh;
-                    window.avatarBody = newAvatarBody;
-                }
+                // Update global avatar references from viewer.js
+                window.avatarMesh = newAvatarMesh;
+                window.avatarBody = newAvatarBody;
+                cameraController.setTarget(newAvatarMesh); // Set camera target to new avatar
             } catch (error) {
                 console.error('Failed to load avatar:', error);
             }
@@ -162,24 +161,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // Populate avatar selection buttons
     function populateAvatarButtons() {
         const avatars = khetController.getAvatars();
-        const avatarButtonsContainer = avatarContainer.querySelector('.avatar-buttons') || avatarContainer;
-        avatarButtonsContainer.innerHTML = ''; // Clear existing buttons
+        const avatarButtonsContainer = document.getElementById("avatar-container");
+        avatarButtonsContainer.innerHTML = ""; // Clear existing buttons
         avatars.forEach((avatar, index) => {
             const button = document.createElement('button');
             button.textContent = `Avatar ${avatar.khetId}`;
             button.setAttribute('data-avatar', avatar.khetId);
             button.addEventListener('click', async () => {
-                selectedAvatarId = avatar.khetId;
+                setSelectedAvatarId(avatar.khetId);
                 console.log(`Selected Avatar ${avatar.khetId}`);
 
                 // Load Avatar
-                await loadKhet(khet.khetId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
+                await loadKhet(avatar.khetId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
                 console.log(`Avatar loaded sucessfully`);
             });
             avatarButtonsContainer.appendChild(button);
         });
-        const backButton = document.getElementById('back-avatar-btn');
-        document.getElementById('avatar-page').appendChild(backButton); // Re-append back button
     }
 
     // **Page Switching Function**

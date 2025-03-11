@@ -54,7 +54,9 @@ export const groundMaterial = new CANNON.Material('ground');
 // **Scene Objects and State**
 // Arrays and variables to manage scene objects and avatar
 export const sceneObjects = []; // Store all scene objects
-export let avatarMesh, avatarBody; // Track the current avatar's mesh and physics body
+export let avatarMesh, avatarBody, selectedAvatarId = null; // Track the current avatar's mesh and physics body
+export function setSelectedAvatarId(newId) { selectedAvatarId = newId; }
+export function getSelectedAvatarId() { return selectedAvatarId; }
 export const animationMixers = []; // Store animation mixers for animated objects
 
 // State object to hold Khet executors (for custom behaviors)
@@ -143,10 +145,6 @@ export class CameraController {
         }
 
         this.camera.position.copy(finalPos);
-
-        console.log(`Camera x: ${this.camera.position.x}, Center x: ${center.x}, Ideal x: ${idealPos.x}`);
-        console.log(`Camera y: ${this.camera.position.y}, Center y: ${center.y}, Ideal y: ${idealPos.y}`);
-        console.log(`Camera z: ${this.camera.position.z}, Center z: ${center.z}, Ideal z: ${idealPos.z}`);
     }
 
     // Set the target mesh and initialize camera position
@@ -165,7 +163,6 @@ export class CameraController {
             const initialOffset = direction.multiplyScalar(this.maxDistance); // e.g., 2.5 units behind
             this.camera.position.copy(center.clone().add(initialOffset));
             this.camera.lookAt(center); // Look at the center, not mesh.position
-            console.log(`Camera initial set to: ${this.camera.position.toArray()}, looking at ${center.toArray()}`);
         }
     }
 }
@@ -269,8 +266,8 @@ async function loadFallbackGround() {
     });
 
     // If no scene objects are loaded, add a fallback ground
-    if (!hasSceneObjects) {
+    //if (!hasSceneObjects) {
         await loadFallbackGround();
-    }
+    //}
     animate(); // Start the animation loop
 })();

@@ -1,15 +1,17 @@
 # `OTHERLAND_NODE`
 
 `Tech Stack`
-Dfinity ICP Application
-written in motoko and html5/css/js
-using Three.js for 3D Rendering
-using Cannon.js as Physics Engine
-using Peer.js for p2p communication
-using esprima for code interpretation
-written by Grok3
+
+- Dfinity ICP Application
+- written in motoko and html5/css/js
+- using Three.js for 3D Rendering
+- using Cannon.js as Physics Engine
+- using Peer.js for p2p communication
+- using esprima for code interpretation
+- written by Grok3
 
 `To do`
+
 - Style Menu and Areas
 - Universal Loading Bar
 - Interaction Points (Change Khet Values)
@@ -20,8 +22,8 @@ written by Grok3
 - Connect to Orbit Wallet
 - SNS Dao
 
-
 `Plan`
+
 Loads the environment,
 list of entities
 and program code from the network node
@@ -51,6 +53,7 @@ Basic USer Interface
 - Interaction Points
 
 `Future Roadmap`
+
 Keeping a contact list with direct calling, messaging and data sharing
 Reduce own visibility further, no presence marker, only register in the node
 Automate user movement & gestures with pre recorded macros
@@ -58,6 +61,7 @@ Provides an Interface to the Otherland Network to manage own nodes, exchange dat
 Serves as a wallet to pay for all expenses in Otherland and to receive payment
 
 `Reset Network`
+
 cd ~/OTHERLAND_NODE
 dfx stop
 rm -rf .dfx/
@@ -65,6 +69,7 @@ dfx start --background --clean
 dfx deploy
 
 `Convert glTF`
+
 python3 src/OTHERLAND_NODE_frontend/util/convert_gltf.py src/OTHERLAND_NODE_frontend/assets/sample.glb > binary-glb-data.txt
 
 `Otherland Object: Khet`
@@ -84,6 +89,28 @@ Optional:
 - animations (already in the 3d blob?)
 - code for execution (format?)
 
+`AI Workflow`
+
+Import .rbxlx file from Roblox Studio
+Translate Lua to WebAssembly Module
+Allow User to extend/rebuild wasm code with Caffeine.A
+
+Ai agent workflow:
+
+Prompt: I am an assistant to a user/person XX and we are currently in a virtual environment. Info about situation, person, agent. The person just said ZZ and you must help me find the correct response to that. Following is a list of options in the format { option_name: option description text, answer_type: bool | number | text | llmInstruction }, { ... and you must answer this prompt in the format { option_name: x, answer_value: y }, { ...
+
+Use LLM canister or grok for communication
+Wrap user prompt in preface/context or use api agent behavior 
+Provide API modules to LLM:
+- Store Info about user for long term memory 
+- Set Timers/Events/Reminders
+- Change Node Settings, manage Assets
+- Give digital Jobs
+- Add custom behavior 
+Answer contains read aloud part and behavioral instructions 
+Use gained Info to change prompt addition with Caffeine.AI
+
+https://x.com/i/grok/share/NpXASmJhLv5BkjvzW7Q1jQldo
 
 `Grok Suggestions`
 
