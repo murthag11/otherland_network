@@ -92,11 +92,10 @@ canvas {
   height: 100vh;
   z-index: 999;
 
-  // Buttons
-  #menu-buttons {
+  // Side Bar
+  #side-bar {
     display: flex;
     flex-direction: column;
-    justify-content: center;
     align-items: center;
     position: absolute;
     left: 0;
@@ -104,8 +103,13 @@ canvas {
     width: 200px;
     height: 100%;
     background: $background-dark;
-    padding: 40px 20px;
+    padding: 100px 50px;
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);
+
+    h1 {
+      color: $primary-color;
+      margin: 0 0 15px;
+    }
 
     button {
       @include button-style;
@@ -121,9 +125,8 @@ canvas {
   // Tab Content
   #tab-content {
     position: absolute;
-    left: 220px;
+    left: 300px;
     top: 0;
-    width: calc(100% - 220px);
     height: 100%;
     background: $background-semi;
     padding: 100px 20px;
@@ -151,7 +154,7 @@ canvas {
 
     button {
       @include button-style;
-      margin: 5px 0;
+      margin: 20px 20px;
     }
 
     .tab {
@@ -171,6 +174,7 @@ canvas {
       border-radius: 10px;
       border: 1px solid $primary-color;
       margin-top: 15px;
+      width: fit-content;
 
       select,
       input {
@@ -183,6 +187,10 @@ canvas {
         border: 1px solid $primary-color;
         border-radius: 5px;
       }
+      input#upload-khet {
+        width: 97%;
+      }
+
 
       // Khet Type Selector and Upload Button
       .upload-group {
@@ -374,7 +382,7 @@ canvas {
 // Responsive Design
 @media (max-width: 768px) {
   #main-menu {
-    #menu-buttons {
+    #side-bar {
       width: 150px;
     }
 
