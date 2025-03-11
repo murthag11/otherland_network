@@ -2,6 +2,25 @@
 import { createKhet, uploadKhet, loadKhet, loadSceneObjects } from './khet.js';
 import { animate } from './animation.js';
 
+// Avatar State
+export const avatarState = {
+    avatarBody: null,
+    avatarMesh: null,
+    selectedAvatarId: null
+};
+export function setAvatarBody(newBody) {
+    avatarState.avatarBody = newBody;
+}
+export function setAvatarMesh(newMesh) {
+    avatarState.avatarMesh = newMesh;
+}
+export function setSelectedAvatarId(newId) {
+    avatarState.selectedAvatarId = newId;
+}
+export function getSelectedAvatarId() {
+    return avatarState.selectedAvatarId;
+}
+
 // **Renderer Setup**
 // Get the canvas element from the DOM and initialize the WebGL renderer
 export const canvas = document.getElementById('canvas');
@@ -52,11 +71,8 @@ world.solver.iterations = 10; // Set solver iterations for physics accuracy
 export const groundMaterial = new CANNON.Material('ground');
 
 // **Scene Objects and State**
-// Arrays and variables to manage scene objects and avatar
+// Arrays and variables to manage scene objects and animations
 export const sceneObjects = []; // Store all scene objects
-export let avatarMesh, avatarBody, selectedAvatarId = null; // Track the current avatar's mesh and physics body
-export function setSelectedAvatarId(newId) { selectedAvatarId = newId; }
-export function getSelectedAvatarId() { return selectedAvatarId; }
 export const animationMixers = []; // Store animation mixers for animated objects
 
 // State object to hold Khet executors (for custom behaviors)
@@ -205,23 +221,7 @@ document.getElementById('upload-khet').addEventListener('change', async (event) 
 
             // Upload the Khet to the backend (hardcoded canister ID)
             const khetWithRef = await uploadKhet(khet, 'be2us-64aaa-aaaaa-qaabq-cai');
-            
-            // Load the Khet into the scene
-            const { avatarMesh: newAvatarMesh, avatarBody: newAvatarBody } = await loadKhet(khetWithRef.khetId, {
-                scene,
-                sceneObjects,
-                world,
-                groundMaterial,
-                animationMixers,
-                khetState,
-                cameraController
-            });
 
-            // If the Khet is an avatar, update the current avatar references
-            if (newAvatarMesh && newAvatarBody) {
-                avatarMesh = newAvatarMesh;
-                avatarBody = newAvatarBody;
-            }
         } catch (error) {
             console.error('Upload process failed:', error); // Log any errors during upload
         }
@@ -252,8 +252,8 @@ async function loadFallbackGround() {
 
 // **Scene Initialization**
 // Import the animation function and initialize the scene
-(async () => {
-
+export async function loadScene() {
+    
     // Attempt to load scene objects from the backend
     const hasSceneObjects = await loadSceneObjects({
         scene,
@@ -266,8 +266,8 @@ async function loadFallbackGround() {
     });
 
     // If no scene objects are loaded, add a fallback ground
-    //if (!hasSceneObjects) {
+    if (!hasSceneObjects) {
         await loadFallbackGround();
-    //}
+    }
     animate(); // Start the animation loop
-})();
+}

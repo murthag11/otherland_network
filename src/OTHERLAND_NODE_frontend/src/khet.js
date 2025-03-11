@@ -4,6 +4,7 @@ import { Actor, HttpAgent } from '@dfinity/agent';
 import { Principal } from '@dfinity/principal';
 import { idlFactory as backendIdlFactory } from '../../declarations/OTHERLAND_NODE_backend';
 import { idlFactory as storageIdlFactory } from '../../declarations/Storage'; // Adjust path after dfx generate
+import { setAvatarBody, setAvatarMesh, getSelectedAvatarId } from './viewer.js';
 import { editProperty, pickupObject } from './interaction.js';
 
 function computeHash(data) {
@@ -136,7 +137,10 @@ export const khetController = {
 
     // Get all avatars
     getAvatars() {
-        return Object.values(this.khets).filter(khet => 'Avatar' in khet.khetType);
+        console.log('All Khets before filtering:', khetController.khets);
+        const avatars = Object.values(this.khets).filter(khet => 'Avatar' in khet.khetType);
+        console.log('Filtered Avatars:', avatars);
+        return avatars;
     }
 };
 
@@ -640,17 +644,65 @@ export async function loadSceneObjects({ scene, sceneObjects, world, groundMater
             if (!('Avatar' in khet.khetType)) {
                 await loadKhet(khet.khetId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
             }
-
-            // Chose Standard Avatar
-            if (!spectatorMode) {   
-                console.log("Avatar gets selected automatically");
-                await loadKhet(khetController.getAvatars()[0].khetId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
-            }
         }
         return allKhets.length > 0;
     } catch (error) {
         console.error('Error loading Khets:', error);
         return false;
+    }
+}
+
+export async function loadAvatarObject({ scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController }) {
+
+    // Load User selected Avatar
+    const avatarId = getSelectedAvatarId();
+    console.log("Avatar ID: " + avatarId);
+    if (avatarId) { 
+        try {
+            const { avatarMesh: newAvatarMesh, avatarBody: newAvatarBody } = await loadKhet(avatarId, {
+                scene,
+                sceneObjects,
+                world,
+                groundMaterial,
+                animationMixers,
+                khetState,
+                cameraController
+            });
+
+            // Update global avatar references from viewer.js
+            setAvatarBody(newAvatarBody)
+            setAvatarMesh(newAvatarMesh)
+            cameraController.setTarget(newAvatarMesh); // Set camera target to new avatar
+
+        } catch (error) {
+            console.error('Failed to load avatar:', error);
+        }
+
+    // If empty, automatically select Avatar
+    } else {
+        console.log("Avatar gets selected automatically");
+        const avatars = khetController.getAvatars();
+        if (avatars.length > 0) {
+            try {
+                const { avatarMesh: newAvatarMesh, avatarBody: newAvatarBody } = await loadKhet(avatars[0].khetId, {
+                    scene,
+                    sceneObjects,
+                    world,
+                    groundMaterial,
+                    animationMixers,
+                    khetState,
+                    cameraController
+                });
+                setAvatarBody(newAvatarBody);
+                setAvatarMesh(newAvatarMesh);
+                cameraController.setTarget(newAvatarMesh);
+            } catch (error) {
+                console.error('Failed to load automatically selected avatar:', error);
+            }
+        } else {
+            console.warn("No avatars available to select automatically.");
+            // Optionally, add fallback logic here (e.g., display a message to the user)
+        }
     }
 }
 

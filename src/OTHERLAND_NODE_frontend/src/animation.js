@@ -1,4 +1,4 @@
-import { controls, world, scene, camera, avatarMesh, avatarBody, sceneObjects, renderer, khetState, cameraController } from './viewer.js';
+import { controls, world, scene, camera, avatarState, sceneObjects, renderer, khetState, cameraController } from './viewer.js';
 import { keys } from './menu.js';
 import { triggerInteraction } from './interaction.js';
 
@@ -14,7 +14,7 @@ export function animate() {
     khetState.executors.forEach(executor => executor());
 
     if (controls.isLocked) {
-        if (avatarMesh && avatarBody) {
+        if (avatarState.avatarMesh && avatarState.avatarBody) {
 
             // Determine closest interaction point (consider checking only nearby Khets (e.g., within 5 units) if performance becomes an issue)
             let closestPoint = null;
@@ -31,7 +31,7 @@ export function animate() {
                             point.position[2]
                         ).applyMatrix4(obj.matrixWorld);
 
-                        const distance = avatarMesh.position.distanceTo(pointWorldPosition);
+                        const distance = avatarState.avatarMesh.position.distanceTo(pointWorldPosition);
                         if (distance < 1.0 && distance < minDistance) { // Threshold of 1 unit
                             minDistance = distance;
                             closestPoint = { point, object: obj };
@@ -63,56 +63,56 @@ export function animate() {
             const forward = camDirection.clone().multiplyScalar(walkSpeed);
             const right = new THREE.Vector3().crossVectors(camDirection, new THREE.Vector3(0, 1, 0)).normalize().multiplyScalar(walkSpeed);
 
-            const moveVelocity = new CANNON.Vec3(0, avatarBody.velocity.y, 0);
+            const moveVelocity = new CANNON.Vec3(0, avatarState.avatarBody.velocity.y, 0);
             if (keys.has('w')) moveVelocity.vadd(new CANNON.Vec3(forward.x, 0, forward.z), moveVelocity);
             if (keys.has('s')) moveVelocity.vadd(new CANNON.Vec3(-forward.x, 0, -forward.z), moveVelocity);
             if (keys.has('a')) moveVelocity.vadd(new CANNON.Vec3(-right.x, 0, -right.z), moveVelocity);
             if (keys.has('d')) moveVelocity.vadd(new CANNON.Vec3(right.x, 0, right.z), moveVelocity);
-            avatarBody.velocity.set(moveVelocity.x, avatarBody.velocity.y, moveVelocity.z);
+            avatarState.avatarBody.velocity.set(moveVelocity.x, avatarState.avatarBody.velocity.y, moveVelocity.z);
 
             // Check grounding using physics contacts
-            avatarBody.isGrounded = false;
+            avatarState.avatarBody.isGrounded = false;
             world.contacts.forEach(contact => {
                 sceneObjects.forEach(obj => {
                     if (obj.userData && obj.userData.body) {
-                        if ((contact.bi === avatarBody && contact.bj === obj.userData.body) || 
-                            (contact.bi === obj.userData.body && contact.bj === avatarBody)) {
-                            avatarBody.isGrounded = true;
+                        if ((contact.bi === avatarState.avatarBody && contact.bj === obj.userData.body) || 
+                            (contact.bi === obj.userData.body && contact.bj === avatarState.avatarBody)) {
+                            avatarState.avatarBody.isGrounded = true;
                         }
                     }
                 });
             });
 
             // Jumping logic
-            if (keys.has(' ') && avatarBody.canJump && avatarBody.isGrounded) {
+            if (keys.has(' ') && avatarState.avatarBody.canJump && avatarState.avatarBody.isGrounded) {
                 const jumpForce = 5;
-                avatarBody.velocity.y = jumpForce;
-                avatarBody.canJump = false;
+                avatarState.avatarBody.velocity.y = jumpForce;
+                avatarState.avatarBody.canJump = false;
             }
 
             // Reset canJump when landing
-            if (avatarBody.isGrounded && !avatarBody.wasGrounded) {
-                avatarBody.lastLandingTime = performance.now();
-                avatarBody.canJump = true;
+            if (avatarState.avatarBody.isGrounded && !avatarState.avatarBody.wasGrounded) {
+                avatarState.avatarBody.lastLandingTime = performance.now();
+                avatarState.avatarBody.canJump = true;
             }
-            avatarBody.wasGrounded = avatarBody.isGrounded;
+            avatarState.avatarBody.wasGrounded = avatarState.avatarBody.isGrounded;
 
-            if (avatarBody.lastLandingTime) {
-                const timeSinceLanding = (performance.now() - avatarBody.lastLandingTime) / 1000;
-                if (timeSinceLanding >= 0.5 && !avatarBody.isGrounded) {
-                    avatarBody.canJump = false;
+            if (avatarState.avatarBody.lastLandingTime) {
+                const timeSinceLanding = (performance.now() - avatarState.avatarBody.lastLandingTime) / 1000;
+                if (timeSinceLanding >= 0.5 && !avatarState.avatarBody.isGrounded) {
+                    avatarState.avatarBody.canJump = false;
                 }
             }
 
             // Sync mesh with body and keep upright
-            avatarBody.quaternion.set(0, 0, 0, 1); // Keep avatar upright
-            avatarMesh.position.copy(avatarBody.position);
-            avatarMesh.position.y -= avatarMesh.sizeY / 2; // Base at physics body center minus half height
+            avatarState.avatarBody.quaternion.set(0, 0, 0, 1); // Keep avatar upright
+            avatarState.avatarMesh.position.copy(avatarState.avatarBody.position);
+            avatarState.avatarMesh.position.y -= avatarState.avatarMesh.sizeY / 2; // Base at physics body center minus half height
             const targetQuaternion = new THREE.Quaternion().setFromUnitVectors(
                 new THREE.Vector3(0, 0, 1),
                 camDirection
             );
-            avatarMesh.quaternion.slerp(targetQuaternion, 0.1);
+            avatarState.avatarMesh.quaternion.slerp(targetQuaternion, 0.1);
 
             // Update camera to follow avatar
             cameraController.update();

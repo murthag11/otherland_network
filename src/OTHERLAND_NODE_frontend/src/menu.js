@@ -1,6 +1,6 @@
 // Import necessary components from viewer.js and khet.js
-import { controls, canvas, scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController, setSelectedAvatarId, selectedAvatarId } from './viewer.js';
-import { khetController, clearAllKhets, loadKhet } from './khet.js';
+import { controls, canvas, scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController, setSelectedAvatarId, getSelectedAvatarId, loadScene } from './viewer.js';
+import { khetController, clearAllKhets, loadKhet, loadAvatarObject } from './khet.js';
 
 // ### Pointer Lock State Handling
 // Listen for changes in the pointer lock state to manage game menu visibility
@@ -61,32 +61,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Enter TreeHouse
     const enterTreehouseBtn = document.getElementById('enter-treehouse-btn');
     enterTreehouseBtn.addEventListener('click', async () => {
+
+        // Load Scene
+        await loadScene({ scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
+
+        // Load Avatar
+        await loadAvatarObject({ scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
+
         document.getElementById('main-menu').style.display = 'none';
         controls.lock();          // Lock the pointer for game control
         canvas.focus();           // Focus on the canvas for input
-
-        // Load Avatar
-        console.log(selectedAvatarId);
-        
-        if (selectedAvatarId) { 
-            try {
-                const { avatarMesh: newAvatarMesh, avatarBody: newAvatarBody } = await loadKhet(selectedAvatarId, {
-                    scene,
-                    sceneObjects,
-                    world,
-                    groundMaterial,
-                    animationMixers,
-                    khetState,
-                    cameraController
-                });
-                // Update global avatar references from viewer.js
-                window.avatarMesh = newAvatarMesh;
-                window.avatarBody = newAvatarBody;
-                cameraController.setTarget(newAvatarMesh); // Set camera target to new avatar
-            } catch (error) {
-                console.error('Failed to load avatar:', error);
-            }
-        }
     });
 
     // **Clear Khets Button**
