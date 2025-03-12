@@ -12,6 +12,10 @@
 
 `To do`
 
+- Fix font security issue and use it
+- Avatar Direction slerped cam direction fix
+- Load Khet of Node to Table and display, edit with KhetEditor (Khet Name, Description fields)
+- Decoupling 3D Assets from Khets (https://grok.com/share/bGVnYWN5_2981db40-bba3-4eec-8140-f9ad2cc8a09e)
 - Style Menu and Areas
 - Universal Loading Bar
 - Interaction Points (Change Khet Values)
@@ -59,6 +63,21 @@ Reduce own visibility further, no presence marker, only register in the node
 Automate user movement & gestures with pre recorded macros
 Provides an Interface to the Otherland Network to manage own nodes, exchange data between own nodes/entities and personal computing space, etc.
 Serves as a wallet to pay for all expenses in Otherland and to receive payment
+
+`Setup IDE`
+
+https://internetcomputer.org/docs/building-apps/getting-started/install 
+- Install VS Code (start in WSL mode!)
+- Run wsl --install in PowerShell Admin
+- Restart
+- Finish Ubuntu Installation
+- Install nvm, node.js, and npm
+- Restart
+- Install dfx
+- Restart
+- Clone Git Repo
+- dfx start --background --clean
+- dfx deploy
 
 `Reset Network`
 

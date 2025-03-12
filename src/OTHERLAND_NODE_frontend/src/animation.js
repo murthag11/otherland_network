@@ -1,10 +1,11 @@
-import { controls, world, scene, camera, avatarState, sceneObjects, renderer, khetState, cameraController } from './viewer.js';
+import { controls, world, scene, camera, avatarState, sceneObjects, renderer, khetState, cameraController, isAnimating } from './viewer.js';
 import { keys } from './menu.js';
 import { triggerInteraction } from './interaction.js';
 
 const animationMixers = [];
 
 export function animate() {
+    if (!isAnimating) return;
     requestAnimationFrame(animate);
     const clock = new THREE.Clock();
     const delta = clock.getDelta();
@@ -40,10 +41,6 @@ export function animate() {
                         
                     });
                 }
-                console.log("Closest point:");
-                console.log(closestPoint);
-                
-                
             });
 
             // Handle interaction trigger

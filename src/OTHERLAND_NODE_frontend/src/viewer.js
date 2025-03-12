@@ -1,5 +1,5 @@
 // Import functions for managing Khet objects from khet.js
-import { createKhet, uploadKhet, loadKhet, loadSceneObjects } from './khet.js';
+import { createKhet, uploadKhet, khetController, worldController } from './khet.js';
 import { animate } from './animation.js';
 
 // Avatar State
@@ -19,6 +19,18 @@ export function setSelectedAvatarId(newId) {
 }
 export function getSelectedAvatarId() {
     return avatarState.selectedAvatarId;
+}
+
+// Control Animation Loop
+export let isAnimating = false;
+export function startAnimation() {
+    if (!isAnimating) {
+        isAnimating = true;
+        animate();
+    }
+}
+export function stopAnimation() {
+    isAnimating = false;
 }
 
 // **Renderer Setup**
@@ -254,20 +266,10 @@ async function loadFallbackGround() {
 // Import the animation function and initialize the scene
 export async function loadScene() {
     
-    // Attempt to load scene objects from the backend
-    const hasSceneObjects = await loadSceneObjects({
-        scene,
-        sceneObjects,
-        world,
-        groundMaterial,
-        animationMixers,
-        khetState,
-        cameraController
-    });
+    await worldController.syncWithNode({ scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController })
 
     // If no scene objects are loaded, add a fallback ground
-    if (!hasSceneObjects) {
+    if (Object.keys(khetController.khets).length === 0) {
         await loadFallbackGround();
     }
-    animate(); // Start the animation loop
 }

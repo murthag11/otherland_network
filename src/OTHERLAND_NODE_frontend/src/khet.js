@@ -4,7 +4,7 @@ import { Actor, HttpAgent } from '@dfinity/agent';
 import { Principal } from '@dfinity/principal';
 import { idlFactory as backendIdlFactory } from '../../declarations/OTHERLAND_NODE_backend';
 import { idlFactory as storageIdlFactory } from '../../declarations/Storage'; // Adjust path after dfx generate
-import { setAvatarBody, setAvatarMesh, getSelectedAvatarId } from './viewer.js';
+import { setAvatarBody, setAvatarMesh, setSelectedAvatarId, getSelectedAvatarId } from './viewer.js';
 import { editProperty, pickupObject } from './interaction.js';
 
 function computeHash(data) {
@@ -74,6 +74,109 @@ async function saveToCache(id, data) {
     });
 }
 
+// World Controller
+export const worldController = {
+    loadedKhets: new Map(), // khetId => { mesh, body, isAvatar }
+    currentAvatarId: null,
+
+    // Sync local world with Node objects
+    async syncWithNode(params) {
+        
+        // Set up the agent to communicate with the backend
+        const agent = new HttpAgent({ host: 'http://127.0.0.1:4943' });
+        if (process.env.DFX_NETWORK === 'local') {
+            await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
+        }
+        const backendActor = Actor.createActor(backendIdlFactory, { 
+            agent, 
+            canisterId: 'bkyz2-fmaaa-aaaaa-qaaaq-cai' 
+        });
+
+        try {
+            // Load all Khets into khetController
+            await khetController.loadAllKhets(agent, backendActor);
+            const backendKhetIds = new Set(Object.keys(khetController.khets));
+
+            // Get IDs of currently loaded Khets
+            const loadedKhetIds = new Set(this.loadedKhets.keys());
+
+            // Identify Khets to load (in backend but not loaded locally)
+            const toLoad = [...backendKhetIds].filter(id => !loadedKhetIds.has(id));
+
+            // Identify Khets to unload (loaded locally but not in backend)
+            const toUnload = [...loadedKhetIds].filter(id => !backendKhetIds.has(id));
+
+            // Load missing Khets (excluding avatars)
+            for (const khetId of toLoad) {
+                const khet = khetController.khets[khetId];
+                if (khet && !('Avatar' in khet.khetType)) { // Skip avatars for now
+                    await this.loadKhet(khetId, params);
+                }
+            }
+
+            // Unload Khets no longer in the backend
+            for (const khetId of toUnload) {
+                this.unloadKhet(khetId, params.scene, params.world);
+            }
+
+            console.log(`Synced with node: loaded ${toLoad.length}, unloaded ${toUnload.length} Khets`);
+        } catch (error) {
+            console.error('Error syncing with node:', error);
+        }
+    },
+
+    // Load a Khet if not already loaded
+    async loadKhet(khetId, params) {
+        if (this.loadedKhets.has(khetId)) {
+            console.log(`Khet ${khetId} already loaded`);
+            return this.loadedKhets.get(khetId);
+        }
+        const { mesh, body, isAvatar } = await loadKhet(khetId, params);
+        this.loadedKhets.set(khetId, { mesh, body, isAvatar });
+        return { mesh, body, isAvatar };
+    },
+
+    // Unload a Khet from the scene and physics world
+    unloadKhet(khetId, scene, world) {
+        const khet = this.loadedKhets.get(khetId);
+        if (khet) {
+            scene.remove(khet.mesh);
+            world.removeBody(khet.body);
+            this.loadedKhets.delete(khetId);
+            if (this.currentAvatarId === khetId) {
+                this.currentAvatarId = null;
+            }
+        }
+    },
+
+    // Set the active avatar, unloading the previous one if necessary
+    async setAvatar(khetId, params) {
+        if (this.currentAvatarId && this.currentAvatarId !== khetId) {
+            this.unloadKhet(this.currentAvatarId, params.scene, params.world);
+        }
+        const { mesh, body, isAvatar } = await this.loadKhet(khetId, params);
+        if (isAvatar) {
+            this.currentAvatarId = khetId;
+            setAvatarBody(body);
+            setAvatarMesh(mesh);
+            params.cameraController.setTarget(mesh);
+        } else {
+            console.warn(`Khet ${khetId} is not an avatar`);
+        }
+    },
+
+    // Clear all loaded Khets (optional utility)
+    clearAllKhets(scene, world) {
+        for (const khet of this.loadedKhets.values()) {
+            scene.remove(khet.mesh);
+            world.removeBody(khet.body);
+        }
+        this.loadedKhets.clear();
+        this.currentAvatarId = null;
+    }
+};
+
+// Khet Controller
 export const khetController = {
     khets: {}, // { khetId: khet }
 
@@ -329,10 +432,9 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
         await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
     }
     const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: 'bkyz2-fmaaa-aaaaa-qaaaq-cai' });
-
-    // Prepare return of avatar body and mesh, if avatar
-    let result = { avatarMesh: null, avatarBody: null };
     
+    let result = { mesh: null, body: null, isAvatar: false };
+
     // Load Khet
     try {
         
@@ -428,8 +530,7 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                 console.log(minY);
 
                 // Physics body setup
-                let shape;
-                let body;
+                let shape, body;
                 const isAvatar = 'Avatar' in khet.khetType;
                 const debugPhysics = false;
                 let debugMesh; 
@@ -497,7 +598,6 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                 body.linearDamping = 0.9;
                 body.angularDamping = 0.9;
                 world.addBody(body);
-                object.position.copy(body.position);
                 object.userData = { body, debugMesh };
                 console.log(`Khet ${khetId} initial position:`, object.position, 'Body position:', body.position);
 
@@ -509,6 +609,9 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                     });
                     world.addContactMaterial(contactMaterial);
                     body.isGrounded = false;
+                    body.lastSurfaceHeight = 0;
+                    body.sizeY = size.y || 1;
+                    object.sizeY = size.y || 1;
                 }
 
                 // Animations
@@ -570,16 +673,11 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                     });
                 }
 
-                // Avatar
-                if (isAvatar) {
-                    console.log(`Setting avatar for Khet ${khetId}`);
-                    result.avatarMesh = object;
-                    result.avatarBody = body;
-                    result.avatarBody.lastSurfaceHeight = 0;
-                    result.avatarBody.sizeY = size.y || 1;
-                    result.avatarMesh.sizeY = size.y || 1;
-                    cameraController.setTarget(result.avatarMesh);
-                }
+                // Return Variables
+                result.mesh = object;
+                result.body = body;
+                result.isAvatar = isAvatar;
+
                 resolve();
             }, (error) => {
                 console.error(`GLTF parse error for Khet ${khetId}:`, error);
@@ -608,41 +706,9 @@ export async function loadSceneObjects({ scene, sceneObjects, world, groundMater
 
         for (const khet of allKhets) {
 
-            // Check cache for 3D asset
-            const cachedKhet = await getFromCache(khet.khetId);
-            if (!cachedKhet || !cachedKhet.gltfData) {
-
-                // Fetch 3D asset from Storage canister
-                const [storageCanisterId, blobId, gltfDataSize] = khet.gltfDataRef;
-                const storageActor = Actor.createActor(storageIdlFactory, { agent, canisterId: storageCanisterId });
-                const CHUNK_SIZE = 1024 * 1024;
-                const totalChunks = Math.ceil(Number(gltfDataSize) / CHUNK_SIZE);
-                let gltfDataChunks = [];
-                for (let i = 0; i < totalChunks; i++) {
-                    const chunkOpt = await storageActor.getBlobChunk(blobId, i);
-                    if (chunkOpt && chunkOpt.length > 0) {
-                        gltfDataChunks.push(chunkOpt[0]);
-                    } else {
-                        throw new Error(`Failed to fetch chunk ${i} for blobId: ${blobId}`);
-                    }
-                }
-                const gltfData = new Uint8Array(Number(gltfDataSize));
-                let offset = 0;
-                for (const chunk of gltfDataChunks) {
-                    gltfData.set(new Uint8Array(chunk), offset);
-                    offset += chunk.length;
-                }
-                khet.gltfData = gltfData;
-                await saveToCache(khet.khetId, khet);
-                console.log(`Cached Khet ${khet.khetId} with 3D asset`);
-            } else {
-                khet.gltfData = cachedKhet.gltfData;
-                console.log(`Loaded Khet ${khet.khetId} 3D asset from cache`);
-            }
-
             // Load non-avatar Khets into the scene
             if (!('Avatar' in khet.khetType)) {
-                await loadKhet(khet.khetId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
+                await worldController.loadKhet(khet.khetId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
             }
         }
         return allKhets.length > 0;
@@ -652,56 +718,21 @@ export async function loadSceneObjects({ scene, sceneObjects, world, groundMater
     }
 }
 
+// Load User Avatar
 export async function loadAvatarObject({ scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController }) {
-
-    // Load User selected Avatar
     const avatarId = getSelectedAvatarId();
     console.log("Avatar ID: " + avatarId);
-    if (avatarId) { 
-        try {
-            const { avatarMesh: newAvatarMesh, avatarBody: newAvatarBody } = await loadKhet(avatarId, {
-                scene,
-                sceneObjects,
-                world,
-                groundMaterial,
-                animationMixers,
-                khetState,
-                cameraController
-            });
-
-            // Update global avatar references from viewer.js
-            setAvatarBody(newAvatarBody)
-            setAvatarMesh(newAvatarMesh)
-            cameraController.setTarget(newAvatarMesh); // Set camera target to new avatar
-
-        } catch (error) {
-            console.error('Failed to load avatar:', error);
-        }
-
-    // If empty, automatically select Avatar
+    if (avatarId) {
+        await worldController.setAvatar(avatarId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
     } else {
         console.log("Avatar gets selected automatically");
         const avatars = khetController.getAvatars();
         if (avatars.length > 0) {
-            try {
-                const { avatarMesh: newAvatarMesh, avatarBody: newAvatarBody } = await loadKhet(avatars[0].khetId, {
-                    scene,
-                    sceneObjects,
-                    world,
-                    groundMaterial,
-                    animationMixers,
-                    khetState,
-                    cameraController
-                });
-                setAvatarBody(newAvatarBody);
-                setAvatarMesh(newAvatarMesh);
-                cameraController.setTarget(newAvatarMesh);
-            } catch (error) {
-                console.error('Failed to load automatically selected avatar:', error);
-            }
+            const avatarId = avatars[0].khetId;
+            setSelectedAvatarId(avatarId);
+            await worldController.setAvatar(avatarId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
         } else {
             console.warn("No avatars available to select automatically.");
-            // Optionally, add fallback logic here (e.g., display a message to the user)
         }
     }
 }
