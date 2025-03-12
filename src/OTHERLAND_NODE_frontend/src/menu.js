@@ -1,5 +1,5 @@
 // Import necessary components from viewer.js and khet.js
-import { controls, canvas, scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController, setSelectedAvatarId, getSelectedAvatarId, loadScene } from './viewer.js';
+import { controls, canvas, scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController, setSelectedAvatarId, loadScene, stopAnimation, startAnimation } from './viewer.js';
 import { khetController, clearAllKhets, loadKhet, loadAvatarObject } from './khet.js';
 
 // ### Pointer Lock State Handling
@@ -7,6 +7,7 @@ import { khetController, clearAllKhets, loadKhet, loadAvatarObject } from './khe
 document.addEventListener('pointerlockchange', () => {
     const gameMenu = document.getElementById('game-menu');
     if (!document.pointerLockElement) {
+        stopAnimation();                 // Stop animation when pointer lock is released
         gameMenu.style.display = 'flex'; // Show the game menu when pointer lock is released
         keys.clear();                    // Clear any active key presses
         const closeBtn = document.getElementById('close-btn');
@@ -14,6 +15,8 @@ document.addEventListener('pointerlockchange', () => {
         setTimeout(() => {
             closeBtn.disabled = false;   // Re-enable the close button after 1.25 seconds
         }, 1250);
+    } else {
+        startAnimation();                // Start animation when pointer lock is acquired
     }
 });
 
