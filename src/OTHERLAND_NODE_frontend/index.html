@@ -23,18 +23,20 @@
 
     <!-- Main Menu -->
     <div id="main-menu">
-        <div id="menu-buttons">
-            <button id="otherland-btn">Otherland</button>
-            <button id="treehouse-btn">TreeHouse</button>
-            <button id="assets-btn">Assets</button>
-            <button id="store-btn">Store</button>
-            <button id="wallet-btn">Wallet</button>
-            <button id="settings-btn">Settings</button>
+        <div id="side-bar">
+            <h1>Otherland</h1>
+            <div id="side-bar-buttons">
+                <button id="otherland-btn">Otherland</button>
+                <button id="treehouse-btn">TreeHouse</button>
+                <button id="assets-btn">Assets</button>
+                <button id="store-btn">Store</button>
+                <button id="wallet-btn">Wallet</button>
+                <button id="settings-btn">Settings</button>
+            </div>
         </div>
         <div id="tab-content">
-            <div id="welcome-message">Welcome to Otherland Network</div>
             <div id="otherland-tab" class="tab">
-                <h2>Otherland</h2>
+                <h2>Nodes</h2>
                 <h3>Public Nodes</h3>
                 <ul>
                     <li>PN1</li>
@@ -62,11 +64,26 @@
             <div id="assets-tab" class="tab">
                 <h2>Assets</h2>
                 <h3>List of Avatars</h3>
-                <!-- Placeholder -->
-                <h3>List of Nodes</h3>
-                <!-- Placeholder -->
+
+                <!-- List of all Khets in Node -->
+                <h3>List of Objects in Node</h3>
+                <div id="khet-list">
+                    <table>
+                        <colgroup></colgroup>
+                        <tr>
+                            <th><p>KhetID</p></th>
+                            <th><p>KhetType</p></th>
+                            <th><p>Position</p></th>
+                            <th><p>Scale</p></th>
+                            <th><p>Code</p></th>
+                        </tr>
+                        <div id="khet-table"></div>
+                    </table>
+                </div>
+
+                <!-- Khet Editor -->
                 <div id="khet-editor">
-                    <h3>KhetEditor</h3>
+                    <h3>Upload Object</h3>
                     <input type="file" id="upload-khet" accept=".glb" multiple>
                     <div class="upload-group">
                         <select id="khet-type">
@@ -140,16 +157,6 @@
         <div id="avatar-page" class="page">
             <h2>Select Avatar</h2>
             <div id="avatar-container"></div>
-            <button data-avatar="1">Avatar 1</button>
-            <button data-avatar="2">Avatar 2</button>
-            <button data-avatar="3">Avatar 3</button>
-            <button data-avatar="4">Avatar 4</button>
-            <button data-avatar="5">Avatar 5</button>
-            <button data-avatar="6">Avatar 6</button>
-            <button data-avatar="7">Avatar 7</button>
-            <button data-avatar="8">Avatar 8</button>
-            <button data-avatar="9">Avatar 9</button>
-            <button data-avatar="10">Avatar 10</button>
             <button id="back-avatar-btn">Back</button>
         </div>
     </div>

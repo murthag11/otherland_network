@@ -203,7 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Main Menu Buttons
-    const menuButtons = document.querySelectorAll('#menu-buttons button');
+    const menuButtons = document.querySelectorAll('#side-bar-buttons button');
     menuButtons.forEach(button => {
         button.addEventListener('click', () => {
             const tabId = button.id.replace('-btn', '-tab');
@@ -213,7 +213,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Function to show a specific tab
     function showTab(tabId) {
-        welcomeMessage.style.display = 'none';
         tabs.forEach(tab => {
             tab.style.display = tab.id === tabId ? 'block' : 'none';
         });

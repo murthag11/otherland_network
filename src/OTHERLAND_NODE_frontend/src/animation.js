@@ -101,18 +101,20 @@ export function animate() {
                 }
             }
 
+            // Update camera to follow avatar
+            cameraController.update();
+
             // Sync mesh with body and keep upright
             avatarState.avatarBody.quaternion.set(0, 0, 0, 1); // Keep avatar upright
             avatarState.avatarMesh.position.copy(avatarState.avatarBody.position);
             avatarState.avatarMesh.position.y -= avatarState.avatarMesh.sizeY / 2; // Base at physics body center minus half height
+            
+            // Rotate the avatar's quaternion to match the camera direction
             const targetQuaternion = new THREE.Quaternion().setFromUnitVectors(
                 new THREE.Vector3(0, 0, 1),
                 camDirection
             );
             avatarState.avatarMesh.quaternion.slerp(targetQuaternion, 0.1);
-
-            // Update camera to follow avatar
-            cameraController.update();
         } else {
 
             // Move Spectator Camera
