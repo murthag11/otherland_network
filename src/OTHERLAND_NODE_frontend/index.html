@@ -10,11 +10,6 @@
 
 <body>
 
-    <!-- Account Switcher (Top Right) -->
-    <div id="account-switcher">
-        <!-- Populated dynamically -->
-    </div>
-
     <!-- Start Screen -->
     <div id="start-screen">
         <button id="connect-ii-btn">Connect to Internet Identity</button>
@@ -140,7 +135,7 @@
         <div id="main-page" class="page active">
             <button id="home-btn">Home</button>
             <button id="avatar-btn">Avatar</button>
-            <button id="settings-btn">Settings</button>
+            <button id="game-settings-btn">Settings</button>
             <button id="close-btn">Resume</button>
         </div>
 
@@ -148,7 +143,7 @@
         <div id="settings-page" class="page">
             <h2>Settings</h2>
             <label><input type="checkbox" id="toggle-chat" checked> Show Chat</label><br>
-            <label><input type="checkbox" id="toggle-friends" checked> Show Friends List</label><br>
+            <label><input type="checkbox" id="toggle-friends" checked> Friends List</label><br>
             <label><input type="checkbox" id="toggle-map" checked> Show Map</label><br>
             <button id="back-settings-btn">Back</button>
         </div>
@@ -161,19 +156,36 @@
         </div>
     </div>
 
-    <!-- UI Areas -->
-    <div id="chat">
-        <h3>Group Chat</h3>
-        <div id="chat-messages"></div>
-        <input type="text" id="chat-input" placeholder="Type a message...">
-        <button id="send-chat-btn">Send</button>
-    </div>
-    <div id="friends-list">Friends List</div>
-    <div id="own-info">Own Information</div>
-    <div id="map">Map Area</div>
-    <div id="interactionHint">No interaction detected</div>
+    <!-- GUI Areas -->
+    <div id="guiLayer">
+        <div id="guiCenter">
+            <div id="crosshairs"></div>
+        </div>
+        <div id="guiTop">
+            <div id="friends-list">Friends List</div>
+            <div id="own-info">Own Information</div>
 
-    <!-- Game Area -->
+            <!-- Account Switcher (Top Right) -->
+            <div id="account-switcher">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+        <div id="guiBottom">
+            <div id="chat">
+                <h3>Group Chat</h3>
+                <div id="chat-messages"></div>
+                <input type="text" id="chat-input" placeholder="Type a message...">
+                <button id="send-chat-btn">Send</button>
+            </div>
+            <div id="interactionHint">No interaction detected</div>
+            <div id="map">Map Area</div>
+        </div>
+        <div id="guiTags">
+            <div id="nameTags"></div>
+        </div>
+    </div>
+
+    <!-- 2D Viewer -->
     <canvas id="canvas"></canvas>
 
     <!-- Scripts -->

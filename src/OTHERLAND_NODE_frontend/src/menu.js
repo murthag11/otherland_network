@@ -1,6 +1,7 @@
-// Import necessary components from viewer.js and khet.js
+// Import necessary components
 import { controls, canvas, scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController, setSelectedAvatarId, loadScene, stopAnimation, startAnimation } from './viewer.js';
 import { khetController, clearAllKhets, loadKhet, loadAvatarObject } from './khet.js';
+import { nodeSettings } from './nodeManager.js';
 
 // ### Pointer Lock State Handling
 // Listen for changes in the pointer lock state to manage game menu visibility
@@ -31,13 +32,22 @@ document.addEventListener('keydown', event => {
 
     // Handle ESC key seperatly
     if (key === 'escape') {
+        const mainMenu = document.getElementById('main-menu');
         const gameMenu = document.getElementById('game-menu');
-        const isMenuVisible = gameMenu.style.display === 'flex';
+        const isMainMenuVisible = mainMenu.style.display === 'flex';
+        const isGameMenuVisible = gameMenu.style.display === 'flex';
 
-        if (!isMenuVisible) {
-            gameMenu.style.display = 'flex'; // Show the game menu if it's not visible
-            controls.unlock();           // Unlock the pointer controls
-            keys.clear();                // Clear active keys
+        if (!isMainMenuVisible) {
+            if (!isGameMenuVisible) {
+                gameMenu.style.display = 'flex'; // Show the game menu if it's not visible
+                controls.unlock();           // Unlock the pointer controls
+                keys.clear();                // Clear active keys
+            } else {
+                const gameMenu = document.getElementById('game-menu');
+                gameMenu.style.display = 'none'; // Hide the game menu
+                controls.lock();             // Lock the pointer for game control
+                canvas.focus();              // Focus on the canvas for input
+            }
         }
     }
 });
@@ -65,11 +75,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const enterTreehouseBtn = document.getElementById('enter-treehouse-btn');
     enterTreehouseBtn.addEventListener('click', async () => {
 
-        // Load Scene
-        await loadScene({ scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
+        // Define the parameters for loadScene and loadAvatarObject
+        const params = { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController };
 
-        // Load Avatar
-        await loadAvatarObject({ scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
+        // Load Scene with params and nodeSettings
+        await loadScene(params, nodeSettings);
+
+        // Load Avatar with params
+        await loadAvatarObject(params);
 
         document.getElementById('main-menu').style.display = 'none';
         controls.lock();          // Lock the pointer for game control
@@ -98,15 +111,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const avatarPage = document.getElementById('avatar-page');
     const avatarBtn = document.getElementById('avatar-btn');
     avatarBtn.addEventListener('click', () => {
-        showPage(avatarPage); // Show avatar selection page
         populateAvatarButtons(); // Load Avatars
+        showPage(avatarPage); // Show avatar selection page
     });
     const backAvatarBtn = document.getElementById('back-avatar-btn');
     backAvatarBtn.addEventListener('click', () => showPage(mainPage)); // Return to main menu
 
     // **Settings Page**
     const settingsPage = document.getElementById('settings-page');
-    const settingsBtn = document.getElementById('settings-btn');
+    const settingsBtn = document.getElementById('game-settings-btn');
     settingsBtn.addEventListener('click', () => showPage(settingsPage)); // Show settings page
     const backSettingsBtn = document.getElementById('back-settings-btn');
     backSettingsBtn.addEventListener('click', () => showPage(mainPage)); // Return to main menu

@@ -1,6 +1,7 @@
 // Variables for consistent theming
 $primary-color: #00d4ff;
 $secondary-color: #ffffff;
+$high-contrast-color: black;
 $background-dark: rgba(0, 0, 0, 0.9);
 $background-semi: rgba(0, 0, 0, 0.7);
 $accent-color: #35bd00;
@@ -25,7 +26,7 @@ $font-family: 'Orbitron', Arial, sans-serif;
 @mixin button-style {
   padding: 12px 20px;
   background: linear-gradient(45deg, $primary-color, $accent-color);
-  color: $secondary-color;
+  color: $high-contrast-color;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -50,18 +51,6 @@ canvas {
   width: 100vw;
   height: 100vh;
   display: block;
-}
-
-// Account Switcher
-#account-switcher {
-  position: fixed;
-  top: 10px;
-  right: 10px;
-  z-index: 1001;
-
-  button {
-    @include button-style;
-  }
 }
 
 // Start Screen
@@ -98,12 +87,13 @@ canvas {
     flex-direction: column;
     align-items: center;
     position: absolute;
+    border-right: 2.1px $primary-color solid;
     left: 0;
     top: 0;
-    width: 200px;
+    width: 199px;
     height: 100%;
     background: $background-dark;
-    padding: 100px 50px;
+    padding: 100px 40px;
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);
 
     h1 {
@@ -125,7 +115,7 @@ canvas {
   // Tab Content
   #tab-content {
     position: absolute;
-    left: 300px;
+    left: 280px;
     top: 0;
     height: 100%;
     background: $background-semi;
@@ -135,7 +125,7 @@ canvas {
 
     h2 {
       color: $primary-color;
-      margin: 0 0 15px;
+      margin: 10px 0 15px;
     }
 
     h3 {
@@ -243,6 +233,7 @@ canvas {
   background: $background-dark;
   color: $secondary-color;
   padding: 20px;
+  padding-right: 25px;
   border-radius: 15px;
   border: 1px solid $primary-color;
   box-shadow: 0 0 20px rgba($primary-color, 0.2);
@@ -251,7 +242,10 @@ canvas {
   z-index: 999;
 
   h1 {
-    margin: 0 0 20px;
+    margin-top: 0;
+    margin-left: 5px;
+    margin-right: 0px;
+    margin-bottom: 20px;
     font-size: 28px;
     color: $primary-color;
     text-shadow: 0 0 5px rgba($primary-color, 0.5);
@@ -266,7 +260,7 @@ canvas {
 
   button {
     @include button-style;
-    width: 100%;
+    width: 96%;
     margin: 10px 0;
   }
 
@@ -276,10 +270,20 @@ canvas {
     background: #444;
   }
 
+  #main-page {
+    padding-left: 15px
+  }
+
   #settings-page, #avatar-page {
+
+    width: inherit;
+    padding: 0 10px;
+
     h2 {
       color: $primary-color;
-      margin: 0 0 15px;
+      margin-top: 5px;
+      margin-left: 0;
+      margin-bottom: 20px;
     }
 
     label {
@@ -295,88 +299,123 @@ canvas {
 
   #avatar-page {
     max-height: 50vh;
+    overflow-x: hidden;
     overflow-y: auto;
   }
 }
 
-// UI Areas
-#chat, #friends-list, #own-info, #map, #interactionHint {
-  position: fixed;
-  background: $background-dark;
-  color: $secondary-color;
-  padding: 15px;
-  border-radius: 10px;
-  border: 1px solid $primary-color;
-  box-shadow: 0 0 10px rgba($primary-color, 0.2);
-}
+// GUI Areas
+#guiLayer {
 
-#chat {
-  display: none;
-  bottom: 20px;
-  left: 20px;
-  width: 300px;
-  max-height: 30vh;
-
-  h3 {
-    margin: 0 0 10px;
-    color: $primary-color;
-  }
-
-  #chat-messages {
-    height: 150px;
-    overflow-y: auto;
-    border: 1px solid $primary-color;
-    padding: 10px;
-    background: #111;
-    margin-bottom: 10px;
-  }
-
-  #chat-input {
-    width: calc(100% - 70px);
-    padding: 8px;
-    background: #222;
+  #chat, #friends-list, #own-info, #map, #interactionHint {
+    position: fixed;
+    background: $background-dark;
     color: $secondary-color;
+    padding: 15px;
+    border-radius: 10px;
     border: 1px solid $primary-color;
-    border-radius: 5px;
+    box-shadow: 0 0 10px rgba($primary-color, 0.2);
   }
 
-  #send-chat-btn {
-    @include button-style;
-    width: 60px;
-    padding: 8px;
-    margin-left: 10px;
+  // GUI Center
+  #guiCenter {
+
+    #crosshairs {
+      position: fixed;
+      top: calc(50vh - 10px);
+      left: calc(50vb - 10px);
+    }
   }
-}
 
-#friends-list {
-  display: none;
-  top: 20px;
-  left: 20px;
-  width: 250px;
-  height: 300px;
-}
+  // GUI Top
+  #guiTop {
 
-#own-info {
-  display: none;
-  top: 20px;
-  right: 20px;
-  width: 250px;
-  height: 120px;
-}
+    #friends-list {
+      display: none;
+      top: 20px;
+      left: 20px;
+      width: 250px;
+      height: 300px;
+    }
+    
+    #own-info {
+      display: none;
+      top: 20px;
+      right: 20px;
+      width: 250px;
+      height: 120px;
+    }
+  
+    // Account Switcher
+    #account-switcher {
+      position: fixed;
+      top: 25px;
+      right: 25px;
+      z-index: 1001;
 
-#map {
-  display: none;
-  bottom: 20px;
-  right: 20px;
-  width: 250px;
-  height: 250px;
-}
+      button {
+        @include button-style;
+      }
+    }
+  }
 
-#interactionHint {
-  bottom: 20px;
-  left: 400px;
-  width: 250px;
-  height: 50px;
+  // GUI Bottom
+  #guiBottom {
+    
+    display: flex;
+    justify-content: center;
+
+    #chat {
+      display: none;
+      bottom: 20px;
+      left: 20px;
+      width: 300px;
+      max-height: 30vh;
+    
+      h3 {
+        margin: 0 0 10px;
+        color: $primary-color;
+      }
+    
+      #chat-messages {
+        height: 150px;
+        overflow-y: auto;
+        border: 1px solid $primary-color;
+        padding: 10px;
+        background: #111;
+        margin-bottom: 10px;
+      }
+    
+      #chat-input {
+        width: calc(100% - 70px);
+        padding: 8px;
+        background: #222;
+        color: $secondary-color;
+        border: 1px solid $primary-color;
+        border-radius: 5px;
+      }
+    
+      #send-chat-btn {
+        @include button-style;
+        width: 60px;
+        padding: 8px;
+        margin-left: 10px;
+      }
+    }
+
+    #interactionHint {
+      position: fixed;
+      bottom: 20px;
+    }
+    
+    #map {
+      display: none;
+      bottom: 20px;
+      right: 20px;
+      width: 250px;
+      height: 250px;
+    }
+  }
 }
 
 // Responsive Design

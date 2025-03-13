@@ -135,7 +135,7 @@ export class CameraController {
         // Adjusted offsets depending on camera pitch angle
         const aheadOffset = new THREE.Vector3(0, 1, 2.5); // Behind center at same height
         const downOffset = new THREE.Vector3(0, 3, 0);   // Above center when looking down
-        const upOffset = new THREE.Vector3(0, 0, 0.5);  // Below and closer when looking up
+        const upOffset = new THREE.Vector3(0, -1, 1);  // Below and closer when looking up
         let cameraOffset = (pitch < 0) ? aheadOffset.clone().lerp(downOffset, factor) : aheadOffset.clone().lerp(upOffset, factor);
     
         const horizontalOffset = camDirection.clone().multiplyScalar(-cameraOffset.z);
@@ -217,32 +217,44 @@ window.addEventListener('resize', () => {
 });
 
 // **Khet Upload Handling**
-// Listen for file selection to upload a Khet
-document.getElementById('upload-khet').addEventListener('change', async (event) => {
-    const file = event.target.files[0]; // Get the first selected file
-    if (file) {
-        const khetType = document.getElementById('khet-type').value; // Get selected Khet type
-        const textures = event.target.files[1] ? { 'texture1': event.target.files[1] } : {}; // Optional texture file
-        try {
-
-            // Read Code from Input or Agent
-            const khetCode = 'object.rotation.y += 0.01;';
-            
-            // Create a Khet object with a simple rotation behavior
-            const khet = await createKhet(file, khetType, textures, khetCode);
-
-            // Upload the Khet to the backend (hardcoded canister ID)
-            const khetWithRef = await uploadKhet(khet, 'be2us-64aaa-aaaaa-qaabq-cai');
-
-        } catch (error) {
-            console.error('Upload process failed:', error); // Log any errors during upload
-        }
+// Listen for button click to upload a Khet
+document.getElementById('upload-btn').addEventListener('click', async () => {
+    const fileInput = document.getElementById('upload-khet');
+    const files = fileInput.files;
+    
+    // Check if at least one file is selected
+    if (files.length === 0) {
+        alert('Please select a file to upload.');
+        return;
+    }
+    
+    const file = files[0]; // Get the first selected file
+    const textures = files[1] ? { 'texture1': files[1] } : {}; // Optional texture file
+    const khetType = document.getElementById('khet-type').value; // Get selected Khet type
+    
+    try {
+        // Read Code from Input or Agent
+        const khetCode = 'object.rotation.y += 0.01;';
+        
+        // Create a Khet object with a simple rotation behavior
+        const khet = await createKhet(file, khetType, textures, khetCode);
+        
+        // Upload the Khet to the backend (hardcoded canister ID)
+        const khetWithRef = await uploadKhet(khet, 'be2us-64aaa-aaaaa-qaabq-cai');
+        
+        // Clear the file input after successful upload
+        fileInput.value = '';
+    } catch (error) {
+        console.error('Upload process failed:', error);
     }
 });
 
 // **Fallback Ground Plane**
 // Function to add a ground plane if no scene objects are loaded
-async function loadFallbackGround() {
+async function loadFallbackGround(nodeSettings) {
+
+    const size = nodeSettings.groundPlaneSize || 100;
+    const color = nodeSettings.groundPlaneColor || 0x888888;
 
     // Create a physics plane with no mass (static)
     const groundShape = new CANNON.Plane();
@@ -252,10 +264,9 @@ async function loadFallbackGround() {
     world.addBody(groundBody); // Add to physics world
 
     // Create a visual plane mesh
-    const groundGeometry = new THREE.PlaneGeometry(100, 100); // 100x100 units
-    const groundMaterialVisual = new THREE.MeshLambertMaterial({ color: 0x888888 }); // Gray color
+    const groundGeometry = new THREE.PlaneGeometry(size, size); // Use size from nodeSettings
+    const groundMaterialVisual = new THREE.MeshLambertMaterial({ color: color }); // Use color from nodeSettings
     const ground = new THREE.Mesh(groundGeometry, groundMaterialVisual);
-    ground.rotation.x = -Math.PI / 2; // Rotate to match physics body
     ground.userData = { body: groundBody }; // Link physics body for synchronization
     scene.add(ground); // Add to scene
     sceneObjects.push(ground); // Track in scene objects array
@@ -264,12 +275,12 @@ async function loadFallbackGround() {
 
 // **Scene Initialization**
 // Import the animation function and initialize the scene
-export async function loadScene() {
+export async function loadScene(params, nodeSettings) {
     
-    await worldController.syncWithNode({ scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController })
+    await worldController.syncWithNode(params);
 
     // If no scene objects are loaded, add a fallback ground
-    if (Object.keys(khetController.khets).length === 0) {
-        await loadFallbackGround();
+    if (Object.keys(khetController.khets).length === 0 && nodeSettings.groundPlane) {
+        await loadFallbackGround(nodeSettings);
     }
 }
