@@ -29,15 +29,18 @@ actor Node {
   // Define the Khet record type, representing a 3D object in the system
   public type Khet = {
     khetId : Text;                      // Unique identifier for the Khet
-    khetType : KhetType;                // Type of the Khet (e.g., SceneObject)
-    gltfDataRef : (Principal, Text, Nat); // Reference to GLTF data: (canister ID, blob ID, size)
-    position : Position;                // 3D position in the scene
-    originalSize : Size;                // Original dimensions of the object
-    scale : Scale;                      // Scaling factors applied to the object
+    khetType : Text;                    // Type of the Khet (e.g., "avatar", "object")
+    gltfData : Blob;                    // GLTF data as a binary blob
+    gltfDataSize : Nat;                 // Size of the GLTF data in bytes
+    gltfDataRef : ?(Principal, Text, Nat); // Optional reference to GLTF data (canister ID, blob ID, size)
+    position : (Float, Float, Float);   // 3D position (x, y, z)
+    originalSize : (Float, Float, Float); // Original dimensions (x, y, z)
+    scale : (Float, Float, Float);      // Scaling factors (x, y, z)
     textures : ?[(Text, Blob)];         // Optional array of (texture ID, texture data) pairs
     animations : ?[Text];               // Optional array of animation identifiers
     code : ?Text;                       // Optional code for interactive behavior
-  };
+    hash : Text;                        // Hash field
+};
 
   // Stable storage for Khets, persisted across upgrades
   stable var khetStore : [(Text, Khet)] = [];
@@ -54,11 +57,17 @@ actor Node {
   // In-memory HashMap for temporary chunk storage
   var chunkStore = HashMap.HashMap<Text, [(Nat, Blob)]>(10, Text.equal, Text.hash);
 
+  // Stable storage for hash
+  stable var hashToBlobIdStore : [(Text, (Text, Bool))] = [];
+  // In-memory HashMap for hash to blob ID mapping
+  var hashToBlobId = HashMap.HashMap<Text, (Text, Bool)>(10, Text.equal, Text.hash);
+
   // Preupgrade system function to save state before a canister upgrade
   system func preupgrade() {
     khetStore := Iter.toArray(khets.entries());          // Save Khets to stable storage
     pendingKhetStore := Iter.toArray(pendingKhets.entries()); // Save pending Khets
     chunkStoreStable := Iter.toArray(chunkStore.entries()); // Save chunks to stable storage
+    hashToBlobIdStore := Iter.toArray(hashToBlobId.entries()); // Save hash mapping
   };
 
   // Postupgrade system function to restore state after an upgrade
@@ -66,59 +75,91 @@ actor Node {
     khets := HashMap.fromIter<Text, Khet>(khetStore.vals(), 10, Text.equal, Text.hash); // Restore Khets
     pendingKhets := HashMap.fromIter<Text, Khet>(pendingKhetStore.vals(), 10, Text.equal, Text.hash); // Restore pending Khets
     chunkStore := HashMap.fromIter<Text, [(Nat, Blob)]>(chunkStoreStable.vals(), 10, Text.equal, Text.hash); // Restore chunks
-  };
-
-  // Store a Khet with reference to its data in a storage canister
-  public func storeKhet(khet : Khet, storageCanisterId : Principal, blobId : Text, totalChunks : Nat) : async ?Text {
-    // Create an actor reference to the storage canister
-    let storageActor = actor (Principal.toText(storageCanisterId)) : actor {
-      finalizeBlob : (Text, Nat, Nat) -> async ?Text; // Expect a finalizeBlob method
-    };
-    // Finalize the blob in the storage canister
-    let finalizeResult = await storageActor.finalizeBlob(blobId, khet.gltfDataRef.2, totalChunks);
-    switch (finalizeResult) {
-      case (?error) { return ?error }; // Return error message if finalization fails
-      case (null) {
-        khets.put(khet.khetId, khet);  // Store the Khet in the HashMap
-        chunkStore.delete(khet.khetId); // Clean up temporary chunks
-        return null;                   // Success, no error
-      };
-    };
+    hashToBlobId := HashMap.fromIter<Text, (Text, Bool)>(hashToBlobIdStore.vals(), 10, Text.equal, Text.hash); // Restore hash mapping
   };
 
   // Initialize a Khet upload (store temporarily without finalizing)
-  public func initKhetUpload(khet : Khet) : async () {
-    //Debug.print("Initializing Khet upload: " # khet.khetId);
-    pendingKhets.put(khet.khetId, khet);
+  public func initKhetUpload(khet : Khet, storageCanisterId : Principal) : async {#existing : Text; #new : Text} {
+    switch (khet.gltfDataRef) {
+    case (null) {
+      // gltfDataRef is null, treat this as a new upload
+      let newBlobId = khet.khetId;
+      hashToBlobId.put(khet.hash, (newBlobId, false));
+      let gltfDataRef = (storageCanisterId, newBlobId, khet.gltfDataSize);
+      let updatedKhet = { khet with gltfDataRef = ?gltfDataRef };
+      pendingKhets.put(khet.khetId, updatedKhet);
+      return #new(newBlobId);
+    };
+    case (?_ref) {
+      // gltfDataRef is already set, check if the hash exists
+      let existing = hashToBlobId.get(khet.hash);
+      switch (existing) {
+          case (? (blobId, true)) {
+
+              // Hash exists and is finalized; reuse blobId
+              let gltfDataRef = (storageCanisterId, blobId, khet.gltfDataSize);
+              let updatedKhet = { khet with gltfDataRef = ?gltfDataRef };
+              khets.put(khet.khetId, updatedKhet);
+              return #existing(blobId);
+          };
+          case (_) {
+            
+              // Hash doesn’t exist or isn’t finalized; use khetId as blobId
+              let newBlobId = khet.khetId;
+              hashToBlobId.put(khet.hash, (newBlobId, false));
+              let gltfDataRef = (storageCanisterId, newBlobId, khet.gltfDataSize);
+              let updatedKhet = { khet with gltfDataRef = ?gltfDataRef };
+              pendingKhets.put(khet.khetId, updatedKhet);
+              return #new(newBlobId);
+          };
+      };
+    };
   };
+};
 
   // Finalize a Khet upload after chunks are uploaded
   public func finalizeKhetUpload(khetId : Text, storageCanisterId : Principal, blobId : Text, totalChunks : Nat) : async ?Text {
-    let khetOpt = pendingKhets.get(khetId);
-    switch (khetOpt) {
-      case (null) {
-        return ?"Khet not found in pending store";
-      };
-      case (?khet) {
-        let storageActor = actor (Principal.toText(storageCanisterId)) : actor {
-          finalizeBlob : (Text, Nat, Nat) -> async ?Text;
+  let khetOpt = pendingKhets.get(khetId);
+  switch (khetOpt) {
+    case (null) {
+      return ?"Khet not found in pending store";
+    };
+    case (?khet) {
+      // Safely unwrap gltfDataRef
+      switch (khet.gltfDataRef) {
+        case (null) {
+          return ?"gltfDataRef is unexpectedly null for Khet";
         };
-        let finalizeResult = await storageActor.finalizeBlob(blobId, khet.gltfDataRef.2, totalChunks);
-        switch (finalizeResult) {
-          case (?error) {
-            return ?error; // Return error if finalization fails
+        case (?ref) {
+          let storageActor = actor (Principal.toText(storageCanisterId)) : actor {
+            finalizeBlob : (Text, Nat, Nat) -> async ?Text;
           };
-          case (null) {
-            khets.put(khet.khetId, khet);       // Move to permanent storage
-            pendingKhets.delete(khet.khetId);    // Remove from pending
-            chunkStore.delete(khet.khetId);      // Clean up chunks
-            //Debug.print("Khet finalized and stored: " # khet.khetId);
-            return null;                         // Success
+          // Use ref.2 to access the Nat (size) from the tuple
+          let finalizeResult = await storageActor.finalizeBlob(blobId, ref.2, totalChunks);
+          switch (finalizeResult) {
+            case (?error) {
+              return ?error; // Return error if finalization fails
+            };
+            case (null) {
+              khets.put(khet.khetId, khet);       // Move to permanent storage
+              pendingKhets.delete(khet.khetId);    // Remove from pending
+              chunkStore.delete(khet.khetId);      // Clean up chunks
+              switch (hashToBlobId.get(khet.hash)) {
+                case (? (existingBlobId, _)) {
+                  hashToBlobId.put(khet.hash, (existingBlobId, true));
+                };
+                case (null) {
+                  // Should not happen; log error if needed
+                };
+              };
+              return null;                         // Success
+            };
           };
         };
       };
     };
   };
+};
 
   // Store a chunk of a Khet's data during upload
   public func storeKhetChunk(khetId : Text, chunkIndex : Nat, chunkData : Blob) : async () {
@@ -145,10 +186,7 @@ actor Node {
   public query func getSceneObjectKhets() : async [Khet] {
     let allKhets = Iter.toArray(khets.entries()); // Get all Khets as an array
     let filteredKhets = Array.filter<(Text, Khet)>(allKhets, func((_, khet) : (Text, Khet)) : Bool {
-      switch (khet.khetType) {
-        case (#SceneObject) { true }; // Keep only SceneObject Khets
-        case (_) { false };
-      }
+      khet.khetType == "SceneObject" // Compare as text
     });
     Array.map<(Text, Khet), Khet>(filteredKhets, func((_, khet) : (Text, Khet)) : Khet { khet }) // Extract Khet values
   };

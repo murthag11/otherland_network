@@ -7,13 +7,12 @@ import { idlFactory as storageIdlFactory } from '../../declarations/Storage'; //
 import { setAvatarBody, setAvatarMesh, setSelectedAvatarId, getSelectedAvatarId } from './viewer.js';
 import { editProperty, pickupObject } from './interaction.js';
 
-function computeHash(data) {
-    // Convert Uint8Array to string and compute a simple hash
-    let hash = 0;
-    for (let i = 0; i < data.length; i++) {
-        hash = (hash * 31 + data[i]) & 0xFFFFFFFF; // Simple 32-bit hash
-    }
-    return hash.toString(16); // Return as hex string
+// Compute SHA-256 hash of a Uint8Array
+async function computeSHA256(data) {
+    const buffer = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(buffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
 }
 
 // IndexedDB Cache Setup
@@ -109,7 +108,7 @@ export const worldController = {
             // Load missing Khets (excluding avatars)
             for (const khetId of toLoad) {
                 const khet = khetController.khets[khetId];
-                if (khet && !('Avatar' in khet.khetType)) { // Skip avatars for now
+                if (khet && khet.khetType !== 'Avatar') { // Skip avatars for now
                     await this.loadKhet(khetId, params);
                 }
             }
@@ -241,7 +240,7 @@ export const khetController = {
     // Get all avatars
     getAvatars() {
         console.log('All Khets before filtering:', khetController.khets);
-        const avatars = Object.values(this.khets).filter(khet => 'Avatar' in khet.khetType);
+        const avatars = Object.values(this.khets).filter(khet => khet.khetType === 'Avatar');
         console.log('Filtered Avatars:', avatars);
         return avatars;
     }
@@ -251,14 +250,14 @@ export const khetController = {
 // Function to map string representations of Khet types to Motoko variants
 export function mapKhetType(typeStr) {
     switch (typeStr) {
-        case 'SceneObject': return { SceneObject: null };
-        case 'InteractiveObject': return { InteractiveObject: null };
-        case 'MobileObject': return { MobileObject: null };
-        case 'Entity': return { Entity: null };
-        case 'Avatar': return { Avatar: null };
-        default: throw new Error(`Unknown khetType: ${typeStr}`);
+      case 'SceneObject': return "SceneObject";
+      case 'InteractiveObject': return "InteractiveObject";
+      case 'MobileObject': return "MobileObject";
+      case 'Entity': return "Entity";
+      case 'Avatar': return "Avatar";
+      default: throw new Error(`Unknown khetType: ${typeStr}`);
     }
-}
+  }
 
 // **Khet Code Interpreter**
 // Simple interpreter for Khet code using Esprima to parse and validate expressions
@@ -330,37 +329,41 @@ export async function createKhet(file, khetTypeStr, textures = {}, code = null, 
     return new Promise((resolve) => {
         reader.onload = () => {
             const gltfData = new Uint8Array(reader.result); // Read file as binary data
-            const loader = new THREE.GLTFLoader();
-            loader.parse(gltfData.buffer, '', (gltf) => {
-                const object = gltf.scene; // Extract the scene from the GLTF data
-                const box = new THREE.Box3().setFromObject(object); // Compute bounding box
-                const originalSize = box.getSize(new THREE.Vector3()); // Get size of the object
-                const animations = gltf.animations.length > 0 
-                    ? gltf.animations.map(a => [a.name]) // List animation names if present
-                    : [];
-                // Prepare texture blobs for upload
-                const textureBlobs = Object.entries(textures)
-                    .filter(([_, file]) => file instanceof File)
-                    .map(([name, file]) => {
-                        return new Promise((resolveTexture) => {
-                            const textureReader = new FileReader();
-                            textureReader.onload = () => resolveTexture([name, new Uint8Array(textureReader.result)]);
-                            textureReader.readAsArrayBuffer(file);
+            computeSHA256(gltfData).then(hash => {
+                const loader = new THREE.GLTFLoader();
+                loader.parse(gltfData.buffer, '', (gltf) => {
+                    const object = gltf.scene; // Extract the scene from the GLTF data
+                    const box = new THREE.Box3().setFromObject(object); // Compute bounding box
+                    const originalSize = box.getSize(new THREE.Vector3()); // Get size of the object
+                    const animations = gltf.animations.length > 0 
+                        ? gltf.animations.map(a => [a.name]) // List animation names if present
+                        : [];
+                    // Prepare texture blobs for upload
+                    const textureBlobs = Object.entries(textures)
+                        .filter(([_, file]) => file instanceof File)
+                        .map(([name, file]) => {
+                            return new Promise((resolveTexture) => {
+                                const textureReader = new FileReader();
+                                textureReader.onload = () => resolveTexture([name, new Uint8Array(textureReader.result)]);
+                                textureReader.readAsArrayBuffer(file);
+                            });
                         });
-                    });
-                Promise.all(textureBlobs).then((textureArray) => {
-                    resolve({
-                        khetId,
-                        khetType,
-                        gltfData,
-                        gltfDataSize: gltfData.byteLength,
-                        position: [posX, posY, posZ], // Use input values for position
-                        originalSize: [originalSize.x, originalSize.y, originalSize.z],
-                        scale: [scaleX, scaleY, scaleZ], // Use input values for scale
-                        textures: textureArray.length > 0 ? textureArray : [],
-                        animations,
-                        code: code ? [code] : [],
-                        interactionPoints: interactionPoints ? [interactionPoints] : []
+                    Promise.all(textureBlobs).then((textureArray) => {
+                        resolve({
+                            khetId,
+                            khetType,
+                            gltfData,
+                            gltfDataRef: [],
+                            gltfDataSize: gltfData.byteLength,
+                            position: [posX, posY, posZ], // Use input values for position
+                            originalSize: [originalSize.x, originalSize.y, originalSize.z],
+                            scale: [scaleX, scaleY, scaleZ], // Use input values for scale
+                            textures: textureArray.length > 0 ? textureArray : [],
+                            animations,
+                            code: code ? [code] : [],
+                            interactionPoints: interactionPoints ? [interactionPoints] : [],
+                            hash
+                        });
                     });
                 });
             });
@@ -379,19 +382,40 @@ export async function uploadKhet(khet, storageCanisterId = 'be2us-64aaa-aaaaa-qa
     const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: 'bkyz2-fmaaa-aaaaa-qaaaq-cai' });
     const storageActor = Actor.createActor(storageIdlFactory, { agent, canisterId: storageCanisterId });
 
-    const CHUNK_SIZE = 1024 * 1024; // 1MB chunk size for uploading large files
+    const CHUNK_SIZE = 2000000; // Little below 2MB chunk size for uploading large files
     const gltfData = khet.gltfData;
     const totalChunks = Math.ceil(gltfData.byteLength / CHUNK_SIZE); // Calculate number of chunks
-    const blobId = crypto.randomUUID(); // Generate a unique blob ID
-    khet.gltfDataRef = [Principal.fromText(storageCanisterId), blobId, khet.gltfDataSize];
+
+    // const blobId = crypto.randomUUID(); // Generate a unique blob ID
+    // khet.gltfDataRef = [Principal.fromText(storageCanisterId), blobId, khet.gltfDataSize];
 
     // Save Khet to cache immediately
     await saveToCache(khet.khetId, khet);
     console.log(`Khet ${khet.khetId} cached for immediate use`);
 
-    // Initialize Khet upload in backend
-    await backendActor.initKhetUpload(khet);
-    console.log(`Khet ${khet.khetId} initialized in backend with blobId ${blobId}`);
+    // Create a metadata-only khet object (exclude the large gltfData)
+    const khetMetadata = {
+        ...khet,
+        gltfData: new Uint8Array(0) // Empty array instead of the full gltfData
+    };
+    console.log("Khet metadata being sent:", khetMetadata);
+
+    // Initialize Khet upload in backend with hash check
+    const result = await backendActor.initKhetUpload(khetMetadata, Principal.fromText(storageCanisterId));
+    let blobId;
+    if (result.existing) {
+        blobId = result.existing;
+        khet.gltfDataRef = [Principal.fromText(storageCanisterId), blobId, khet.gltfDataSize];
+        console.log(`Khet ${khet.khetId} reusing existing blobId ${blobId}`); // No upload needed; asset already exists
+        return khet;
+
+    } else if (result.new) {
+        blobId = result.new;
+        khet.gltfDataRef = [Principal.fromText(storageCanisterId), blobId, khet.gltfDataSize];
+        console.log(`Khet ${khet.khetId} initialized with new blobId ${blobId}`);
+    } else {
+        throw new Error('Unexpected response from initKhetUpload');
+    }
 
     // Perform upload in the background
     (async () => {
@@ -531,7 +555,7 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
 
                 // Physics body setup
                 let shape, body;
-                const isAvatar = 'Avatar' in khet.khetType;
+                const isAvatar = khet.khetType == 'Avatar';
                 const debugPhysics = false;
                 let debugMesh; 
 
@@ -707,7 +731,7 @@ export async function loadSceneObjects({ scene, sceneObjects, world, groundMater
         for (const khet of allKhets) {
 
             // Load non-avatar Khets into the scene
-            if (!('Avatar' in khet.khetType)) {
+            if (khet && khet.khetType !== 'Avatar') {
                 await worldController.loadKhet(khet.khetId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
             }
         }
