@@ -93,17 +93,22 @@ export const worldController = {
 
         try {
             // Load all Khets into khetController
+            await khetController.clearKhet();
             await khetController.loadAllKhets(agent, backendActor);
             const backendKhetIds = new Set(Object.keys(khetController.khets));
+            console.log(`Backend has ${backendKhetIds.size} Khets`);
 
             // Get IDs of currently loaded Khets
             const loadedKhetIds = new Set(this.loadedKhets.keys());
+            console.log(`Local has ${loadedKhetIds.size} Khets`);
 
             // Identify Khets to load (in backend but not loaded locally)
             const toLoad = [...backendKhetIds].filter(id => !loadedKhetIds.has(id));
+            console.log('Khets to load:', toLoad);
 
             // Identify Khets to unload (loaded locally but not in backend)
             const toUnload = [...loadedKhetIds].filter(id => !backendKhetIds.has(id));
+            console.log('Khets to unload:', toUnload);
 
             // Load missing Khets (excluding avatars)
             for (const khetId of toLoad) {
@@ -243,6 +248,11 @@ export const khetController = {
         const avatars = Object.values(this.khets).filter(khet => khet.khetType === 'Avatar');
         console.log('Filtered Avatars:', avatars);
         return avatars;
+    },
+
+    clearKhet() {
+        this.khets = {};
+        return;
     }
 };
 

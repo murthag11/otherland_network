@@ -10,21 +10,6 @@
 - using esprima for code interpretation
 - written by Grok3
 
-`To do`
-
-- Avatar Direction slerped cam direction fix
-- Load Khet of Node to Table and display, edit with KhetEditor (Khet Name, Description fields)
-- Decoupling 3D Assets from Khets (https://grok.com/share/bGVnYWN5_2981db40-bba3-4eec-8140-f9ad2cc8a09e)
-- Style Menu and Areas
-- Universal Loading Bar
-- Interaction Points (Change Khet Values)
-- bash npm 5 moderate severity vulnerabilities
-- Peer.js WebRTC Communication
-- Audiofield (50m | 20 Sources Limit)
-- Objects can send other other obejcts code -> interactive environment
-- Connect to Orbit Wallet
-- SNS Dao
-
 `Plan`
 
 Loads the environment,
