@@ -12,7 +12,6 @@
 
 `To do`
 
-- Fix font security issue and use it
 - Avatar Direction slerped cam direction fix
 - Load Khet of Node to Table and display, edit with KhetEditor (Khet Name, Description fields)
 - Decoupling 3D Assets from Khets (https://grok.com/share/bGVnYWN5_2981db40-bba3-4eec-8140-f9ad2cc8a09e)

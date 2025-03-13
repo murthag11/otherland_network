@@ -83,7 +83,7 @@ export const worldController = {
     async syncWithNode(params) {
         
         // Set up the agent to communicate with the backend
-        const agent = new HttpAgent({ host: 'http://127.0.0.1:4943' });
+        const agent = new HttpAgent({ host: window.location.origin });
         if (process.env.DFX_NETWORK === 'local') {
             await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
         }
@@ -372,7 +372,7 @@ export async function createKhet(file, khetTypeStr, textures = {}, code = null, 
 // **Upload Khet to Canisters**
 // Upload the Khet to the storage and backend canisters
 export async function uploadKhet(khet, storageCanisterId = 'be2us-64aaa-aaaaa-qaabq-cai') { // Default storage canister ID
-    const agent = new HttpAgent({ host: 'http://127.0.0.1:4943' }); // Local agent for development
+    const agent = new HttpAgent({ host: window.location.origin }); // Local agent for development
     if (process.env.DFX_NETWORK === 'local') {
         await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
     }
@@ -427,7 +427,7 @@ export async function uploadKhet(khet, storageCanisterId = 'be2us-64aaa-aaaaa-qa
 export async function loadKhet(khetId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController }) {
     
     // Prepare secure request
-    const agent = new HttpAgent({ host: 'http://127.0.0.1:4943' });
+    const agent = new HttpAgent({ host: window.location.origin });
     if (process.env.DFX_NETWORK === 'local') {
         await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
     }
@@ -693,7 +693,7 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
 // **Load Scene Objects**
 // Load all SceneObject Khets into the scene
 export async function loadSceneObjects({ scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController }, spectatorMode = false ) {
-    const agent = new HttpAgent({ host: 'http://127.0.0.1:4943' });
+    const agent = new HttpAgent({ host: window.location.origin });
     if (process.env.DFX_NETWORK === 'local') {
         await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
     }
@@ -740,7 +740,7 @@ export async function loadAvatarObject({ scene, sceneObjects, world, groundMater
 // **Clear All Khets**
 // Clear all Khets from the backend and storage canisters
 export async function clearAllKhets(storageCanisterId = 'be2us-64aaa-aaaaa-qaabq-cai') {
-    const agent = new HttpAgent({ host: 'http://127.0.0.1:4943' });
+    const agent = new HttpAgent({ host: window.location.origin });
     if (process.env.DFX_NETWORK === 'local') {
         await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
     }

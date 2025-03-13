@@ -2,7 +2,7 @@
   {
     "match": "*.html",
     "headers": {
-      "Content-Security-Policy": "default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://unpkg.com https://cdn.jsdelivr.net; object-src 'none'; connect-src 'self' http://127.0.0.1:4943 https://icp0.io blob:;",
+      "Content-Security-Policy": "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; object-src 'none'; connect-src 'self' http://localhost:4943 https://icp0.io blob:;",
       "Permissions-Policy": "xr-spatial-tracking=(self)"
     },
     "security_policy": "hardened"
@@ -10,21 +10,22 @@
   {
     "match": "*.js",
     "headers": {
-      "Content-Security-Policy": "default-src 'self'; script-src 'self'; object-src 'none'; connect-src 'self' http://127.0.0.1:4943 https://icp0.io;"
+      "Content-Security-Policy": "default-src 'self'; script-src 'self'; object-src 'none'; connect-src 'self' https://icp0.io;"
     },
     "security_policy": "hardened"
   },
   {
     "match": "*.css",
     "headers": {
-      "Content-Security-Policy": "default-src 'self'; script-src 'self'; object-src 'none'; connect-src 'self' http://127.0.0.1:4943 https://icp0.io;"
+      "Content-Security-Policy": "default-src 'self'; script-src 'self'; object-src 'none'; connect-src 'self' https://icp0.io;"
     },
     "security_policy": "hardened"
   },
   {
-    "match": "*.woff2",
+    "match": "**/*.woff2",
     "headers": {
-      "Content-Security-Policy": "default-src 'self'; object-src 'none';  font-src fonts.gstatic.com"
+      "Content-Type": "font/woff2",
+      "Content-Security-Policy": "default-src 'self'; script-src 'self'; object-src 'none';"
     },
     "security_policy": "hardened"
   },
