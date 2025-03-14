@@ -1,4 +1,5 @@
-import { controls, world, scene, camera, avatarState, sceneObjects, renderer, khetState, cameraController, isAnimating } from './viewer.js';
+import { controls, world, scene, camera, sceneObjects, renderer, khetState, cameraController, isAnimating } from './viewer.js';
+import { avatarState } from './avatar.js';
 import { keys } from './menu.js';
 import { triggerInteraction } from './interaction.js';
 
@@ -132,7 +133,9 @@ export function animate() {
     sceneObjects.forEach(obj => {
         if (obj.userData && obj.userData.body) {
             obj.position.copy(obj.userData.body.position);
-            obj.quaternion.copy(obj.userData.body.quaternion);
+            if (obj !== avatarState.avatarMesh) {
+                obj.quaternion.copy(obj.userData.body.quaternion);
+            }
         }
     });
 

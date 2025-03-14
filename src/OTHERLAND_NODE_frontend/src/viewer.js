@@ -1,25 +1,7 @@
 // Import functions for managing Khet objects from khet.js
 import { createKhet, uploadKhet, khetController, worldController } from './khet.js';
 import { animate } from './animation.js';
-
-// Avatar State
-export const avatarState = {
-    avatarBody: null,
-    avatarMesh: null,
-    selectedAvatarId: null
-};
-export function setAvatarBody(newBody) {
-    avatarState.avatarBody = newBody;
-}
-export function setAvatarMesh(newMesh) {
-    avatarState.avatarMesh = newMesh;
-}
-export function setSelectedAvatarId(newId) {
-    avatarState.selectedAvatarId = newId;
-}
-export function getSelectedAvatarId() {
-    return avatarState.selectedAvatarId;
-}
+import { avatarState } from './avatar.js';
 
 // Control Animation Loop
 export let isAnimating = false;

@@ -1,3 +1,5 @@
+import { avatarState } from "./avatar.js"; 
+
 // Trigger Ineraction function
 export function triggerInteraction(point, object) {
     document.getElementById("interactionHint").style.display = "block";
@@ -24,6 +26,7 @@ export function editProperty(content, object) {
 // Interaction: Pick Up Object
 export function pickupObject(content, object) {
     console.log('Picking up object');
+
     // Example: Attach object to avatar
     avatarMesh.add(object);
     object.position.set(0, 1, -1); // Position in front of avatar

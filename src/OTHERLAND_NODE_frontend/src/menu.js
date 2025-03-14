@@ -1,7 +1,9 @@
 // Import necessary components
-import { controls, canvas, scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController, setSelectedAvatarId, loadScene, stopAnimation, startAnimation } from './viewer.js';
-import { khetController, clearAllKhets, loadKhet, loadAvatarObject } from './khet.js';
+import { controls, canvas, scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController, loadScene, stopAnimation, startAnimation } from './viewer.js';
+import { khetController, clearAllKhets, worldController, loadAvatarObject } from './khet.js';
 import { nodeSettings } from './nodeManager.js';
+import { avatarState } from './avatar.js';
+import { animate } from './animation.js';
 
 // ### Pointer Lock State Handling
 // Listen for changes in the pointer lock state to manage game menu visibility
@@ -168,11 +170,12 @@ document.addEventListener('DOMContentLoaded', () => {
             button.textContent = `Avatar ${avatar.khetId}`;
             button.setAttribute('data-avatar', avatar.khetId);
             button.addEventListener('click', async () => {
-                setSelectedAvatarId(avatar.khetId);
                 console.log(`Selected Avatar ${avatar.khetId}`);
 
                 // Load Avatar
-                await loadKhet(avatar.khetId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
+                await worldController.setAvatar(avatar.khetId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
+                startAnimation(); // Start animation loop
+                stopAnimation();  // Stop animation loop
                 console.log(`Avatar loaded sucessfully`);
             });
             avatarButtonsContainer.appendChild(button);

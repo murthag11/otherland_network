@@ -233,7 +233,7 @@ canvas {
   background: $background-dark;
   color: $secondary-color;
   padding: 20px;
-  padding-right: 25px;
+  padding-right: 15px;
   border-radius: 15px;
   border: 1px solid $primary-color;
   box-shadow: 0 0 20px rgba($primary-color, 0.2);
@@ -271,7 +271,7 @@ canvas {
   }
 
   #main-page {
-    padding-left: 15px
+    padding-left: 25px
   }
 
   #settings-page, #avatar-page {

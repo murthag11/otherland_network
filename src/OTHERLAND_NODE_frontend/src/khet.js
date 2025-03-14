@@ -4,7 +4,7 @@ import { Actor, HttpAgent } from '@dfinity/agent';
 import { Principal } from '@dfinity/principal';
 import { idlFactory as backendIdlFactory } from '../../declarations/OTHERLAND_NODE_backend';
 import { idlFactory as storageIdlFactory } from '../../declarations/Storage'; // Adjust path after dfx generate
-import { setAvatarBody, setAvatarMesh, setSelectedAvatarId, getSelectedAvatarId } from './viewer.js';
+import { avatarState } from './avatar.js';
 import { editProperty, pickupObject } from './interaction.js';
 
 // Compute SHA-256 hash of a Uint8Array
@@ -76,7 +76,6 @@ async function saveToCache(id, data) {
 // World Controller
 export const worldController = {
     loadedKhets: new Map(), // khetId => { mesh, body, isAvatar }
-    currentAvatarId: null,
 
     // Sync local world with Node objects
     async syncWithNode(params) {
@@ -154,18 +153,20 @@ export const worldController = {
     },
 
     // Set the active avatar, unloading the previous one if necessary
-    async setAvatar(khetId, params) {
-        if (this.currentAvatarId && this.currentAvatarId !== khetId) {
-            this.unloadKhet(this.currentAvatarId, params.scene, params.world);
+    async setAvatar(newAvatarId, params) { 
+        const currentAvatarId = avatarState.getSelectedAvatarId();
+
+        if (currentAvatarId && currentAvatarId !== newAvatarId) {        
+            await this.unloadKhet(currentAvatarId, params.scene, params.world);
         }
-        const { mesh, body, isAvatar } = await this.loadKhet(khetId, params);
-        if (isAvatar) {
-            this.currentAvatarId = khetId;
-            setAvatarBody(body);
-            setAvatarMesh(mesh);
+        const { mesh, body, isAvatar } = await this.loadKhet(newAvatarId, params);
+        if (isAvatar) {  
+            avatarState.setSelectedAvatarId(newAvatarId);
+            avatarState.setAvatarBody(body);
+            avatarState.setAvatarMesh(mesh);
             params.cameraController.setTarget(mesh);
         } else {
-            console.warn(`Khet ${khetId} is not an avatar`);
+            console.warn(`Khet ${newAvatarId} is not an avatar`); // Improve: Only unload if new khet is Avatar, bypass this case
         }
     },
 
@@ -176,7 +177,7 @@ export const worldController = {
             world.removeBody(khet.body);
         }
         this.loadedKhets.clear();
-        this.currentAvatarId = null;
+        avatarState.setSelectedAvatarId(null);
     }
 };
 
@@ -561,7 +562,6 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                     khet.position[1] - minY,     // Bottom at khet.position[1]
                     khet.position[2] - center.z  // Center Z
                 );
-                console.log(minY);
 
                 // Physics body setup
                 let shape, body;
@@ -754,7 +754,7 @@ export async function loadSceneObjects({ scene, sceneObjects, world, groundMater
 
 // Load User Avatar
 export async function loadAvatarObject({ scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController }) {
-    const avatarId = getSelectedAvatarId();
+    const avatarId = avatarState.getSelectedAvatarId();
     console.log("Avatar ID: " + avatarId);
     if (avatarId) {
         await worldController.setAvatar(avatarId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
@@ -763,7 +763,7 @@ export async function loadAvatarObject({ scene, sceneObjects, world, groundMater
         const avatars = khetController.getAvatars();
         if (avatars.length > 0) {
             const avatarId = avatars[0].khetId;
-            setSelectedAvatarId(avatarId);
+            avatarState.setSelectedAvatarId(avatarId);
             await worldController.setAvatar(avatarId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
         } else {
             console.warn("No avatars available to select automatically.");
