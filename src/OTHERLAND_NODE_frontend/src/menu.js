@@ -1,9 +1,9 @@
 // Import necessary components
 import { controls, canvas, scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController, loadScene, stopAnimation, startAnimation } from './viewer.js';
 import { khetController, clearAllKhets, worldController, loadAvatarObject } from './khet.js';
+import { Actor, HttpAgent } from '@dfinity/agent';
+import { idlFactory as backendIdlFactory } from '../../declarations/OTHERLAND_NODE_backend';
 import { nodeSettings } from './nodeManager.js';
-import { avatarState } from './avatar.js';
-import { animate } from './animation.js';
 
 // ### Pointer Lock State Handling
 // Listen for changes in the pointer lock state to manage game menu visibility
@@ -217,6 +217,66 @@ document.addEventListener('DOMContentLoaded', () => {
         accountSwitcher.innerHTML = '';
         accountSwitcher.appendChild(clonedButton);
     }
+
+    // Edit Environment Button
+    const editEnvBtn = document.getElementById('edit-env-btn');
+    editEnvBtn.addEventListener('click', async () => {
+
+        // Select the table
+        const table = document.querySelector('#khet-table');
+        
+        // Clear existing data rows (keep the header row)
+        const rows = table.querySelectorAll('tr');
+        for (let i = 1; i < rows.length; i++) {
+            rows[i].remove();
+        }
+        
+        // Load Khets from the backend
+        const agent = new HttpAgent({ host: window.location.origin });
+        if (process.env.DFX_NETWORK === 'local') {
+            await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
+        }
+        const backendActor = Actor.createActor(backendIdlFactory, { 
+            agent, 
+            canisterId: 'bkyz2-fmaaa-aaaaa-qaaaq-cai' 
+        });
+        await khetController.loadAllKhets(agent, backendActor);
+        
+        // Populate the table with Khet data
+        const khets = Object.values(khetController.khets);
+        for (const khet of khets) {
+            const tr = document.createElement('tr');
+            
+            // KhetID column
+            const tdId = document.createElement('td');
+            tdId.textContent = khet.khetId;
+            tr.appendChild(tdId);
+            
+            // KhetType column
+            const tdType = document.createElement('td');
+            tdType.textContent = khet.khetType;
+            tr.appendChild(tdType);
+            
+            // Position column
+            const tdPosition = document.createElement('td');
+            tdPosition.textContent = `[${khet.position.join(', ')}]`;
+            tr.appendChild(tdPosition);
+            
+            // Scale column
+            const tdScale = document.createElement('td');
+            tdScale.textContent = `[${khet.scale.join(', ')}]`;
+            tr.appendChild(tdScale);
+            
+            // Code column
+            const tdCode = document.createElement('td');
+            tdCode.textContent = khet.code ? khet.code.join(', ') : '';
+            tr.appendChild(tdCode);
+            
+            // Append the row to the table
+            table.appendChild(tr);
+        }
+        showTab("assets-tab");
+    });
 
     // Main Menu Buttons
     const menuButtons = document.querySelectorAll('#side-bar-buttons button');

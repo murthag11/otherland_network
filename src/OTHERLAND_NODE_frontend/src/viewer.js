@@ -1,7 +1,6 @@
 // Import functions for managing Khet objects from khet.js
 import { createKhet, uploadKhet, khetController, worldController } from './khet.js';
 import { animate } from './animation.js';
-import { avatarState } from './avatar.js';
 
 // Control Animation Loop
 export let isAnimating = false;

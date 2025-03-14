@@ -25,11 +25,11 @@ $font-family: 'Orbitron', Arial, sans-serif;
 
 @mixin button-style {
   padding: 12px 20px;
-  background: linear-gradient(45deg, $primary-color, $accent-color);
-  color: $high-contrast-color;
-  border: none;
+  background: $background-dark;
+  color: $secondary-color;
+  border: 1px solid $primary-color;
+  box-shadow: 0 0 20px rgba($primary-color, 0.2);
   border-radius: 8px;
-  cursor: pointer;
   font-size: 16px;
   transition: transform 0.2s, opacity 0.2s;
 
@@ -40,7 +40,10 @@ $font-family: 'Orbitron', Arial, sans-serif;
 }
 
 // Base styles
-* { font-family: $font-family; }
+* {
+  font-family: $font-family;
+  cursor: crosshair;
+}
 body {
   margin: 0;
   background: #0a0a0a;
@@ -65,6 +68,13 @@ canvas {
   background: $background-semi;
   z-index: 1000;
 
+  color: $secondary-color;
+
+  h1 {
+    font-size: 48px;
+    margin: 0 0 10px;
+  }
+
   button {
     @include button-style;
     margin: 15px;
@@ -81,6 +91,12 @@ canvas {
   height: 100vh;
   z-index: 999;
 
+  h1 {
+    font-size: 36px;
+    color: $primary-color;
+    margin: 0 0 15px;
+  }
+
   // Side Bar
   #side-bar {
     display: flex;
@@ -95,11 +111,6 @@ canvas {
     background: $background-dark;
     padding: 100px 40px;
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);
-
-    h1 {
-      color: $primary-color;
-      margin: 0 0 15px;
-    }
 
     button {
       @include button-style;
@@ -119,7 +130,7 @@ canvas {
     top: 0;
     height: 100%;
     background: $background-semi;
-    padding: 100px 20px;
+    padding: 100px 40px;
     overflow-y: auto;
     color: $secondary-color;
 
@@ -144,7 +155,7 @@ canvas {
 
     button {
       @include button-style;
-      margin: 20px 20px;
+      margin: 20px 40px 20px 0;
     }
 
     .tab {

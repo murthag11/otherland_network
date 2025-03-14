@@ -28,7 +28,7 @@ export function pickupObject(content, object) {
     console.log('Picking up object');
 
     // Example: Attach object to avatar
-    avatarMesh.add(object);
+    avatarState.avatarMesh.add(object);
     object.position.set(0, 1, -1); // Position in front of avatar
     world.removeBody(object.userData.body); // Remove from physics
 }

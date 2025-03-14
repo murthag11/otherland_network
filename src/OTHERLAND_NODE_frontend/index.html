@@ -12,6 +12,8 @@
 
     <!-- Start Screen -->
     <div id="start-screen">
+        <H1>Otherland</H1>
+        <h3>Connected virtual realms on the Internet Computer.</h3>
         <button id="connect-ii-btn">Connect to Internet Identity</button>
         <button id="continue-guest-btn">Continue as Guest</button>
     </div>
@@ -23,7 +25,6 @@
             <div id="side-bar-buttons">
                 <button id="otherland-btn">Otherland</button>
                 <button id="treehouse-btn">TreeHouse</button>
-                <button id="assets-btn">Assets</button>
                 <button id="store-btn">Store</button>
                 <button id="wallet-btn">Wallet</button>
                 <button id="settings-btn">Settings</button>
@@ -31,7 +32,7 @@
         </div>
         <div id="tab-content">
             <div id="otherland-tab" class="tab">
-                <h2>Nodes</h2>
+                <h1>Nodes</h1>
                 <h3>Public Nodes</h3>
                 <ul>
                     <li>PN1</li>
@@ -44,7 +45,7 @@
                 </ul>
             </div>
             <div id="treehouse-tab" class="tab">
-                <h2>TreeHouse</h2>
+                <h1>TreeHouse</h1>
 
                 <!-- Enter VR world -->
                 <button id="enter-treehouse-btn">Enter TreeHouse</button>
@@ -53,17 +54,17 @@
                 <button id="clear-khets-btn">Clear All Khets</button>
 
                 <button>Invite Friends</button>
-                <button>Edit Environment</button>
+                <button id="edit-env-btn">Edit Environment</button>
                 <button>Node Settings</button>
             </div>
             <div id="assets-tab" class="tab">
-                <h2>Assets</h2>
+                <h1>Assets</h1>
                 <h3>List of Avatars</h3>
 
                 <!-- List of all Khets in Node -->
                 <h3>List of Objects in Node</h3>
                 <div id="khet-list">
-                    <table>
+                    <table id="khet-table">
                         <colgroup></colgroup>
                         <tr>
                             <th><p>KhetID</p></th>
@@ -72,7 +73,6 @@
                             <th><p>Scale</p></th>
                             <th><p>Code</p></th>
                         </tr>
-                        <div id="khet-table"></div>
                     </table>
                 </div>
 
@@ -106,7 +106,7 @@
                 </div>
             </div>
             <div id="store-tab" class="tab">
-                <h2>Store</h2>
+                <h1>Store</h1>
                 <div>Ad space</div>
                 <div>Portals</div>
                 <div>Khet Objects</div>
@@ -114,14 +114,14 @@
                 <div>NFTs</div>
             </div>
             <div id="wallet-tab" class="tab">
-                <h2>Wallet</h2>
+                <h1>Wallet</h1>
                 <div>Balance & Report</div>
                 <div>Spending Manager</div>
                 <div>Buy Cycles with ICP/BTC/ETC/SOL/DOGE/Credit card</div>
                 <div>NFT storage</div>
             </div>
             <div id="settings-tab" class="tab">
-                <h2>Settings</h2>
+                <h1>Settings</h1>
                 <!-- Placeholder -->
             </div>
         </div>
@@ -193,7 +193,6 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/PointerLockControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
-    <script type="module" src="/src/khet.js"></script>
     <script type="module" src="/src/viewer.js"></script>
 </body>
 </html>
