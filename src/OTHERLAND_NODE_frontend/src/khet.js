@@ -1,11 +1,13 @@
 // Import necessary libraries for parsing and interacting with the Internet Computer
 import * as esprima from 'esprima';
-import { Actor, HttpAgent } from '@dfinity/agent';
 import { Principal } from '@dfinity/principal';
+import { AuthClient } from "@dfinity/auth-client"; // If needed for identity
+import { Actor, HttpAgent } from '@dfinity/agent';
 import { idlFactory as backendIdlFactory } from '../../declarations/OTHERLAND_NODE_backend';
 import { idlFactory as storageIdlFactory } from '../../declarations/Storage'; // Adjust path after dfx generate
-import { avatarState } from './avatar.js';
+import { idlFactory as managerIdlFactory } from '../../declarations/Manager';
 import { editProperty, pickupObject } from './interaction.js';
+import { avatarState } from './avatar.js';
 
 // Compute SHA-256 hash of a Uint8Array
 async function computeSHA256(data) {
@@ -166,7 +168,7 @@ export const worldController = {
             avatarState.setAvatarMesh(mesh);
             params.cameraController.setTarget(mesh);
         } else {
-            console.warn(`Khet ${newAvatarId} is not an avatar`); // Improve: Only unload if new khet is Avatar, bypass this case
+            console.warn(`Khet ${newAvatarId} is not an avatar`);                                   // Improve: Only unload if new khet is Avatar, bypass this case
         }
     },
 
@@ -187,7 +189,16 @@ export const khetController = {
 
     // Load all Khets from the backend
     async loadAllKhets(agent, backendActor) {
-        const storageActor = Actor.createActor(storageIdlFactory, { agent, canisterId: 'be2us-64aaa-aaaaa-qaabq-cai' });
+
+        // Get Storage ID from Backend
+        const backendCanisterId = localStorage.getItem('backendCanisterId');
+        const agent = new HttpAgent({ host: window.location.origin });
+        if (process.env.DFX_NETWORK === 'local') await agent.fetchRootKey();
+        const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: backendCanisterId });
+
+        // Use Storage ID
+        const storageCanisterId = 'STORAGE_CANISTER_ID';                                                // This should be dynamic based on khet.gltfDataRef
+        const storageActor = Actor.createActor(storageIdlFactory, { agent, storageCanisterId });
         try {
             let allKhets = [];
             const backendKhets = await backendActor.getAllKhets();
@@ -385,12 +396,21 @@ export async function createKhet(file, khetTypeStr, textures = {}, code = null, 
 
 // **Upload Khet to Canisters**
 // Upload the Khet to the storage and backend canisters
-export async function uploadKhet(khet, storageCanisterId = 'be2us-64aaa-aaaaa-qaabq-cai') { // Default storage canister ID
-    const agent = new HttpAgent({ host: window.location.origin }); // Local agent for development
+export async function uploadKhet(khet) {
+    const authClient = await AuthClient.create();
+    const identity = authClient.getIdentity();
+
+    const agent = new HttpAgent({ host: window.location.origin, identity }); // Local agent for development
     if (process.env.DFX_NETWORK === 'local') {
         await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
     }
-    const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: 'bkyz2-fmaaa-aaaaa-qaaaq-cai' });
+    const managerActor = Actor.createActor(managerIdlFactory, { 
+        agent, 
+        canisterId: 'MANAGER_CANISTER_ID' // Replace with actual ID
+    });
+    const storageCanisterId = await managerActor.getCurrentStorageCanister(khet.gltfDataSize);
+    const backendCanisterId = localStorage.getItem('backendCanisterId');
+    const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: backendCanisterId });
     const storageActor = Actor.createActor(storageIdlFactory, { agent, canisterId: storageCanisterId });
 
     const CHUNK_SIZE = 2000000; // Little below 2MB chunk size for uploading large files

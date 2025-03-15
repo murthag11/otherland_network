@@ -1,9 +1,13 @@
 // Import necessary components
+import { Actor, HttpAgent } from '@dfinity/agent';
+import { AuthClient } from "@dfinity/auth-client"; // New import for Internet Identity
+import { idlFactory as managerIdlFactory } from '../../declarations/Manager'; // Assuming Manager canister IDL
+import { idlFactory as backendIdlFactory } from '../../declarations/OTHERLAND_NODE_backend';
 import { controls, canvas, scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController, loadScene, stopAnimation, startAnimation } from './viewer.js';
 import { khetController, clearAllKhets, worldController, loadAvatarObject } from './khet.js';
-import { Actor, HttpAgent } from '@dfinity/agent';
-import { idlFactory as backendIdlFactory } from '../../declarations/OTHERLAND_NODE_backend';
 import { nodeSettings } from './nodeManager.js';
+
+// Import necessary components
 
 // ### Pointer Lock State Handling
 // Listen for changes in the pointer lock state to manage game menu visibility
@@ -194,13 +198,43 @@ document.addEventListener('DOMContentLoaded', () => {
     // Start Screen Buttons
     const connectIIBtn = document.getElementById('connect-ii-btn');
     const continueGuestBtn = document.getElementById('continue-guest-btn');
-    connectIIBtn.addEventListener('click', () => {
+
+    // Connect to Internet Identity
+    connectIIBtn.addEventListener('click', async () => {
         console.log('Connecting to Internet Identity...');
-        moveToAccountSwitcher(connectIIBtn);
-        showMainMenu();
+        const authClient = await AuthClient.create();
+        await authClient.login({
+            identityProvider: "https://identity.ic0.app",
+            onSuccess: async () => {
+                const identity = authClient.getIdentity();
+                const userPrincipal = identity.getPrincipal().toText();
+                const agent = new HttpAgent({ host: window.location.origin, identity });
+                if (process.env.DFX_NETWORK === 'local') await agent.fetchRootKey();
+                const managerActor = Actor.createActor(managerIdlFactory, { 
+                    agent, 
+                    canisterId: 'MANAGER_CANISTER_ID' // Replace with actual ID
+                });
+                let backendCanisterId = await managerActor.getUserBackendCanister(Principal.fromText(userPrincipal));
+                if (!backendCanisterId) {
+                    backendCanisterId = await managerActor.createUserBackendCanister(Principal.fromText(userPrincipal));
+                    console.log(`Created new backend canister: ${backendCanisterId}`);
+                } else {
+                    backendCanisterId = backendCanisterId[0];
+                }
+                localStorage.setItem('backendCanisterId', backendCanisterId.toText());
+                localStorage.setItem('userPrincipal', userPrincipal);
+                moveToAccountSwitcher(connectIIBtn);
+                showMainMenu();
+            }
+        });
     });
+
+    // Continue as Guest (using a default public canister)
     continueGuestBtn.addEventListener('click', () => {
         console.log('Continuing as guest...');
+        const defaultBackendCanisterId = 'DEFAULT_PUBLIC_CANISTER_ID'; // Replace with actual default canister ID
+        localStorage.setItem('backendCanisterId', defaultBackendCanisterId);
+        localStorage.setItem('userPrincipal', 'guest');
         moveToAccountSwitcher(continueGuestBtn);
         showMainMenu();
     });
