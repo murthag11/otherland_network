@@ -78,30 +78,46 @@
 
                 <!-- Khet Editor -->
                 <div id="khet-editor">
-                    <h3>Upload Object</h3>
-                    <input type="file" id="upload-khet" accept=".glb" multiple>
-                    <div class="upload-group">
-                        <select id="khet-type">
-                            <option value="SceneObject">Scene Object</option>
-                            <option value="InteractiveObject">Interactive Object</option>
-                            <option value="MobileObject">Mobile Object</option>
-                            <option value="Entity">Entity</option>
-                            <option value="Avatar">Avatar</option>
-                        </select>
-                        <button id="upload-btn">Upload</button>
+                    <div id="draw-up-btn"><button>🡩</button></div>
+                    <div id="draw-close-btn"><button>🗙</button></div>
+                    <div id="upload-group">
+                        <h3>Upload Object</h3>
+                        <input type="file" id="upload-khet" accept=".glb" multiple>
+                        <div class="flex-row">
+                            <select id="khet-type">
+                                <option value="SceneObject">Scene Object</option>
+                                <option value="InteractiveObject">Interactive Object</option>
+                                <option value="MobileObject">Mobile Object</option>
+                                <option value="Entity">Entity</option>
+                                <option value="Avatar">Avatar</option>
+                            </select>
+                            <button id="upload-btn">Upload</button>
+                            <button id="cache-btn">Cache</button>
+                        </div>
+                    </div>
+                    <div id="edit-group">
+                        <h3>Edit Object</h3>
+                        <p>Type: <span id="edit-khet-type"></span></p>
+                        <p>ID: <span id="edit-khet-id"></span></p>
+                        <button id="discard-edit-btn">Discard Changes</button>
+                        <button id="save-edit-btn">Save & Close</button>
                     </div>
                     <div class="input-group">
                         <label>Position (x, y, z):</label>
-                        <input type="number" id="pos-x" placeholder="X" step="0.1">
-                        <input type="number" id="pos-y" placeholder="Y" step="0.1">
-                        <input type="number" id="pos-z" placeholder="Z" step="0.1">
+                        <div>
+                            <input type="number" id="pos-x" placeholder="X" step="0.1">
+                            <input type="number" id="pos-y" placeholder="Y" step="0.1">
+                            <input type="number" id="pos-z" placeholder="Z" step="0.1">
+                        </div>
                     </div>
                     
                     <div class="input-group">
                         <label>Scale (x, y, z):</label>
-                        <input type="number" id="scale-x" placeholder="X" step="0.1" value="1">
-                        <input type="number" id="scale-y" placeholder="Y" step="0.1" value="1">
-                        <input type="number" id="scale-z" placeholder="Z" step="0.1" value="1">
+                        <div>
+                            <input type="number" id="scale-x" placeholder="X" step="0.1" value="1">
+                            <input type="number" id="scale-y" placeholder="Y" step="0.1" value="1">
+                            <input type="number" id="scale-z" placeholder="Z" step="0.1" value="1">
+                        </div>
                     </div> 
                 </div>
             </div>

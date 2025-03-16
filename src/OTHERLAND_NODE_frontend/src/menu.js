@@ -4,6 +4,7 @@ import { khetController, clearAllKhets, worldController, loadAvatarObject } from
 import { Actor, HttpAgent } from '@dfinity/agent';
 import { idlFactory as backendIdlFactory } from '../../declarations/OTHERLAND_NODE_backend';
 import { nodeSettings } from './nodeManager.js';
+import { user } from './user.js';
 
 // ### Pointer Lock State Handling
 // Listen for changes in the pointer lock state to manage game menu visibility
@@ -44,11 +45,6 @@ document.addEventListener('keydown', event => {
                 gameMenu.style.display = 'flex'; // Show the game menu if it's not visible
                 controls.unlock();           // Unlock the pointer controls
                 keys.clear();                // Clear active keys
-            } else {
-                const gameMenu = document.getElementById('game-menu');
-                gameMenu.style.display = 'none'; // Hide the game menu
-                controls.lock();             // Lock the pointer for game control
-                canvas.focus();              // Focus on the canvas for input
             }
         }
     }
@@ -196,6 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const continueGuestBtn = document.getElementById('continue-guest-btn');
     connectIIBtn.addEventListener('click', () => {
         console.log('Connecting to Internet Identity...');
+        user.setPrincipal("Test");
         moveToAccountSwitcher(connectIIBtn);
         showMainMenu();
     });
@@ -272,11 +269,83 @@ document.addEventListener('DOMContentLoaded', () => {
             tdCode.textContent = khet.code ? khet.code.join(', ') : '';
             tr.appendChild(tdCode);
             
+            // Edit column
+            const tdEdit = document.createElement('td');
+            const editKhetButton = document.createElement('button');
+            editKhetButton.textContent = "Edit Khet";
+            tdEdit.appendChild(editKhetButton);
+            tr.appendChild(tdEdit);
+            /*editKhetButton.addEventListener('click', async () => {
+
+                // Switch to Edit Display
+                document.getElementById("edit-group").style.display = "none";
+                document.getElementById("upload-group").style.display = "block";
+
+                // Display Type and ID
+                document.getElementById("edit-khet-type").innerHTML = khet.khetType;
+                document.getElementById("edit-khet-id").innerHTML = khet.khetId;
+
+                // Display position and scale to input fields
+                document.getElementById('pos-x').value = khet.position[0];
+                document.getElementById('pos-y').value = khet.position[1];
+                document.getElementById('pos-z').value = khet.position[2];
+                document.getElementById('scale-x').value = khet.scale[0];
+                document.getElementById('scale-y').value = khet.scale[1];
+                document.getElementById('scale-z').value = khet.scale[2];
+            });
+            document.getElementById("save-edit-btn").addEventListener('click', async () => {
+                document.getElementById("edit-khet-type").innerHTML = khet.khetType;
+                document.getElementById("edit-khet-id").innerHTML = khet.khetId;
+
+                // Retrieve position and scale from input fields
+                const posX = parseFloat(document.getElementById('pos-x').value) || 0;
+                const posY = parseFloat(document.getElementById('pos-y').value) || 0;
+                const posZ = parseFloat(document.getElementById('pos-z').value) || 0;
+                const scaleX = parseFloat(document.getElementById('scale-x').value) || 1;
+                const scaleY = parseFloat(document.getElementById('scale-y').value) || 1;
+                const scaleZ = parseFloat(document.getElementById('scale-z').value) || 1;
+
+                // Save Khet: overwrite
+            }); */
+            
             // Append the row to the table
             table.appendChild(tr);
         }
         showTab("assets-tab");
     });
+
+    // Discard Edit Button
+    const discardEditButton = document.getElementById("discard-edit-btn");
+    discardEditButton.addEventListener('click', async () => {
+        
+        // Reset position and scale in input fields
+        document.getElementById('pos-x').value = 0;
+        document.getElementById('pos-y').value = 0;
+        document.getElementById('pos-z').value = 0;
+        document.getElementById('scale-x').value = 1;
+        document.getElementById('scale-y').value = 1;
+        document.getElementById('scale-z').value = 1;
+
+        // Switch to Upload
+        document.getElementById("edit-group").style.display = "none";
+        document.getElementById("upload-group").style.display = "block";
+    });
+
+    // Draw Up Button
+    const drawUpButton = document.getElementById("draw-up-btn");
+    drawUpButton.addEventListener('click', async () => {
+        document.getElementById("khet-editor").style.bottom = "240px";
+        document.getElementById("draw-up-btn").style.display = "none";
+        document.getElementById("draw-close-btn").style.display = "block";
+    })
+
+    // Draw Close Button
+    const drawCloseButton = document.getElementById("draw-close-btn");
+    drawCloseButton.addEventListener('click', async () => {
+        document.getElementById("khet-editor").style.bottom = "-20px";
+        document.getElementById("draw-up-btn").style.display = "block";
+        document.getElementById("draw-close-btn").style.display = "none";
+    })
 
     // Main Menu Buttons
     const menuButtons = document.querySelectorAll('#side-bar-buttons button');

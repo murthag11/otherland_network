@@ -437,7 +437,7 @@ export async function uploadKhet(khet, storageCanisterId = 'be2us-64aaa-aaaaa-qa
                 const end = Math.min(start + CHUNK_SIZE, gltfData.byteLength);
                 const chunk = gltfData.subarray(start, end);
                 const chunkBlob = new Blob([chunk]);
-                console.log(`Uploading chunk ${i} of ${totalChunks - 1} for blobId: ${blobId}, size: ${chunk.length} bytes`);
+                console.log(`Uploading chunk ${i + 1} of ${totalChunks} for blobId: ${blobId}, size: ${chunk.length} bytes`);
                 await storageActor.storeBlobChunk(blobId, i, new Uint8Array(await chunkBlob.arrayBuffer()));
             }
 
@@ -581,6 +581,7 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                     // Position body so bottom is at khet.position[1]
                     body.position.set(khet.position[0], khet.position[1] + radius, khet.position[2]);
                     object.position.y = body.position.y - radius;
+                    object.rotation.y = Math.PI;
                     body.fixedRotation = true;
 
                     if (debugPhysics) {

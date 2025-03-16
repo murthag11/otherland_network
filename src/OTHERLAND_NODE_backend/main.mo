@@ -80,18 +80,8 @@ actor Node {
 
   // Initialize a Khet upload (store temporarily without finalizing)
   public func initKhetUpload(khet : Khet, storageCanisterId : Principal) : async {#existing : Text; #new : Text} {
-    switch (khet.gltfDataRef) {
-    case (null) {
-      // gltfDataRef is null, treat this as a new upload
-      let newBlobId = khet.khetId;
-      hashToBlobId.put(khet.hash, (newBlobId, false));
-      let gltfDataRef = (storageCanisterId, newBlobId, khet.gltfDataSize);
-      let updatedKhet = { khet with gltfDataRef = ?gltfDataRef };
-      pendingKhets.put(khet.khetId, updatedKhet);
-      return #new(newBlobId);
-    };
-    case (?_ref) {
-      // gltfDataRef is already set, check if the hash exists
+    
+      // check if the hash exists
       let existing = hashToBlobId.get(khet.hash);
       switch (existing) {
           case (? (blobId, true)) {
@@ -113,8 +103,6 @@ actor Node {
               return #new(newBlobId);
           };
       };
-    };
-  };
 };
 
   // Finalize a Khet upload after chunks are uploaded

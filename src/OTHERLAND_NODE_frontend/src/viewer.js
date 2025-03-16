@@ -29,7 +29,7 @@ scene.background = new THREE.Color(0x87ceeb);
 // **Camera and Controls**
 // Set up a perspective camera with a 75-degree FOV
 export const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 1, 2); // Position camera slightly above and back from origin
+camera.position.set(0, 1, -2.5); // Position camera slightly above and back from origin
 
 // Initialize pointer lock controls for first-person navigation
 export const controls = new THREE.PointerLockControls(camera, renderer.domElement);
