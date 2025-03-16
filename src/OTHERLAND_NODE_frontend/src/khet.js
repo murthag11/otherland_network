@@ -4,8 +4,9 @@ import { Actor, HttpAgent } from '@dfinity/agent';
 import { Principal } from '@dfinity/principal';
 import { idlFactory as backendIdlFactory } from '../../declarations/OTHERLAND_NODE_backend';
 import { idlFactory as storageIdlFactory } from '../../declarations/Storage'; // Adjust path after dfx generate
-import { avatarState } from './avatar.js';
 import { editProperty, pickupObject } from './interaction.js';
+import { avatarState } from './avatar.js';
+import { online } from './peermesh.js';
 
 // Compute SHA-256 hash of a Uint8Array
 async function computeSHA256(data) {
@@ -79,21 +80,11 @@ export const worldController = {
 
     // Sync local world with Node objects
     async syncWithNode(params) {
-        
-        // Set up the agent to communicate with the backend
-        const agent = new HttpAgent({ host: window.location.origin });
-        if (process.env.DFX_NETWORK === 'local') {
-            await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
-        }
-        const backendActor = Actor.createActor(backendIdlFactory, { 
-            agent, 
-            canisterId: 'bkyz2-fmaaa-aaaaa-qaaaq-cai' 
-        });
 
         try {
             // Load all Khets into khetController
             await khetController.clearKhet();
-            await khetController.loadAllKhets(agent, backendActor);
+            await khetController.loadAllKhets();
             const backendKhetIds = new Set(Object.keys(khetController.khets));
             console.log(`Backend has ${backendKhetIds.size} Khets`);
 
@@ -117,7 +108,7 @@ export const worldController = {
                 }
             }
 
-            // Unload Khets no longer in the backend
+            // Unload Khets no longer in the world
             for (const khetId of toUnload) {
                 this.unloadKhet(khetId, params.scene, params.world);
             }
@@ -186,55 +177,75 @@ export const khetController = {
     khets: {}, // { khetId: khet }
 
     // Load all Khets from the backend
-    async loadAllKhets(agent, backendActor) {
-        const storageActor = Actor.createActor(storageIdlFactory, { agent, canisterId: 'be2us-64aaa-aaaaa-qaabq-cai' });
-        try {
-            let allKhets = [];
-            const backendKhets = await backendActor.getAllKhets();
-            console.log(`Backend returned ${backendKhets.length} Khets`);
-    
-            // Merge with cached Khets
-            for (const khet of backendKhets) {
-                this.khets[khet.khetId] = khet;
-                
-                // Load 3D asset from cache or storage canister
-                const cachedKhet = await getFromCache(khet.khetId);
-                if (cachedKhet && cachedKhet.gltfData) {
-                    khet.gltfData = cachedKhet.gltfData;
-                    console.log(`Loaded 3D asset for Khet ${khet.khetId} from cache`);
-                } else {
-                    const [storageCanisterId, blobId, gltfDataSize] = khet.gltfDataRef;
-                    const CHUNK_SIZE = 1024 * 1024;
-                    const totalChunks = Math.ceil(Number(gltfDataSize) / CHUNK_SIZE);
-                    let gltfDataChunks = [];
-                    for (let i = 0; i < totalChunks; i++) {
-                        const chunkOpt = await storageActor.getBlobChunk(blobId, i);
-                        if (chunkOpt && chunkOpt.length > 0) {
-                            gltfDataChunks.push(chunkOpt[0]);
-                        } else {
-                            console.warn(`Failed to fetch chunk ${i} for Khet ${khet.khetId}, skipping 3D asset`);
-                            break;
-                        } 
-                    }
-                    if (gltfDataChunks.length === totalChunks) {
-                        khet.gltfData = new Uint8Array(Number(gltfDataSize));
-                        let offset = 0;
-                        for (const chunk of gltfDataChunks) {
-                            khet.gltfData.set(new Uint8Array(chunk), offset);
-                            offset += chunk.length;
+    async loadAllKhets() {
+        
+        let allKhets = [];
 
-                        } 
-                    }
-                    await saveToCache(khet.khetId, khet);
-                    console.log(`Loaded and cached 3D asset for Khet ${khet.khetId} from storage`);
-                }
-                allKhets.push(khet);
+        if (online.connected) {
+
+            const peerKhets = online.parseKhetList();
+
+            for (const khet of peerKhets) {
+                this.khets[khet.khetId] = khet;
+
             }
-            console.log(`Total Khets loaded from backend: ${allKhets.length}`);
             return allKhets;
-        } catch (error) {
-            console.error('Error loading all Khets:', error);
-            return [];
+
+        } else {
+        
+            // Set up the agent to communicate with the backend
+            const agent = new HttpAgent({ host: window.location.origin });
+            if (process.env.DFX_NETWORK === 'local') { await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err)); }
+            const backendActor = Actor.createActor(backendIdlFactory, {  agent, canisterId: 'bkyz2-fmaaa-aaaaa-qaaaq-cai' });
+            const storageActor = Actor.createActor(storageIdlFactory, { agent, canisterId: 'be2us-64aaa-aaaaa-qaabq-cai' });
+
+            try {
+                const backendKhets = await backendActor.getAllKhets();
+                console.log(`Backend returned ${backendKhets.length} Khets`);
+        
+                // Merge with cached Khets
+                for (const khet of backendKhets) {
+                    this.khets[khet.khetId] = khet;
+                    
+                    // Load 3D asset from cache or storage canister
+                    const cachedKhet = await getFromCache(khet.khetId);
+                    if (cachedKhet && cachedKhet.gltfData) {
+                        khet.gltfData = cachedKhet.gltfData;
+                        console.log(`Loaded 3D asset for Khet ${khet.khetId} from cache`);
+                    } else {
+                        const [storageCanisterId, blobId, gltfDataSize] = khet.gltfDataRef;
+                        const CHUNK_SIZE = 1024 * 1024;
+                        const totalChunks = Math.ceil(Number(gltfDataSize) / CHUNK_SIZE);
+                        let gltfDataChunks = [];
+                        for (let i = 0; i < totalChunks; i++) {
+                            const chunkOpt = await storageActor.getBlobChunk(blobId, i);
+                            if (chunkOpt && chunkOpt.length > 0) {
+                                gltfDataChunks.push(chunkOpt[0]);
+                            } else {
+                                console.warn(`Failed to fetch chunk ${i} for Khet ${khet.khetId}, skipping 3D asset`);
+                                break;
+                            } 
+                        }
+                        if (gltfDataChunks.length === totalChunks) {
+                            khet.gltfData = new Uint8Array(Number(gltfDataSize));
+                            let offset = 0;
+                            for (const chunk of gltfDataChunks) {
+                                khet.gltfData.set(new Uint8Array(chunk), offset);
+                                offset += chunk.length;
+
+                            } 
+                        }
+                        await saveToCache(khet.khetId, khet);
+                        console.log(`Loaded and cached 3D asset for Khet ${khet.khetId} from storage`);
+                    }
+                    allKhets.push(khet);
+                }
+                console.log(`Total Khets loaded from backend: ${allKhets.length}`);
+                return allKhets;
+            } catch (error) {
+                console.error('Error loading all Khets:', error);
+                return [];
+            }
         }
     },
 
@@ -728,15 +739,10 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
 // **Load Scene Objects**
 // Load all SceneObject Khets into the scene
 export async function loadSceneObjects({ scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController }, spectatorMode = false ) {
-    const agent = new HttpAgent({ host: window.location.origin });
-    if (process.env.DFX_NETWORK === 'local') {
-        await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
-    }
-    const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: 'bkyz2-fmaaa-aaaaa-qaaaq-cai' });
 
     try {
         // Load all Khets into khetController
-        const allKhets = await khetController.loadAllKhets(agent, backendActor);
+        const allKhets = await khetController.loadAllKhets();
         console.log(`Found ${allKhets.length} Khets`);
 
         for (const khet of allKhets) {

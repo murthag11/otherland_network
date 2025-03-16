@@ -1,6 +1,7 @@
 // Import functions for managing Khet objects from khet.js
 import { createKhet, uploadKhet, khetController, worldController } from './khet.js';
 import { animate } from './animation.js';
+import { online } from './peermesh.js';
 
 // Control Animation Loop
 export let isAnimating = false;
@@ -229,6 +230,18 @@ document.getElementById('upload-btn').addEventListener('click', async () => {
         console.error('Upload process failed:', error);
     }
 });
+
+// Online: Detect Quick Connect
+const onlineParams = new Proxy(new URLSearchParams(window.location.search), {
+    get: (searchParams, prop) => searchParams.get(prop),});
+if (onlineParams.standalone) { 
+    document.getElementById("body").requestFullscreen();
+};
+if (onlineParams.id) {
+    online.remoteID = onlineParams.id;
+    online.quickConnect = true;
+    // online.openPeer();
+};
 
 // **Fallback Ground Plane**
 // Function to add a ground plane if no scene objects are loaded

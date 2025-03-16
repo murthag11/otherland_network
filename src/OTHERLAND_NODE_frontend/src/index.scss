@@ -131,7 +131,6 @@ canvas {
     height: 100%;
     background: $background-semi;
     padding: 100px 40px;
-    overflow-y: auto;
     color: $secondary-color;
 
     h2 {
@@ -171,6 +170,8 @@ canvas {
 
     #khet-list {
 
+      max-height: calc(100vh - 282px);
+
       table tr th {
         text-align: left;
       }
@@ -189,6 +190,13 @@ canvas {
         margin: 0;
         width: 125px;
       }
+    }
+
+    #peer-info {
+      display: none;
+    }
+    #share-th-link-btn {
+      display: none;
     }
 
     #khet-editor {

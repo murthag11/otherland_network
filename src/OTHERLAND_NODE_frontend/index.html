@@ -47,15 +47,30 @@
             <div id="treehouse-tab" class="tab">
                 <h1>TreeHouse</h1>
 
-                <!-- Enter VR world -->
+                <!-- Enter TreeHouse -->
                 <button id="enter-treehouse-btn">Enter TreeHouse</button>
 
-                <!-- Clear World -->
-                <button id="clear-khets-btn">Clear All Khets</button>
-
-                <button>Invite Friends</button>
                 <button id="edit-env-btn">Edit Environment</button>
-                <button>Node Settings</button>
+                <button id="node-config-btn">Node Settings</button>
+
+                <!-- Peer to Peer -->
+                <div class="flex-row">
+                    <h2>Play with friends</h2>
+                    <button id="toggle-p2p-btn">Off</button>
+                </div>
+                <div id="peer-info">
+                    <!-- Player ID -->
+                    <button> <p id="user-id-title">Generating Peer ID ...</p></button>
+
+                    <!-- Sharing -->
+                    <button id="share-th-link-btn">
+                        <p id="sharing-title">Invite Player</p></button>
+
+                    <!-- Reset Peer -->
+                    <button id="online-reset-button">
+                        <p id="reset-title">Disconnect & Reset Peer ID</p></button>
+                </div>
+
             </div>
             <div id="assets-tab" class="tab">
                 <h1>Assets</h1>
@@ -76,6 +91,9 @@
                     </table>
                 </div>
 
+                <!-- Clear Khets -->
+                <button id="clear-khets-btn">Clear All Khets</button>
+        
                 <!-- Khet Editor -->
                 <div id="khet-editor">
                     <div id="draw-up-btn"><button>🡩</button></div>
@@ -209,6 +227,7 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/PointerLockControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script type="module" src="/src/viewer.js"></script>
 </body>
 </html>

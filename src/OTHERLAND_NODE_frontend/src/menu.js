@@ -5,6 +5,7 @@ import { Actor, HttpAgent } from '@dfinity/agent';
 import { idlFactory as backendIdlFactory } from '../../declarations/OTHERLAND_NODE_backend';
 import { nodeSettings } from './nodeManager.js';
 import { user } from './user.js';
+import { online } from './peermesh.js'
 
 // ### Pointer Lock State Handling
 // Listen for changes in the pointer lock state to manage game menu visibility
@@ -55,6 +56,11 @@ document.addEventListener('keyup', event => {
     keys.delete(event.key.toLowerCase());
 });
 
+// Deactivate Context Menu
+document.addEventListener('contextmenu', function(e){
+    e.preventDefault();
+}, false);
+
 // ### Menu Navigation and UI Toggling
 // Wait for the DOM to load before setting up event listeners
 document.addEventListener('DOMContentLoaded', () => {
@@ -85,6 +91,25 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('main-menu').style.display = 'none';
         controls.lock();          // Lock the pointer for game control
         canvas.focus();           // Focus on the canvas for input
+    });
+
+    // Toogle Peer Network Button
+    const togglePeerButton = document.getElementById("toggle-p2p-btn");
+    togglePeerButton.addEventListener('click', async () => {
+        nodeSettings.togglePeerNetworkAllowed();
+    })
+
+    // Sharing Dialog
+    const shareThButton = document.getElementById("share-th-link-btn");
+    shareThButton.addEventListener('click', async () => {
+
+        let thisurl = window.location.protocol + "//" + window.location.host;
+
+        navigator.share({
+            title: 'Otherland Invite',
+            text: 'Come visit my TreeHouse!\u000d\u000d',
+            url: (thisurl + '?id=' + online.ownID),
+        });
     });
 
     // **Clear Khets Button**
@@ -229,15 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         // Load Khets from the backend
-        const agent = new HttpAgent({ host: window.location.origin });
-        if (process.env.DFX_NETWORK === 'local') {
-            await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
-        }
-        const backendActor = Actor.createActor(backendIdlFactory, { 
-            agent, 
-            canisterId: 'bkyz2-fmaaa-aaaaa-qaaaq-cai' 
-        });
-        await khetController.loadAllKhets(agent, backendActor);
+        await khetController.loadAllKhets();
         
         // Populate the table with Khet data
         const khets = Object.values(khetController.khets);
@@ -273,9 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const tdEdit = document.createElement('td');
             const editKhetButton = document.createElement('button');
             editKhetButton.textContent = "Edit Khet";
-            tdEdit.appendChild(editKhetButton);
-            tr.appendChild(tdEdit);
-            /*editKhetButton.addEventListener('click', async () => {
+            editKhetButton.addEventListener('click', async () => {
 
                 // Switch to Edit Display
                 document.getElementById("edit-group").style.display = "none";
@@ -293,20 +308,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('scale-y').value = khet.scale[1];
                 document.getElementById('scale-z').value = khet.scale[2];
             });
-            document.getElementById("save-edit-btn").addEventListener('click', async () => {
-                document.getElementById("edit-khet-type").innerHTML = khet.khetType;
-                document.getElementById("edit-khet-id").innerHTML = khet.khetId;
-
-                // Retrieve position and scale from input fields
-                const posX = parseFloat(document.getElementById('pos-x').value) || 0;
-                const posY = parseFloat(document.getElementById('pos-y').value) || 0;
-                const posZ = parseFloat(document.getElementById('pos-z').value) || 0;
-                const scaleX = parseFloat(document.getElementById('scale-x').value) || 1;
-                const scaleY = parseFloat(document.getElementById('scale-y').value) || 1;
-                const scaleZ = parseFloat(document.getElementById('scale-z').value) || 1;
-
-                // Save Khet: overwrite
-            }); */
+            tdEdit.appendChild(editKhetButton);
+            tr.appendChild(tdEdit);
             
             // Append the row to the table
             table.appendChild(tr);
@@ -314,7 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showTab("assets-tab");
     });
 
-    // Discard Edit Button
+    // Discard Edit and Close
     const discardEditButton = document.getElementById("discard-edit-btn");
     discardEditButton.addEventListener('click', async () => {
         
@@ -326,7 +329,29 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('scale-y').value = 1;
         document.getElementById('scale-z').value = 1;
 
-        // Switch to Upload
+        // Switch to Upload & Close
+        document.getElementById("khet-editor").style.bottom = "-20px";
+        document.getElementById("edit-group").style.display = "none";
+        document.getElementById("upload-group").style.display = "block";
+    });
+
+    // Save Edit and Close
+    const saveEditButton = document.getElementById("save-edit-btn");
+    saveEditButton.addEventListener('click', async () => {
+
+        // Retrieve position and scale from input fields
+        const posX = parseFloat(document.getElementById('pos-x').value) || 0;
+        const posY = parseFloat(document.getElementById('pos-y').value) || 0;
+        const posZ = parseFloat(document.getElementById('pos-z').value) || 0;
+        const scaleX = parseFloat(document.getElementById('scale-x').value) || 1;
+        const scaleY = parseFloat(document.getElementById('scale-y').value) || 1;
+        const scaleZ = parseFloat(document.getElementById('scale-z').value) || 1;
+
+        // Save Khet: overwrite
+        // khet.js: await saveToCache(khet.khetId, khet);
+
+        // Switch to Upload & Close
+        document.getElementById("khet-editor").style.bottom = "-20px";
         document.getElementById("edit-group").style.display = "none";
         document.getElementById("upload-group").style.display = "block";
     });
