@@ -382,10 +382,36 @@ canvas {
   }
 }
 
+// Info Box  
+#info-box {
+
+  top: 20px;
+  right: 20px;
+  // width: 250px;
+  // height: 120px;
+  z-index: 1001;
+
+  position: fixed;
+    background: $background-dark;
+    color: $secondary-color;
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid $primary-color;
+    box-shadow: 0 0 10px rgba($primary-color, 0.2);
+
+  // Account Switcher
+  #account-switcher {
+  
+    button {
+      @include button-style;
+    }
+  }
+}
+
 // GUI Areas
 #guiLayer {
 
-  #chat, #friends-list, #own-info, #map, #interactionHint {
+  #chat, #friends-list, #map, #interactionHint {
     position: fixed;
     background: $background-dark;
     color: $secondary-color;
@@ -414,26 +440,6 @@ canvas {
       left: 20px;
       width: 250px;
       height: 300px;
-    }
-    
-    #own-info {
-      display: none;
-      top: 20px;
-      right: 20px;
-      width: 250px;
-      height: 120px;
-    }
-  
-    // Account Switcher
-    #account-switcher {
-      position: fixed;
-      top: 25px;
-      right: 25px;
-      z-index: 1001;
-
-      button {
-        @include button-style;
-      }
     }
   }
 
@@ -522,7 +528,7 @@ canvas {
     max-height: 25vh;
   }
 
-  #friends-list, #own-info, #map {
+  #friends-list, #info-box, #map {
     width: 45%;
   }
 
@@ -532,7 +538,7 @@ canvas {
     height: 200px;
   }
 
-  #own-info {
+  #info-box {
     top: 220px;
     right: 5%;
     height: 100px;

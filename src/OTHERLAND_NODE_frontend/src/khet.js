@@ -181,17 +181,30 @@ export const khetController = {
         
         let allKhets = [];
 
-        if (online.connected) {
+        if (online.connected && online.isJoined) {
 
-            const peerKhets = online.parseKhetList();
+            if (online.khetsAreLoaded) {
+                console.log("Khets already loaded from Peer Network");
 
-            for (const khet of peerKhets) {
-                this.khets[khet.khetId] = khet;
+                // Get list from peer
+                this.khets = online.khets;
 
+                // Prepare return value
+                allKhets = Object.values(this.khets);
+
+                // Save Khets to Cache
+                for (const [khetId, khet] of Object.entries(this.khets)) {
+                    await saveToCache(khetId, khet); // Wait for each save to complete
+                  }
+                return allKhets;
+            } else {
+                console.log("Still loading Khets from Peer Network");
+                return [];
             }
-            return allKhets;
 
         } else {
+
+            console.log("Loading Khet List from Node Backend");
         
             // Set up the agent to communicate with the backend
             const agent = new HttpAgent({ host: window.location.origin });

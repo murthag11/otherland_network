@@ -1,38 +1,75 @@
 import { nodeSettings } from './nodeManager.js';
+import { khetController } from './khet.js';
+import { Principal } from '@dfinity/principal';
+
+function prepareForSending(khet) {
+  const prepared = { ...khet };
+  
+  // Convert gltfDataSize BigInt to string
+  if (typeof prepared.gltfDataSize === 'bigint') {
+    prepared.gltfDataSize = prepared.gltfDataSize.toString();
+  }
+  
+  // Handle gltfDataRef: [Principal, string, BigInt]
+  if (Array.isArray(prepared.gltfDataRef) && prepared.gltfDataRef.length === 1 && 
+      Array.isArray(prepared.gltfDataRef[0]) && prepared.gltfDataRef[0].length === 3) {
+    const [principal, blobId, size] = prepared.gltfDataRef[0];
+    prepared.gltfDataRef = [[principal.toText(), blobId, size.toString()]];
+  }
+  
+  return prepared;
+};
+
+async function restoreAfterReceiving(khet) {
+
+    // Restore gltfDataSize from string to BigInt
+    if (typeof khet.gltfDataSize === 'string') {
+        khet.gltfDataSize = BigInt(khet.gltfDataSize);
+    }
+    
+    // Restore gltfDataRef from [ [string, string, string] ] to [ [Principal, string, BigInt] ]
+    if (Array.isArray(khet.gltfDataRef) && khet.gltfDataRef.length === 1 && 
+        Array.isArray(khet.gltfDataRef[0]) && khet.gltfDataRef[0].length === 3) {
+        const [principalText, blobId, sizeStr] = khet.gltfDataRef[0];
+        khet.gltfDataRef = [[Principal.fromText(principalText), blobId, BigInt(sizeStr)]];
+    }
+    
+    // Restore gltfData from ArrayBuffer to Uint8Array
+    if (khet.gltfData instanceof ArrayBuffer) {
+        khet.gltfData = new Uint8Array(khet.gltfData);
+    }
+    
+    return khet;
+};
 
 // Peer to Peer Online Logic
 export const online = {
 
     // Properties
+    update: false,      //eliminate?
+    init: false,        //eliminate?
+
     connected: false,
     quickConnect: false,
     isHosting: false,
     isJoined: false,
-    update: false,
     ownID: "",
     remoteID: "",
-    init: false,
 
-    isSending: false,
-    isReceiving: false,
-    remoteShotOngoing: false,
-    sendBuffer: [],
-    receiveBuffer: [],
+    khets: {},
+    khetsAreLoaded: false,
+    
     audioStream: null,
 
-    remoteShotsBuffer: [],
-    remoteAngle: 0,
     peer: null,
     conn: null,
 
     // Create Peer Functions
     openPeer: function () {
 
-        const nodeConfig = nodeSettings.exportNodeConfig();
-
         if (this.ownID == "") {
 
-            // Text
+            // Adjust Text
             document.getElementById("user-id-title").innerHTML = "Waiting for Peer ID...";
 
             // Create Peer 
@@ -63,7 +100,8 @@ export const online = {
                         online.disconnect();
                     });
 
-                    // Send Game Configuration
+                    // Send Node Configuration
+                    const nodeConfig = nodeSettings.exportNodeConfig();
                     online.send("init", nodeConfig);
 
                     // Notify User that peer connection is established in friendlist and with sound
@@ -98,20 +136,18 @@ export const online = {
                 // Display in menu
                 document.getElementById("user-id-title").innerHTML = "Peer ID:<br><br>" + online.ownID;
                 document.getElementById("share-th-link-btn").style.display = "block";
+                document.getElementById("node-state").innerHTML = "Node: TreeHouse (open)";
 
                 // Quick Connect
                 if (online.quickConnect) {
-                    online.connect();
 
                     // Create Peer Connection
                     online.conn = online.peer.connect(online.remoteID);
-                    console.log("remoteID: " + online.remoteID)
 
                     // Exchange Data
                     online.conn.on('open', function () {
 
                         online.remoteID = online.conn.peer;
-                        console.log("remoteID: " + online.remoteID)
 
                         // Set Connection
                         online.connect();
@@ -167,13 +203,53 @@ export const online = {
     incomingData: function (data) {
         console.log("Received: " + data);
 
+        // Receive Node Config
+        if (data.type == "init") {
+
+            if (online.isJoined) {
+                nodeSettings.importNodeConfig(data.value);
+            }
+            online.send("request-khetlist", "");
+            
+            return;
+        };
+
+        // Receive Request for Khets
+        if (data.type == "request-khetlist") {
+
+            if (online.isHosting) {
+
+                console.log(khetController.khets);
+
+                // Send Khets                
+                const preparedKhets = {};
+                for (const [khetId, khet] of Object.entries(khetController.khets)) {
+                  preparedKhets[khetId] = prepareForSending(khet);
+                }
+                online.send("khetlist", preparedKhets);
+                
+            } else {
+                console.log("Request for Khets received, but not hosting");
+            }
+            
+            return;
+        };
+
         // Receive Khets
         if (data.type == "khetlist") {
 
+            // Parse Khets
             if (online.isJoined) {
-
+                const khets = data.value;
+                const restoredKhets = {};
+                for (const [khetId, khet] of Object.entries(khets)) {
+                    restoredKhets[khetId] = restoreAfterReceiving(khet);
+                }
+                khetController.khets = restoredKhets;
+                online.khets = restoredKhets;
+                online.khetsAreLoaded = true;
+                console.log(khetController.khets);
             }
-            
             return;
         };
         
@@ -335,58 +411,10 @@ export const online = {
     // Send Value
     send: function (type, value) {
         if (this.connected) {
-
-            // Save to Buffer
-            if (type == "confirm") {
-
-                console.log("confirmation sent, index: " + value);
-                
-                // Send Confirm
-                online.conn.send({
-                    type: type,
-                    value: null,
-                    index: value
-                });
-            } else {
-                this.sendBuffer.push({ type: type, value: value, index: online.sendBuffer.length, confirmed: false });
-
-                if (online.isSending == false) {
-                    online.isSending = true;
-                    console.log("Sending invoked");
-                    online.startSending();
-                }
-            }
-        }
-        return;
-    },
-
-    startSending: function () {
-        
-        if (online.connected && online.isSending) {
-
-            // Determine lowest unconfirmed count
-            for (var sendIndex = 0; sendIndex < online.sendBuffer.length - 1; sendIndex++) {
-                if (online.sendBuffer[sendIndex].confirmed == false) { break; }
-            }
-
-            if (online.sendBuffer[sendIndex].confirmed == false) {
-                
-                // Send Value
-                online.conn.send({
-                    type: online.sendBuffer[sendIndex].type,
-                    value: online.sendBuffer[sendIndex].value,
-                    index: online.sendBuffer[sendIndex].index
-                });
-
-                // Log to Console
-                console.log("Sent [" + sendIndex + "], Type: " + online.sendBuffer[sendIndex].type);
-
-                // Stay active if necessary
-                setTimeout(online.startSending, 500);
-            } else {
-                online.isSending = false;
-                console.log("Sending finished");
-            }
+            online.conn.send({
+                type: type,
+                value: value
+            });
         }
         return;
     },
@@ -394,9 +422,11 @@ export const online = {
     // set online connection
     connect: function () {
         online.connected = true;
-        document.getElementById("reset-button").innerHTML = "Disconnect & Reset";
-        document.getElementById("reset-button").onclick = online.disconnect;
-        document.getElementById("reset-button2").style.display = "block";
+        //document.getElementById("reset-button").innerHTML = "Disconnect & Reset";
+        //document.getElementById("reset-button").onclick = online.disconnect;
+        //document.getElementById("reset-button2").style.display = "block";
+
+        console.log("Connection with " + online.remoteID + " established");
 
         online.quickConnect = false;
         return;

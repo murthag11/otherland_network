@@ -237,10 +237,12 @@ const onlineParams = new Proxy(new URLSearchParams(window.location.search), {
 if (onlineParams.standalone) { 
     document.getElementById("body").requestFullscreen();
 };
+console.log('Remote check for quickconnect');
 if (onlineParams.id) {
     online.remoteID = onlineParams.id;
+    console.log('Remote ID:', online.remoteID);
     online.quickConnect = true;
-    // online.openPeer();
+    online.openPeer();
 };
 
 // **Fallback Ground Plane**

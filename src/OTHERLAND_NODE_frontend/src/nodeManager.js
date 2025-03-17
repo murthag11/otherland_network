@@ -1,4 +1,5 @@
 import { online } from './peermesh.js'
+import { khetController } from './khet.js';
 
 // Create the nodeSettings object
 export const nodeSettings = {
@@ -32,6 +33,7 @@ export const nodeSettings = {
             this.peerNetworkAllowed = true;
             document.getElementById("toggle-p2p-btn").innerHTML = "Yes";
             document.getElementById("peer-info").style.display = "block";
+            khetController.loadAllKhets();
             online.openPeer();
         }
         return;
