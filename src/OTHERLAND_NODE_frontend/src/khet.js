@@ -490,6 +490,29 @@ export async function uploadKhet(khet, storageCanisterId = 'be2us-64aaa-aaaaa-qa
     return khet; // Return immediately with the cached reference
 }
 
+export async function loadKhetMeshOnly(khetId, scene) {
+    const khet = khetController.getKhet(khetId);
+    if (!khet || !khet.gltfData) {
+        console.error(`Khet ${khetId} not found or no gltfData`);
+        return null;
+    }
+    const loader = new THREE.GLTFLoader();
+    return new Promise((resolve) => {
+        loader.parse(khet.gltfData.buffer, '', (gltf) => {
+            const object = gltf.scene;
+            object.scale.set(khet.scale[0], khet.scale[1], khet.scale[2]);
+            
+            // Set an initial position (will be updated by peer data)
+            object.position.set(khet.position[0], khet.position[1], khet.position[2]);
+            scene.add(object);
+            resolve(object);
+        }, (error) => {
+            console.error(`Error loading mesh for Khet ${khetId}:`, error);
+            resolve(null);
+        });
+    });
+}
+
 // **Load and Render Khet**
 // Load a Khet by ID and add it to the scene
 export async function loadKhet(khetId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController }) {

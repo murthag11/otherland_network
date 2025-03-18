@@ -2,8 +2,98 @@ import { controls, world, scene, camera, sceneObjects, renderer, khetState, came
 import { avatarState } from './avatar.js';
 import { keys } from './menu.js';
 import { triggerInteraction } from './interaction.js';
+import { online } from './peermesh.js';
 
 const animationMixers = [];
+
+// Detect if the device supports touch input
+export const isTouchDevice = 'ontouchstart' in window;
+
+// Variables for camera rotation on touch devices
+let yaw = 0;
+let pitch = 0;
+const maxPitch = (85 * Math.PI) / 180; // Limit pitch to ±85 degrees
+const minPitch = (-85 * Math.PI) / 180;
+
+let moveDirection = { x: 0, y: 0 }; // Joystick
+
+// Touch control setup for mobile devices
+if (isTouchDevice) {
+
+    // Create virtual joystick
+    const joystickZone = document.getElementById('joystick-zone');
+    const joystick = nipplejs.create({
+        zone: joystickZone,
+        mode: 'static', // Fixed position joystick
+        position: { left: '50%', top: '50%' }, // Center within the zone
+        color: 'blue'
+    });
+
+    // Store joystick movement direction
+    joystick.on('move', (evt, data) => {
+        moveDirection.x = data.vector.x; // Horizontal: -1 (left) to 1 (right)
+        moveDirection.y = -data.vector.y; // Vertical: -1 (down) to 1 (up)
+    });
+    joystick.on('end', () => {
+        moveDirection.x = 0;
+        moveDirection.y = 0;
+    });
+
+    // Touch-based camera rotation
+    let cameraTouchId = null;
+    let lastTouchX = 0;
+    let lastTouchY = 0;
+
+    document.addEventListener('touchstart', (event) => {
+        for (let touch of event.changedTouches) {
+            // Use touches outside the joystick zone for camera rotation
+            if (!joystickZone.contains(touch.target)) {
+                cameraTouchId = touch.identifier;
+                lastTouchX = touch.clientX;
+                lastTouchY = touch.clientY;
+                break; // Handle only one touch for camera
+            }
+        }
+    });
+
+    document.addEventListener('touchmove', (event) => {
+        for (let touch of event.changedTouches) {
+            if (touch.identifier === cameraTouchId) {
+                const deltaX = touch.clientX - lastTouchX;
+                const deltaY = touch.clientY - lastTouchY;
+                lastTouchX = touch.clientX;
+                lastTouchY = touch.clientY;
+
+                // Update yaw (horizontal) and pitch (vertical)
+                yaw -= deltaX * 0.002; // Adjust sensitivity as needed
+                pitch -= deltaY * 0.002;
+                pitch = Math.max(minPitch, Math.min(maxPitch, pitch));
+
+                // Apply rotation to camera
+                const euler = new THREE.Euler(pitch, yaw, 0, 'YXZ');
+                camera.quaternion.setFromEuler(euler);
+            }
+        }
+    });
+
+    document.addEventListener('touchend', (event) => {
+        for (let touch of event.changedTouches) {
+            if (touch.identifier === cameraTouchId) {
+                cameraTouchId = null;
+            }
+        }
+    });
+
+    // Jump button handler
+    const jumpBtn = document.getElementById('jump-btn');
+    jumpBtn.addEventListener('touchstart', () => {
+        if (avatarState.avatarBody.canJump && avatarState.avatarBody.isGrounded) {
+            const jumpForce = 5;
+            avatarState.avatarBody.velocity.y = jumpForce;
+            avatarState.avatarBody.canJump = false;
+        }
+    });
+}
 
 export function animate() {
     if (!isAnimating) return;
@@ -15,7 +105,7 @@ export function animate() {
 
     khetState.executors.forEach(executor => executor());
 
-    if (controls.isLocked) {
+    if (controls.isLocked || isTouchDevice) {
         if (avatarState.avatarMesh && avatarState.avatarBody) {
 
             // Determine closest interaction point (consider checking only nearby Khets (e.g., within 5 units) if performance becomes an issue)
@@ -62,10 +152,19 @@ export function animate() {
             const right = new THREE.Vector3().crossVectors(camDirection, new THREE.Vector3(0, 1, 0)).normalize().multiplyScalar(walkSpeed);
 
             const moveVelocity = new CANNON.Vec3(0, avatarState.avatarBody.velocity.y, 0);
-            if (keys.has('w')) moveVelocity.vadd(new CANNON.Vec3(forward.x, 0, forward.z), moveVelocity);
-            if (keys.has('s')) moveVelocity.vadd(new CANNON.Vec3(-forward.x, 0, -forward.z), moveVelocity);
-            if (keys.has('a')) moveVelocity.vadd(new CANNON.Vec3(-right.x, 0, -right.z), moveVelocity);
-            if (keys.has('d')) moveVelocity.vadd(new CANNON.Vec3(right.x, 0, right.z), moveVelocity);
+            if (isTouchDevice) {
+                // Touch-based movement using joystick
+                const movementDirection = new THREE.Vector3(moveDirection.x, 0, moveDirection.y).applyQuaternion(camera.quaternion);
+                const movementVelocity = new CANNON.Vec3(movementDirection.x, 0, movementDirection.z).scale(walkSpeed);
+                moveVelocity.x = movementVelocity.x;
+                moveVelocity.z = movementVelocity.z;
+            } else {
+                // Keyboard-based movement
+                if (keys.has('w')) moveVelocity.vadd(new CANNON.Vec3(forward.x, 0, forward.z), moveVelocity);
+                if (keys.has('s')) moveVelocity.vadd(new CANNON.Vec3(-forward.x, 0, -forward.z), moveVelocity);
+                if (keys.has('a')) moveVelocity.vadd(new CANNON.Vec3(-right.x, 0, -right.z), moveVelocity);
+                if (keys.has('d')) moveVelocity.vadd(new CANNON.Vec3(right.x, 0, right.z), moveVelocity);
+            }
             avatarState.avatarBody.velocity.set(moveVelocity.x, avatarState.avatarBody.velocity.y, moveVelocity.z);
 
             // Check grounding using physics contacts
@@ -116,16 +215,37 @@ export function animate() {
                 camDirection
             );
             avatarState.avatarMesh.quaternion.slerp(targetQuaternion, 0.1);
+
+            // Send avatar position to other players
+            if (online.connected && avatarState.avatarMesh) {
+                const currentTime = performance.now();
+                if (currentTime - online.lastSendTime > 50) {
+                    const position = avatarState.avatarMesh.position;
+                    const quaternion = avatarState.avatarMesh.quaternion;
+                    online.send("position", {
+                        position: { x: position.x, y: position.y, z: position.z },
+                        quaternion: { x: quaternion.x, y: quaternion.y, z: quaternion.z, w: quaternion.w }
+                    });
+                    online.lastSendTime = currentTime;
+                }
+            }
         } else {
 
             // Move Spectator Camera
             const moveSpeed = 0.1;
-            if (keys.has('w')) controls.moveForward(moveSpeed);
-            if (keys.has('s')) controls.moveForward(-moveSpeed);
-            if (keys.has('a')) controls.moveRight(-moveSpeed);
-            if (keys.has('d')) controls.moveRight(moveSpeed);
-            if (keys.has(' ')) camera.position.y += moveSpeed;
-            if (keys.has('control')) camera.position.y -= moveSpeed;
+            if (isTouchDevice) {
+                // Touch-based camera movement
+                const movementDirection = new THREE.Vector3(moveDirection.x, 0, moveDirection.y).applyQuaternion(camera.quaternion);
+                camera.position.add(movementDirection.multiplyScalar(moveSpeed));
+            } else {
+                // Keyboard-based camera movement
+                if (keys.has('w')) controls.moveForward(moveSpeed);
+                if (keys.has('s')) controls.moveForward(-moveSpeed);
+                if (keys.has('a')) controls.moveRight(-moveSpeed);
+                if (keys.has('d')) controls.moveRight(moveSpeed);
+                if (keys.has(' ')) camera.position.y += moveSpeed;
+                if (keys.has('control')) camera.position.y -= moveSpeed;
+            }
         }
     }
 

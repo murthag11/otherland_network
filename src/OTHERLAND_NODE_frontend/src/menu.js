@@ -6,26 +6,36 @@ import { idlFactory as backendIdlFactory } from '../../declarations/OTHERLAND_NO
 import { nodeSettings } from './nodeManager.js';
 import { user } from './user.js';
 import { online } from './peermesh.js'
+import { isTouchDevice } from './animation.js'
 
 // ### Pointer Lock State Handling
 // Listen for changes in the pointer lock state to manage game menu visibility
 document.addEventListener('pointerlockchange', () => {
-    const gameMenu = document.getElementById('game-menu');
     if (!document.pointerLockElement) {
-        stopAnimation();                 // Stop animation when pointer lock is released
-        gameMenu.style.display = 'flex'; // Show the game menu when pointer lock is released
-        keys.clear();                    // Clear any active key presses
-        const closeBtn = document.getElementById('close-btn');
-        closeBtn.disabled = true;        // Disable the close button temporarily
-        document.getElementById('guiLayer').style.display = 'none'; // Show the GUI layer when pointer lock is released
-        setTimeout(() => {
-            closeBtn.disabled = false;   // Re-enable the close button after 1.25 seconds
-        }, 1250);
+        leaveViewer();                   // Leave the viewer when pointer lock is released
     } else {
-        document.getElementById('guiLayer').style.display = 'block'; // Hide the GUI layer when pointer lock is acquired
-        startAnimation();                // Start animation when pointer lock is acquired
+        enterViewer();                   // Enter the viewer when pointer lock is acquired
     }
 });
+
+function enterViewer() {
+    document.getElementById('guiLayer').style.display = 'block'; // Hide the GUI layer when pointer lock is acquired
+    document.getElementById('mobile-controls').style.display = 'block'; // Show the GUI layer when pointer lock is released
+    startAnimation();                // Start animation when pointer lock is acquired
+}
+function leaveViewer() {
+    const gameMenu = document.getElementById('game-menu');
+    stopAnimation();                 // Stop animation when pointer lock is released
+    gameMenu.style.display = 'flex'; // Show the game menu when pointer lock is released
+    keys.clear();                    // Clear any active key presses
+    const closeBtn = document.getElementById('close-btn');
+    closeBtn.disabled = true;        // Disable the close button temporarily
+    document.getElementById('guiLayer').style.display = 'none'; // Show the GUI layer when pointer lock is released
+    document.getElementById('mobile-controls').style.display = 'none'; // Show the GUI layer when pointer lock is released
+    setTimeout(() => {
+        closeBtn.disabled = false;   // Re-enable the close button after 1.25 seconds
+    }, 1250);
+}
 
 // ### Key Input Handling
 // Set to track currently pressed keys
@@ -46,7 +56,11 @@ document.addEventListener('keydown', event => {
         if (!isMainMenuVisible) {
             if (!isGameMenuVisible) {
                 gameMenu.style.display = 'flex'; // Show the game menu if it's not visible
-                controls.unlock();           // Unlock the pointer controls
+                if (!isTouchDevice) {
+                    controls.unlock();           // Unlock the pointer controls
+                } else {   
+                    leaveViewer();               // Leave the viewer when pointer lock is released
+                }
                 keys.clear();                // Clear active keys
             }
         }
@@ -178,7 +192,12 @@ document.addEventListener('DOMContentLoaded', () => {
         await loadAvatarObject(params);
 
         document.getElementById('main-menu').style.display = 'none';
-        controls.lock();          // Lock the pointer for game control
+        const isTouchDevice = 'ontouchstart' in window;
+        if (!isTouchDevice) {
+            controls.lock();      // Lock the pointer for game control
+        } else {   
+            enterViewer();        // Enter the viewer when pointer lock is acquired
+        }
         canvas.focus();           // Focus on the canvas for input
     });
 
@@ -215,7 +234,11 @@ document.addEventListener('DOMContentLoaded', () => {
     homeBtn.addEventListener('click', () => {
         document.getElementById('game-menu').style.display = 'none';           // Hide the game menu
         document.getElementById('main-menu').style.display = 'flex';  // Show the start overlay
-        controls.unlock();                     // Unlock pointer controls
+        if (!isTouchDevice) {
+            controls.unlock();           // Unlock the pointer controls
+        } else {   
+            leaveViewer();               // Leave the viewer when pointer lock is released
+        }
         keys.clear();                          // Clear active keys
     });
 
@@ -242,7 +265,12 @@ document.addEventListener('DOMContentLoaded', () => {
     closeBtn.addEventListener('click', () => {
         const gameMenu = document.getElementById('game-menu');
         gameMenu.style.display = 'none'; // Hide the game menu
-        controls.lock();             // Lock the pointer for game control
+        const isTouchDevice = 'ontouchstart' in window;
+        if (!isTouchDevice) {
+            controls.lock();      // Lock the pointer for game control
+        } else {   
+            enterViewer();        // Enter the viewer when pointer lock is acquired
+        }
         canvas.focus();              // Focus on the canvas for input
     });
 
@@ -324,6 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Function to move button to account switcher
     function moveToAccountSwitcher(button) {
+        document.getElementById("info-box").style.display = 'block';
         const clonedButton = button.cloneNode(true);
         accountSwitcher.innerHTML = '';
         accountSwitcher.appendChild(clonedButton);

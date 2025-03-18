@@ -1,6 +1,7 @@
 import { nodeSettings } from './nodeManager.js';
-import { khetController } from './khet.js';
 import { Principal } from '@dfinity/principal';
+import { scene } from './viewer.js';
+import { khetController, loadKhetMeshOnly } from './khet.js';
 
 function prepareForSending(khet) {
   const prepared = { ...khet };
@@ -59,6 +60,7 @@ export const online = {
     update: false,      //eliminate?
     init: false,        //eliminate?
 
+    // State handling
     connected: false,
     quickConnect: false,
     isHosting: false,
@@ -66,14 +68,21 @@ export const online = {
     ownID: "",
     remoteID: "",
 
+    // Khets Handling
     khets: {},
     khetLoadingProgress: 0,
     khetLoadingGoal: 0,
     khetsAreLoaded: false,
+
+    // Remote Avatar
     remoteAvatar: null,
+    remoteAvatarMesh: null,
+    lastSendTime: 0,
     
+    // Audio Stream
     audioStream: null,
 
+    // Peer Connection
     peer: null,
     conn: null,
 
@@ -293,20 +302,32 @@ export const online = {
         // Receive Avatar
         if (data.type == "avatar") {
 
-            if (this.remoteAvatar != data.value) {
-                this.remoteAvatar = data.value;
-                // Display Avatar
+            const avatarId = data.value;
+            if (this.remoteAvatar != avatarId) {
+                // Remove previous remote avatar mesh if it exists
+                if (this.remoteAvatarMesh) {
+                    scene.remove(this.remoteAvatarMesh);
+                    this.remoteAvatarMesh = null;
+                }
+                this.remoteAvatar = avatarId;
+                loadKhetMeshOnly(avatarId, scene).then(mesh => {
+                    if (mesh) {
+                        this.remoteAvatarMesh = mesh;
+                    }
+                });
             }
             return;
-
         };
         
         // Receive Pos Update
         if (data.type == "position") {
-
-            
+            if (this.remoteAvatarMesh) {
+                const { position, quaternion } = data.value;
+                const bottomOffset = this.remoteAvatarMesh.userData.bottomOffset || 0;
+                this.remoteAvatarMesh.position.set(position.x, position.y - bottomOffset, position.z);
+                this.remoteAvatarMesh.quaternion.set(quaternion.x, quaternion.y, quaternion.z, quaternion.w);
+            }
             return;
-
         };
         
         // Receive Code
@@ -446,6 +467,7 @@ export const online = {
     // set online connection
     connect: function () {
         online.connected = true;
+        online.lastSendTime = performance.now();
 
         console.log("Connection with " + online.remoteID + " established");
 
@@ -463,6 +485,12 @@ export const online = {
             online.isHosting = false;
             online.isJoined = false;
             online.isSending = false;
+
+            // Remove remote avatar mesh
+            if (online.remoteAvatarMesh) {
+                scene.remove(online.remoteAvatarMesh);
+                online.remoteAvatarMesh = null;
+            }
         }
         return;
     },

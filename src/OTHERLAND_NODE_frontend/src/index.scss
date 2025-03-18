@@ -390,6 +390,7 @@ canvas {
 // Info Box  
 #info-box {
 
+  display: none;
   top: 20px;
   right: 20px;
   // width: 250px;
@@ -532,16 +533,78 @@ canvas {
   }
 }
 
+#mobile-controls {
+  #joystick-zone {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    width: 150px;
+    height: 150px;
+    z-index: 100;
+  }
+
+  #jump-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 100;
+  }
+
+}
+
 // Responsive Design
-@media (max-width: 768px) {
+@media (max-width: 1000px) {
   #main-menu {
     #side-bar {
-      width: 150px;
+      padding: 20px;
+
+      button {
+        margin: 10px 0;
+      }
     }
 
     #tab-content {
-      left: 170px;
-      width: calc(100% - 170px);
+      left: 240px;
+      padding: 20px;
+      overflow-y: scroll;
+
+      button {
+        margin: 10px 10px 10px 0;
+      }
+
+      #khet-list {
+        max-height: fit-content;
+
+        /* table tr td {
+          padding-right: 10px;
+          padding-bottom: 10px;
+        }
+
+        table tr td button {
+          width: 100px;
+        } */
+
+        table tr td:nth-child(5) {
+          display: none;
+        }
+      }
+
+      #khet-editor {
+        position: static;
+        margin-bottom: 40px;
+
+        #draw-up-btn {
+          display: none;
+        }
+      }
+    }
+  }
+
+  #mobile-controls {
+    display: none;
+
+    #jump-btn {
+      @include button-style;
     }
   }
 
@@ -553,30 +616,30 @@ canvas {
 
   #chat {
     width: 90%;
-    left: 5%;
-    bottom: 10px;
+    left: 5px;
+    bottom: 5px;
     max-height: 25vh;
   }
 
-  #friends-list, #info-box, #map {
+  #friends-list, #chat, #map {
+    display: none;
     width: 45%;
   }
 
   #friends-list {
-    top: 10px;
-    left: 5%;
-    height: 200px;
+    top: 5px;
+    left: 5px;
+    height: 150px;
   }
 
   #info-box {
-    top: 220px;
-    right: 5%;
-    height: 100px;
+    top: 5px;
+    right: 5px;
   }
 
   #map {
-    bottom: 10px;
-    right: 5%;
+    bottom: 5px;
+    right: 5px;
     height: 200px;
   }
 
