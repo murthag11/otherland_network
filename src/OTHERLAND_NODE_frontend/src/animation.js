@@ -1,6 +1,6 @@
 import { controls, world, scene, camera, sceneObjects, renderer, khetState, cameraController, isAnimating } from './viewer.js';
 import { avatarState } from './avatar.js';
-import { keys } from './menu.js';
+import { keys, escButtonPress } from './menu.js';
 import { triggerInteraction } from './interaction.js';
 import { online } from './peermesh.js';
 
@@ -84,7 +84,7 @@ if (isTouchDevice) {
         }
     });
 
-    // Jump button handler
+    // Jump button handler                                                       Combine with other jump logic, not 2 different
     const jumpBtn = document.getElementById('jump-btn');
     jumpBtn.addEventListener('touchstart', () => {
         if (avatarState.avatarBody.canJump && avatarState.avatarBody.isGrounded) {
@@ -92,6 +92,20 @@ if (isTouchDevice) {
             avatarState.avatarBody.velocity.y = jumpForce;
             avatarState.avatarBody.canJump = false;
         }
+    });
+
+    // Sprint button handler                                                       Combine with other jump logic, not 2 different
+    const sprintBtn = document.getElementById('sprint-btn');
+    sprintBtn.addEventListener('touchstart', () => {
+        
+        // Increase Movement Speed
+
+    });
+
+    // ESC button handler                                                       Combine with other jump logic, not 2 different
+    const escBtn = document.getElementById('esc-btn');
+    escBtn.addEventListener('touchstart', () => {
+        escButtonPress();
     });
 }
 

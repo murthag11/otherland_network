@@ -48,24 +48,28 @@ document.addEventListener('keydown', event => {
 
     // Handle ESC key seperatly
     if (key === 'escape') {
-        const mainMenu = document.getElementById('main-menu');
-        const gameMenu = document.getElementById('game-menu');
-        const isMainMenuVisible = mainMenu.style.display === 'flex';
-        const isGameMenuVisible = gameMenu.style.display === 'flex';
-
-        if (!isMainMenuVisible) {
-            if (!isGameMenuVisible) {
-                gameMenu.style.display = 'flex'; // Show the game menu if it's not visible
-                if (!isTouchDevice) {
-                    controls.unlock();           // Unlock the pointer controls
-                } else {   
-                    leaveViewer();               // Leave the viewer when pointer lock is released
-                }
-                keys.clear();                // Clear active keys
-            }
-        }
+        escButtonPress();
     }
 });
+
+export function escButtonPress() {
+    const mainMenu = document.getElementById('main-menu');
+    const gameMenu = document.getElementById('game-menu');
+    const isMainMenuVisible = mainMenu.style.display === 'flex';
+    const isGameMenuVisible = gameMenu.style.display === 'flex';
+
+    if (!isMainMenuVisible) {
+        if (!isGameMenuVisible) {
+            gameMenu.style.display = 'flex'; // Show the game menu if it's not visible
+            if (!isTouchDevice) {
+                controls.unlock();           // Unlock the pointer controls
+            } else {   
+                leaveViewer();               // Leave the viewer when pointer lock is released
+            }
+            keys.clear();                // Clear active keys
+        }
+    }
+}
 
 // Handle key releases to remove keys from the set
 document.addEventListener('keyup', event => {
@@ -77,7 +81,9 @@ document.addEventListener('contextmenu', function(e){
     e.preventDefault();
 }, false);
 
+// Update Khet Table
 export async function updateKhetTable() {
+
     // Select the table
     const table = document.querySelector('#khet-table');
             
@@ -92,74 +98,82 @@ export async function updateKhetTable() {
 
     // Populate the table with Khet data
     const khets = Object.values(khetController.khets);
-    for (const khet of khets) {
-        const tr = document.createElement('tr');
-        
-        // KhetID column
-        const tdId = document.createElement('td');
-        tdId.textContent = khet.khetId;
-        tr.appendChild(tdId);
-        
-        // KhetType column
-        const tdType = document.createElement('td');
-        tdType.textContent = khet.khetType;
-        tr.appendChild(tdType);
-        
-        // Position column
-        const tdPosition = document.createElement('td');
-        tdPosition.textContent = `[${khet.position.join(', ')}]`;
-        tr.appendChild(tdPosition);
-        
-        // Scale column
-        const tdScale = document.createElement('td');
-        tdScale.textContent = `[${khet.scale.join(', ')}]`;
-        tr.appendChild(tdScale);
-        
-        // Code column
-        const tdCode = document.createElement('td');
-        tdCode.textContent = khet.code ? khet.code.join(', ') : '';
-        tr.appendChild(tdCode);
-        
-        // Edit column
-        const tdEdit = document.createElement('td');
-        const editKhetButton = document.createElement('button');
-        editKhetButton.textContent = "Edit Khet";
-        editKhetButton.addEventListener('click', async () => {
+    if (khets.length > 0) {
+        document.getElementById("khet-table").style.display = "block";
+        document.getElementById("clear-khets-btn").style.display = "block";
+        for (const khet of khets) {
+            const tr = document.createElement('tr');
+            
+            // KhetID column
+            const tdId = document.createElement('td');
+            tdId.textContent = khet.khetId;
+            tr.appendChild(tdId);
+            
+            // KhetType column
+            const tdType = document.createElement('td');
+            tdType.textContent = khet.khetType;
+            tr.appendChild(tdType);
+            
+            // Position column
+            const tdPosition = document.createElement('td');
+            tdPosition.textContent = `[${khet.position.join(', ')}]`;
+            tr.appendChild(tdPosition);
+            
+            // Scale column
+            const tdScale = document.createElement('td');
+            tdScale.textContent = `[${khet.scale.join(', ')}]`;
+            tr.appendChild(tdScale);
+            
+            // Code column
+            const tdCode = document.createElement('td');
+            tdCode.textContent = khet.code ? khet.code.join(', ') : '';
+            tr.appendChild(tdCode);
+            
+            // Edit column
+            const tdEdit = document.createElement('td');
+            const editKhetButton = document.createElement('button');
+            editKhetButton.textContent = "Edit Khet";
+            editKhetButton.addEventListener('click', async () => {
 
-            // Switch to Edit Display
-            document.getElementById("edit-group").style.display = 'block';
-            document.getElementById("upload-group").style.display = 'none';
+                // Switch to Edit Display
+                document.getElementById("edit-group").style.display = 'block';
+                document.getElementById("upload-group").style.display = 'none';
 
-            // Display Type and ID
-            document.getElementById("edit-khet-type").innerHTML = khet.khetType;
-            document.getElementById("edit-khet-id").innerHTML = khet.khetId;
+                // Display Type and ID
+                document.getElementById("edit-khet-type").innerHTML = khet.khetType;
+                document.getElementById("edit-khet-id").innerHTML = khet.khetId;
 
-            // Display position and scale to input fields
-            document.getElementById('pos-x').value = khet.position[0];
-            document.getElementById('pos-y').value = khet.position[1];
-            document.getElementById('pos-z').value = khet.position[2];
-            document.getElementById('scale-x').value = khet.scale[0];
-            document.getElementById('scale-y').value = khet.scale[1];
-            document.getElementById('scale-z').value = khet.scale[2];
-        });
-        tdEdit.appendChild(editKhetButton);
-        tr.appendChild(tdEdit);
-        
-        // Append the row to the table
-        table.appendChild(tr);
+                // Display position and scale to input fields
+                document.getElementById('pos-x').value = khet.position[0];
+                document.getElementById('pos-y').value = khet.position[1];
+                document.getElementById('pos-z').value = khet.position[2];
+                document.getElementById('scale-x').value = khet.scale[0];
+                document.getElementById('scale-y').value = khet.scale[1];
+                document.getElementById('scale-z').value = khet.scale[2];
+            });
+            tdEdit.appendChild(editKhetButton);
+            tr.appendChild(tdEdit);
+            
+            // Append the row to the table
+            table.appendChild(tr);
+        }
+    } else {
+        document.getElementById("khet-table").style.display = "none";
+        document.getElementById("clear-khets-btn").style.display = "none";
     }
     return;
 }
 
+// Open / Close KhetEditor
 function changekhetEditorDrawer(goal) {
     if (goal == "open") {
-        document.getElementById("khet-editor").style.bottom = "0px";
+        document.getElementById("khet-editor").style.bottom = "240px";
         document.getElementById("draw-up-btn").style.display = "none";
         document.getElementById("draw-close-btn").style.display = "block";
     } else if (goal == "close") {
         document.getElementById("khet-editor").style.bottom = "-20px";
         document.getElementById("draw-up-btn").style.display = "block";
-        document.getElementById("draw-close-btn").style.display = "close";
+        document.getElementById("draw-close-btn").style.display = "none";
     }
     return;
 }
@@ -224,8 +238,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Clear all Khets from the backend and storage canisters
     const clearBtn = document.getElementById('clear-khets-btn');
     clearBtn.addEventListener('click', async () => {
-        await clearAllKhets();    // Call the function to clear Khets
+        await clearAllKhets();              // Call the function to clear Khets on backend
+        await khetController.clearKhet();   // Call the function to clear Khets on backend
         console.log('Khets cleared from menu'); // Log confirmation
+        updateKhetTable();
     });
 
     // **Home Button**
@@ -384,6 +400,8 @@ document.addEventListener('DOMContentLoaded', () => {
         changekhetEditorDrawer('close');
         document.getElementById("edit-group").style.display = "none";
         document.getElementById("upload-group").style.display = "block";
+
+        updateKhetTable();
     });
 
     // Save Edit and Close
@@ -405,6 +423,8 @@ document.addEventListener('DOMContentLoaded', () => {
         changekhetEditorDrawer('close');
         document.getElementById("edit-group").style.display = "none";
         document.getElementById("upload-group").style.display = "block";
+
+        updateKhetTable();
     });
 
     // Draw Up Button
