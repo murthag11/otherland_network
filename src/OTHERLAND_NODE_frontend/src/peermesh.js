@@ -20,7 +20,7 @@ function prepareForSending(khet) {
   return prepared;
 };
 
-async function restoreAfterReceiving(khet) {
+function restoreAfterReceiving(khet) {
 
     // Restore gltfDataSize from string to BigInt
     if (typeof khet.gltfDataSize === 'string') {
@@ -42,6 +42,16 @@ async function restoreAfterReceiving(khet) {
     return khet;
 };
 
+// Function to update the loading bar
+function updateDownloadBar(percentage) {
+    const downloadBar = document.getElementById('download-bar');
+    // downloadBar.style.width = `${percentage}%`;
+    // downloadBar.innerText = `Downloading Node Data at ${Math.round(percentage)}%`;
+    if (percentage >= 100) {
+        downloadBar.innerText = 'Download finished';
+    };
+}
+
 // Peer to Peer Online Logic
 export const online = {
 
@@ -57,7 +67,10 @@ export const online = {
     remoteID: "",
 
     khets: {},
+    khetLoadingProgress: 0,
+    khetLoadingGoal: 0,
     khetsAreLoaded: false,
+    remoteAvatar: null,
     
     audioStream: null,
 
@@ -74,6 +87,9 @@ export const online = {
 
             // Create Peer 
             this.peer = new Peer();
+
+            // Display Node State
+            document.getElementById("node-state").innerHTML = "Node: TreeHouse (open)";
 
             // On Incoming Connection (Host)
             this.peer.on('connection', function (conn) {
@@ -136,7 +152,6 @@ export const online = {
                 // Display in menu
                 document.getElementById("user-id-title").innerHTML = "Peer ID:<br><br>" + online.ownID;
                 document.getElementById("share-th-link-btn").style.display = "block";
-                document.getElementById("node-state").innerHTML = "Node: TreeHouse (open)";
 
                 // Quick Connect
                 if (online.quickConnect) {
@@ -200,15 +215,18 @@ export const online = {
     },
 
     // Handle Incoming Data
-    incomingData: function (data) {
+    incomingData: async function (data) {
         console.log("Received: " + data);
 
         // Receive Node Config
         if (data.type == "init") {
 
             if (online.isJoined) {
+                this.khetLoadingProgress = 0;
+                this.khetLoadingGoal = data.value.totalSize;
                 nodeSettings.importNodeConfig(data.value);
             }
+            document.getElementById('download-container').style.display = 'block';
             online.send("request-khetlist", "");
             
             return;
@@ -236,19 +254,38 @@ export const online = {
         };
 
         // Receive Khets
-        if (data.type == "khetlist") {
 
-            // Parse Khets
+        if (data.type === "khetlist") {
             if (online.isJoined) {
-                const khets = data.value;
-                const restoredKhets = {};
-                for (const [khetId, khet] of Object.entries(khets)) {
-                    restoredKhets[khetId] = restoreAfterReceiving(khet);
+                
+                console.log("Received data value:", data.value);
+
+                const khetsReceived = data.value;
+                const khets = {};
+                for (const [khetId, khet] of Object.entries(khetsReceived)) {
+                    const restoredKhet = restoreAfterReceiving(khet);
+                    khets[khetId] = restoredKhet;
+
+                    this.khetLoadingProgress += khet.gltfData.byteLength; // Track received bytes
+                    const progress = (this.khetLoadingProgress / this.khetLoadingGoal) * 100;
+                    updateDownloadBar(progress); // Update UI
                 }
-                khetController.khets = restoredKhets;
-                online.khets = restoredKhets;
+                online.khets = khets;
                 online.khetsAreLoaded = true;
-                console.log(khetController.khets);
+                console.log("Received and restored khets:", khets);
+            
+                // Cache the khets (assuming loadAllKhets is async)
+                try {
+                await khetController.loadAllKhets();
+                console.log("All khets cached successfully!");
+                } catch (error) {
+                console.error("Error caching khets:", error);
+                }
+
+                // Hide the progress bar
+                setTimeout(() => {
+                    document.getElementById('download-container').style.display = 'none';
+                }, 2000);
             }
             return;
         };
@@ -256,7 +293,10 @@ export const online = {
         // Receive Avatar
         if (data.type == "avatar") {
 
-            
+            if (this.remoteAvatar != data.value) {
+                this.remoteAvatar = data.value;
+                // Display Avatar
+            }
             return;
 
         };
@@ -269,7 +309,7 @@ export const online = {
 
         };
         
-        // Receive Avatar
+        // Receive Code
         if (data.type == "code") {
 
             
@@ -392,22 +432,6 @@ export const online = {
         return;
     },
 
-    invertOrbs: function(orbs) {
-
-        for (i = 0; i < orbs.length; i++ ) {
-            orbs[i].posX = field.WIDTH - orbs[i].posX;
-            orbs[i].posY = field.HEIGHT - orbs[i].posY;
-        }
-        return orbs;
-    },
-
-    invertStats: function(stats) {
-
-        // Invert Stats values
-
-        return stats;
-    },
-
     // Send Value
     send: function (type, value) {
         if (this.connected) {
@@ -422,9 +446,6 @@ export const online = {
     // set online connection
     connect: function () {
         online.connected = true;
-        //document.getElementById("reset-button").innerHTML = "Disconnect & Reset";
-        //document.getElementById("reset-button").onclick = online.disconnect;
-        //document.getElementById("reset-button2").style.display = "block";
 
         console.log("Connection with " + online.remoteID + " established");
 
@@ -442,17 +463,6 @@ export const online = {
             online.isHosting = false;
             online.isJoined = false;
             online.isSending = false;
-
-            sendCount = 0;
-            receiveCount = 0;
-            sendBuffer = [];
-            receiveBuffer = [];
-
-            resetGameButton();
-            document.getElementById("reset-button").onclick = "resetGameButton();";
-            document.getElementById("reset-button2").style.display = "none";
-            localConfig.menuState = 10;
-            changeMenu();
         }
         return;
     },
@@ -462,8 +472,6 @@ export const online = {
         this.disconnect();
         this.peer.destroy();
         this.ownID = "";
-        this.remoteShotsBuffer = [];
-        this.remoteAngle = 0;
         this.openPeer();
         return;
     }

@@ -60,20 +60,20 @@
                 </div>
                 <div id="peer-info">
                     <!-- Player ID -->
-                    <button> <p id="user-id-title">Generating Peer ID ...</p></button>
+                    <p id="user-id-title">Generating Peer ID ...</p>
 
-                    <!-- Sharing -->
-                    <button id="share-th-link-btn">
-                        <p id="sharing-title">Invite Player</p></button>
-
-                    <!-- Reset Peer -->
-                    <button id="online-reset-button">
-                        <p id="reset-title">Disconnect & Reset Peer ID</p></button>
+                    <div class="flex-row">
+                        <!-- Sharing -->
+                        <button id="share-th-link-btn">Invite Player</button>
+    
+                        <!-- Reset Peer -->
+                        <button id="online-reset-button">Disconnect & Reset Peer ID</button>
+                    </div>
                 </div>
 
             </div>
             <div id="assets-tab" class="tab">
-                <h1>Assets</h1>
+                <h1 id="assets-title">Assets</h1>
                 <h3>List of Avatars</h3>
 
                 <!-- List of all Khets in Node -->
@@ -200,6 +200,16 @@
 
         <!-- User ID -->
         <div id="node-state">Node: TreeHouse (closed)</div>
+
+        <!-- Download Progress Bar -->
+        <div id="download-container">
+            <div id="download-bar">Downloading Node Data</div>
+        </div>
+
+        <!-- Upload Progress Bar -->
+        <div id="upload-container">
+            <div id="upload-bar">Uploading Asset Data</div>
+        </div>
     </div>
 
     <!-- GUI Areas -->

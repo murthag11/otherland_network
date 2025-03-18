@@ -226,6 +226,8 @@ document.getElementById('upload-btn').addEventListener('click', async () => {
         
         // Clear the file input after successful upload
         fileInput.value = '';
+
+        document.getElementById("upload-container").style.display = "block";
     } catch (error) {
         console.error('Upload process failed:', error);
     }

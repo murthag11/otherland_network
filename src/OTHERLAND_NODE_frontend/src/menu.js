@@ -17,10 +17,12 @@ document.addEventListener('pointerlockchange', () => {
         keys.clear();                    // Clear any active key presses
         const closeBtn = document.getElementById('close-btn');
         closeBtn.disabled = true;        // Disable the close button temporarily
+        document.getElementById('guiLayer').style.display = 'none'; // Show the GUI layer when pointer lock is released
         setTimeout(() => {
             closeBtn.disabled = false;   // Re-enable the close button after 1.25 seconds
         }, 1250);
     } else {
+        document.getElementById('guiLayer').style.display = 'block'; // Hide the GUI layer when pointer lock is acquired
         startAnimation();                // Start animation when pointer lock is acquired
     }
 });
@@ -60,6 +62,93 @@ document.addEventListener('keyup', event => {
 document.addEventListener('contextmenu', function(e){
     e.preventDefault();
 }, false);
+
+export async function updateKhetTable() {
+    // Select the table
+    const table = document.querySelector('#khet-table');
+            
+    // Clear existing data rows (keep the header row)
+    const rows = table.querySelectorAll('tr');
+    for (let i = 1; i < rows.length; i++) {
+        rows[i].remove();
+    }
+
+    // Load Khets from the backend
+    await khetController.loadAllKhets();
+
+    // Populate the table with Khet data
+    const khets = Object.values(khetController.khets);
+    for (const khet of khets) {
+        const tr = document.createElement('tr');
+        
+        // KhetID column
+        const tdId = document.createElement('td');
+        tdId.textContent = khet.khetId;
+        tr.appendChild(tdId);
+        
+        // KhetType column
+        const tdType = document.createElement('td');
+        tdType.textContent = khet.khetType;
+        tr.appendChild(tdType);
+        
+        // Position column
+        const tdPosition = document.createElement('td');
+        tdPosition.textContent = `[${khet.position.join(', ')}]`;
+        tr.appendChild(tdPosition);
+        
+        // Scale column
+        const tdScale = document.createElement('td');
+        tdScale.textContent = `[${khet.scale.join(', ')}]`;
+        tr.appendChild(tdScale);
+        
+        // Code column
+        const tdCode = document.createElement('td');
+        tdCode.textContent = khet.code ? khet.code.join(', ') : '';
+        tr.appendChild(tdCode);
+        
+        // Edit column
+        const tdEdit = document.createElement('td');
+        const editKhetButton = document.createElement('button');
+        editKhetButton.textContent = "Edit Khet";
+        editKhetButton.addEventListener('click', async () => {
+
+            // Switch to Edit Display
+            document.getElementById("edit-group").style.display = 'block';
+            document.getElementById("upload-group").style.display = 'none';
+
+            // Display Type and ID
+            document.getElementById("edit-khet-type").innerHTML = khet.khetType;
+            document.getElementById("edit-khet-id").innerHTML = khet.khetId;
+
+            // Display position and scale to input fields
+            document.getElementById('pos-x').value = khet.position[0];
+            document.getElementById('pos-y').value = khet.position[1];
+            document.getElementById('pos-z').value = khet.position[2];
+            document.getElementById('scale-x').value = khet.scale[0];
+            document.getElementById('scale-y').value = khet.scale[1];
+            document.getElementById('scale-z').value = khet.scale[2];
+        });
+        tdEdit.appendChild(editKhetButton);
+        tr.appendChild(tdEdit);
+        
+        // Append the row to the table
+        table.appendChild(tr);
+    }
+    return;
+}
+
+function changekhetEditorDrawer(goal) {
+    if (goal == "open") {
+        document.getElementById("khet-editor").style.bottom = "0px";
+        document.getElementById("draw-up-btn").style.display = "none";
+        document.getElementById("draw-close-btn").style.display = "block";
+    } else if (goal == "close") {
+        document.getElementById("khet-editor").style.bottom = "-20px";
+        document.getElementById("draw-up-btn").style.display = "block";
+        document.getElementById("draw-close-btn").style.display = "close";
+    }
+    return;
+}
 
 // ### Menu Navigation and UI Toggling
 // Wait for the DOM to load before setting up event listeners
@@ -223,7 +312,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     continueGuestBtn.addEventListener('click', () => {
         console.log('Continuing as guest...');
-        moveToAccountSwitcher(continueGuestBtn);
+        moveToAccountSwitcher(connectIIBtn);
         showMainMenu();
     });
 
@@ -244,76 +333,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const editEnvBtn = document.getElementById('edit-env-btn');
     editEnvBtn.addEventListener('click', async () => {
 
-        // Select the table
-        const table = document.querySelector('#khet-table');
+        updateKhetTable();
         
-        // Clear existing data rows (keep the header row)
-        const rows = table.querySelectorAll('tr');
-        for (let i = 1; i < rows.length; i++) {
-            rows[i].remove();
-        }
-        
-        // Load Khets from the backend
-        await khetController.loadAllKhets();
-        
-        // Populate the table with Khet data
-        const khets = Object.values(khetController.khets);
-        for (const khet of khets) {
-            const tr = document.createElement('tr');
-            
-            // KhetID column
-            const tdId = document.createElement('td');
-            tdId.textContent = khet.khetId;
-            tr.appendChild(tdId);
-            
-            // KhetType column
-            const tdType = document.createElement('td');
-            tdType.textContent = khet.khetType;
-            tr.appendChild(tdType);
-            
-            // Position column
-            const tdPosition = document.createElement('td');
-            tdPosition.textContent = `[${khet.position.join(', ')}]`;
-            tr.appendChild(tdPosition);
-            
-            // Scale column
-            const tdScale = document.createElement('td');
-            tdScale.textContent = `[${khet.scale.join(', ')}]`;
-            tr.appendChild(tdScale);
-            
-            // Code column
-            const tdCode = document.createElement('td');
-            tdCode.textContent = khet.code ? khet.code.join(', ') : '';
-            tr.appendChild(tdCode);
-            
-            // Edit column
-            const tdEdit = document.createElement('td');
-            const editKhetButton = document.createElement('button');
-            editKhetButton.textContent = "Edit Khet";
-            editKhetButton.addEventListener('click', async () => {
-
-                // Switch to Edit Display
-                document.getElementById("edit-group").style.display = "none";
-                document.getElementById("upload-group").style.display = "block";
-
-                // Display Type and ID
-                document.getElementById("edit-khet-type").innerHTML = khet.khetType;
-                document.getElementById("edit-khet-id").innerHTML = khet.khetId;
-
-                // Display position and scale to input fields
-                document.getElementById('pos-x').value = khet.position[0];
-                document.getElementById('pos-y').value = khet.position[1];
-                document.getElementById('pos-z').value = khet.position[2];
-                document.getElementById('scale-x').value = khet.scale[0];
-                document.getElementById('scale-y').value = khet.scale[1];
-                document.getElementById('scale-z').value = khet.scale[2];
-            });
-            tdEdit.appendChild(editKhetButton);
-            tr.appendChild(tdEdit);
-            
-            // Append the row to the table
-            table.appendChild(tr);
-        }
+        document.getElementById("assets-title").innerHTML = "TreeHouse > Assets";
         showTab("assets-tab");
     });
 
@@ -330,7 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('scale-z').value = 1;
 
         // Switch to Upload & Close
-        document.getElementById("khet-editor").style.bottom = "-20px";
+        changekhetEditorDrawer('close');
         document.getElementById("edit-group").style.display = "none";
         document.getElementById("upload-group").style.display = "block";
     });
@@ -351,7 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // khet.js: await saveToCache(khet.khetId, khet);
 
         // Switch to Upload & Close
-        document.getElementById("khet-editor").style.bottom = "-20px";
+        changekhetEditorDrawer('close');
         document.getElementById("edit-group").style.display = "none";
         document.getElementById("upload-group").style.display = "block";
     });
@@ -359,17 +381,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Draw Up Button
     const drawUpButton = document.getElementById("draw-up-btn");
     drawUpButton.addEventListener('click', async () => {
-        document.getElementById("khet-editor").style.bottom = "240px";
-        document.getElementById("draw-up-btn").style.display = "none";
-        document.getElementById("draw-close-btn").style.display = "block";
+        changekhetEditorDrawer('open');
     })
 
     // Draw Close Button
     const drawCloseButton = document.getElementById("draw-close-btn");
     drawCloseButton.addEventListener('click', async () => {
-        document.getElementById("khet-editor").style.bottom = "-20px";
-        document.getElementById("draw-up-btn").style.display = "block";
-        document.getElementById("draw-close-btn").style.display = "none";
+        changekhetEditorDrawer('close');
     })
 
     // Main Menu Buttons

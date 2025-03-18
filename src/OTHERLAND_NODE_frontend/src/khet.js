@@ -7,6 +7,7 @@ import { idlFactory as storageIdlFactory } from '../../declarations/Storage'; //
 import { editProperty, pickupObject } from './interaction.js';
 import { avatarState } from './avatar.js';
 import { online } from './peermesh.js';
+import { updateKhetTable } from './menu.js';
 
 // Compute SHA-256 hash of a Uint8Array
 async function computeSHA256(data) {
@@ -470,7 +471,15 @@ export async function uploadKhet(khet, storageCanisterId = 'be2us-64aaa-aaaaa-qa
             if (finalizeResult && finalizeResult.length > 0) {
                 throw new Error(`Finalize failed: ${finalizeResult[0]}`);
             }
+
+            // Hide the progress bar
+            document.getElementById("upload-bar").innerHTML = "Asset Upload Complete";
+            setTimeout(() => {
+                document.getElementById('upload-container').style.display = 'none';
+            }, 2000);
+
             console.log(`Khet ${khet.khetId} upload finalized successfully`);
+            updateKhetTable();
         } catch (error) {
             console.error('Background upload failed:', error);
             await storageActor.deleteBlob(blobId); // Clean up on failure
@@ -784,6 +793,11 @@ export async function loadAvatarObject({ scene, sceneObjects, world, groundMater
         if (avatars.length > 0) {
             const avatarId = avatars[0].khetId;
             avatarState.setSelectedAvatarId(avatarId);
+
+            if (online.connected) {
+                online.send("avatar", avatarId);
+            }
+
             await worldController.setAvatar(avatarId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
         } else {
             console.warn("No avatars available to select automatically.");

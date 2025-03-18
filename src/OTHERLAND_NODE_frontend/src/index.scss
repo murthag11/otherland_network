@@ -161,6 +161,11 @@ canvas {
       display: none;
     }
 
+    .flex-row {
+      display: flex;
+      align-items: center;
+    }
+
     #welcome-message {
       color: $primary-color;
       font-size: 24px;
@@ -170,7 +175,9 @@ canvas {
 
     #khet-list {
 
-      max-height: calc(100vh - 282px);
+      max-height: calc(100vh - 382px);
+      overflow-y: scroll;
+      overflow-x: hidden;
 
       table tr th {
         text-align: left;
@@ -198,6 +205,9 @@ canvas {
     #share-th-link-btn {
       display: none;
     }
+    #toggle-p2p-btn {
+      margin-left: 40px;
+    }
 
     #khet-editor {
       position: absolute;
@@ -208,11 +218,6 @@ canvas {
       border: 1px solid $primary-color;
       margin-top: 15px;
       width: fit-content;
-
-      .flex-row {
-        display: flex;
-        align-items: center;
-      }
 
       #draw-up-btn, #draw-close-btn {
         position: absolute;
@@ -398,7 +403,16 @@ canvas {
     border-radius: 10px;
     border: 1px solid $primary-color;
     box-shadow: 0 0 10px rgba($primary-color, 0.2);
+    max-width: 210px;
 
+  div {
+    margin-top: 15px;
+  }
+
+  div:first-child {
+    margin-top: 0;
+  }
+  
   // Account Switcher
   #account-switcher {
   
@@ -406,10 +420,28 @@ canvas {
       @include button-style;
     }
   }
+
+  #download-container {
+    display: none;
+    width: 100%;
+  }
+  #download-bar {
+    text-align: center;
+  }
+
+  #upload-container {
+    display: none;
+    width: 100%;
+  }
+  #upload-bar {
+    text-align: center;
+  }
 }
 
 // GUI Areas
 #guiLayer {
+
+  display: none;
 
   #chat, #friends-list, #map, #interactionHint {
     position: fixed;
@@ -435,7 +467,6 @@ canvas {
   #guiTop {
 
     #friends-list {
-      display: none;
       top: 20px;
       left: 20px;
       width: 250px;
@@ -450,7 +481,6 @@ canvas {
     justify-content: center;
 
     #chat {
-      display: none;
       bottom: 20px;
       left: 20px;
       width: 300px;
@@ -488,12 +518,12 @@ canvas {
     }
 
     #interactionHint {
+      display: none;
       position: fixed;
       bottom: 20px;
     }
     
     #map {
-      display: none;
       bottom: 20px;
       right: 20px;
       width: 250px;
