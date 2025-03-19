@@ -443,6 +443,14 @@ export async function uploadKhet(khet, storageCanisterId = 'be2us-64aaa-aaaaa-qa
         blobId = result.existing;
         khet.gltfDataRef = [Principal.fromText(storageCanisterId), blobId, khet.gltfDataSize];
         console.log(`Khet ${khet.khetId} reusing existing blobId ${blobId}`); // No upload needed; asset already exists
+        
+
+        // Hide the progress bar
+        document.getElementById("upload-bar").innerHTML = "Asset Already Uploaded";
+        setTimeout(() => {
+            document.getElementById('upload-container').style.display = 'none';
+        }, 2000);
+
         return khet;
 
     } else if (result.new) {
@@ -484,12 +492,19 @@ export async function uploadKhet(khet, storageCanisterId = 'be2us-64aaa-aaaaa-qa
             console.error('Background upload failed:', error);
             await storageActor.deleteBlob(blobId); // Clean up on failure
             await backendActor.abortKhetUpload(khet.khetId); // Clean up pending khet
+
+            // Hide the progress bar
+            document.getElementById("upload-bar").innerHTML = "Error Uploading Asset";
+            setTimeout(() => {
+                document.getElementById('upload-container').style.display = 'none';
+            }, 2000);
         }
     })();
 
     return khet; // Return immediately with the cached reference
 }
 
+// Load Remote Avatar Mesh but no physics
 export async function loadKhetMeshOnly(khetId, scene) {
     const khet = khetController.getKhet(khetId);
     if (!khet || !khet.gltfData) {

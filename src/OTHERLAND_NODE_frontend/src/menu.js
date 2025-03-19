@@ -1,11 +1,10 @@
 // Import necessary components
 import { controls, canvas, scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController, loadScene, stopAnimation, startAnimation } from './viewer.js';
 import { khetController, clearAllKhets, worldController, loadAvatarObject } from './khet.js';
-import { Actor, HttpAgent } from '@dfinity/agent';
-import { idlFactory as backendIdlFactory } from '../../declarations/OTHERLAND_NODE_backend';
 import { nodeSettings } from './nodeManager.js';
 import { user } from './user.js';
 import { online } from './peermesh.js'
+import { avatarState } from './avatar.js'
 import { isTouchDevice } from './animation.js'
 
 // ### Pointer Lock State Handling
@@ -21,6 +20,15 @@ document.addEventListener('pointerlockchange', () => {
 function enterViewer() {
     document.getElementById('guiLayer').style.display = 'block'; // Hide the GUI layer when pointer lock is acquired
     document.getElementById('mobile-controls').style.display = 'block'; // Show the GUI layer when pointer lock is released
+
+    // Hide Jump / Sprint Button depending on Avatar availability
+    if (isTouchDevice && avatarState.selectedAvatarId !== null) {
+        document.getElementById('jump-btn').style.display = 'block';
+        document.getElementById('sprint-btn').style.display = 'block';
+    } else {
+        document.getElementById('jump-btn').style.display = 'none';
+        document.getElementById('sprint-btn').style.display = 'none';
+    }
     startAnimation();                // Start animation when pointer lock is acquired
 }
 function leaveViewer() {
@@ -230,7 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
         navigator.share({
             title: 'Otherland Invite',
             text: 'Come visit my TreeHouse!\u000d\u000d',
-            url: (thisurl + '?id=' + online.ownID),
+            url: (thisurl + '?canisterId=bd3sg-teaaa-aaaaa-qaaba-cai&id=' + online.ownID),
         });
     });
 
@@ -253,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isTouchDevice) {
             controls.unlock();           // Unlock the pointer controls
         } else {   
-            leaveViewer();               // Leave the viewer when pointer lock is released
+            // leaveViewer();               // Leave the viewer when pointer lock is released
         }
         keys.clear();                          // Clear active keys
     });

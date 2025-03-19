@@ -239,13 +239,26 @@ const onlineParams = new Proxy(new URLSearchParams(window.location.search), {
 if (onlineParams.standalone) { 
     document.getElementById("body").requestFullscreen();
 };
-console.log('Remote check for quickconnect');
+console.log(onlineParams);
 if (onlineParams.id) {
     online.remoteID = onlineParams.id;
     console.log('Remote ID:', online.remoteID);
     online.quickConnect = true;
     online.openPeer();
 };
+
+/* Service Worker
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+        .then(registration => {
+            console.log('Service Worker registered with scope:', registration.scope);
+        })
+        .catch(error => {
+            console.error('Service Worker registration failed:', error);
+        });
+    });
+} */
 
 // **Fallback Ground Plane**
 // Function to add a ground plane if no scene objects are loaded

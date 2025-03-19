@@ -44,7 +44,7 @@ $font-family: 'Orbitron', Arial, sans-serif;
   font-family: $font-family;
   cursor: crosshair;
 }
-.future-update {
+#main-menu #side-bar button.future-update {
   color: $background-semi;
 }
 body {
@@ -132,6 +132,9 @@ canvas {
     left: 280px;
     top: 0;
     height: 100%;
+    width: 100%;
+    overflow: hidden;
+    min-width: 665px;
     background: $background-semi;
     padding: 100px 40px;
     color: $secondary-color;
@@ -179,8 +182,11 @@ canvas {
     #khet-list {
 
       max-height: calc(100vh - 382px);
+      width: 100%;
+      height: 100%;
       overflow-y: scroll;
-      overflow-x: hidden;
+      padding-right: 17px;
+      box-sizing: content-box;
 
       table tr th {
         text-align: left;
@@ -551,19 +557,20 @@ canvas {
   #jump-btn {
     bottom: 20px;
     right: 20px;
-    width: 50px;
+    width: 100px;
   }
 
   #sprint-btn {
     bottom: 86px;
     right: 20px;
-    width: 50px;
+    width: 100px;
   }
 
   #esc-btn {
     top: 5px;
     left: 5px;
-    width: 30px;
+    width: 70px;
+    padding-left: 15px;
   }
 
   button {
@@ -624,9 +631,18 @@ canvas {
   }
 
   #game-menu {
-    width: 95%;
-    max-width: none;
-    padding: 15px;
+
+    padding: 20px;
+
+    h1 {
+      margin: 0 0 20px;
+    }
+    button {
+      width: 95%;
+    }
+    #main-page {
+      padding-left: 10px;
+    }
   }
 
   #chat {

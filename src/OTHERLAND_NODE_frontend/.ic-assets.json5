@@ -30,7 +30,21 @@
     "security_policy": "hardened"
   },
   {
+    "match": "*.json",
+    "headers": {
+      "Content-Security-Policy": "default-src 'self'; object-src 'none';"
+    },
+    "security_policy": "hardened"
+  },
+  {
     "match": "*.ico",
+    "headers": {
+      "Content-Security-Policy": "default-src 'self'; object-src 'none';"
+    },
+    "security_policy": "hardened"
+  },
+  {
+    "match": "*.png",
     "headers": {
       "Content-Security-Policy": "default-src 'self'; object-src 'none';"
     },

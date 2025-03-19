@@ -22,18 +22,35 @@ if (isTouchDevice) {
 
     // Create virtual joystick
     const joystickZone = document.getElementById('joystick-zone');
+    const zoneRect = joystickZone.getBoundingClientRect();
+    const centerX = zoneRect.width / 2;  // 75px for a 150px zone
+    const centerY = zoneRect.height / 2; // 75px for a 150px zone
+
     const joystick = nipplejs.create({
         zone: joystickZone,
-        mode: 'static', // Fixed position joystick
-        position: { left: '50%', top: '50%' }, // Center within the zone
+        mode: 'static',
+        position: { left: centerX + 'px', top: centerY + 'px' },
         color: 'blue'
     });
 
-    // Store joystick movement direction
     joystick.on('move', (evt, data) => {
-        moveDirection.x = data.vector.x; // Horizontal: -1 (left) to 1 (right)
-        moveDirection.y = -data.vector.y; // Vertical: -1 (down) to 1 (up)
+        // Step 1 & 2: Convert viewport coordinates to local coordinates
+        const localX = data.position.x - zoneRect.left;
+        const localY = data.position.y - zoneRect.top;
+
+        // Step 3: Compute vector based on local coordinates
+        const adjustedX = (localX - centerX) / centerX; // Normalize to -1 to 1
+        const adjustedY = (localY - centerY) / centerY; // Normalize to -1 to 1
+
+        // Clamp to [-1, 1] and assign to moveDirection
+        moveDirection.x = Math.max(-1, Math.min(1, adjustedX));
+        moveDirection.y = -Math.max(-1, Math.min(1, adjustedY)); // Invert Y-axis
+
+        // Log for debugging
+        console.log('Touch position:', { x: data.position.x, y: data.position.y });
+        console.log('Joystick vector:', moveDirection);
     });
+
     joystick.on('end', () => {
         moveDirection.x = 0;
         moveDirection.y = 0;
@@ -87,10 +104,12 @@ if (isTouchDevice) {
     // Jump button handler                                                       Combine with other jump logic, not 2 different
     const jumpBtn = document.getElementById('jump-btn');
     jumpBtn.addEventListener('touchstart', () => {
-        if (avatarState.avatarBody.canJump && avatarState.avatarBody.isGrounded) {
-            const jumpForce = 5;
-            avatarState.avatarBody.velocity.y = jumpForce;
-            avatarState.avatarBody.canJump = false;
+        if (avatarState.selectedAvatarId !== null) {
+            if (avatarState.avatarBody.canJump && avatarState.avatarBody.isGrounded) {
+                const jumpForce = 5;
+                avatarState.avatarBody.velocity.y = jumpForce;
+                avatarState.avatarBody.canJump = false;
+            }
         }
     });
 
