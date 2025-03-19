@@ -9,46 +9,35 @@ const animationMixers = [];
 // Detect if the device supports touch input
 export const isTouchDevice = 'ontouchstart' in window;
 
-// Variables for camera rotation on touch devices
+// Constants for movement and jumping
+const BASE_SPEED = 4.0;
+const JUMP_FORCE = 7;
+const AIR_ADJUSTMENT_ACCELERATION = 10.0; // Small acceleration for slight in-air adjustments (m/s^2)
+
+// Variables for camera rotation and movement
 let yaw = 0;
 let pitch = 0;
 const maxPitch = (85 * Math.PI) / 180; // Limit pitch to ±85 degrees
 const minPitch = (-85 * Math.PI) / 180;
 
 let moveDirection = { x: 0, y: 0 }; // Joystick
+let isSprinting = false;
 
 // Touch control setup for mobile devices
 if (isTouchDevice) {
 
     // Create virtual joystick
     const joystickZone = document.getElementById('joystick-zone');
-    const zoneRect = joystickZone.getBoundingClientRect();
-    const centerX = zoneRect.width / 2;  // 75px for a 150px zone
-    const centerY = zoneRect.height / 2; // 75px for a 150px zone
-
     const joystick = nipplejs.create({
         zone: joystickZone,
         mode: 'static',
-        position: { left: centerX + 'px', top: centerY + 'px' },
+        position: { left: '50%', top: '50%' },
         color: 'blue'
     });
 
     joystick.on('move', (evt, data) => {
-        // Step 1 & 2: Convert viewport coordinates to local coordinates
-        const localX = data.position.x - zoneRect.left;
-        const localY = data.position.y - zoneRect.top;
-
-        // Step 3: Compute vector based on local coordinates
-        const adjustedX = (localX - centerX) / centerX; // Normalize to -1 to 1
-        const adjustedY = (localY - centerY) / centerY; // Normalize to -1 to 1
-
-        // Clamp to [-1, 1] and assign to moveDirection
-        moveDirection.x = Math.max(-1, Math.min(1, adjustedX));
-        moveDirection.y = -Math.max(-1, Math.min(1, adjustedY)); // Invert Y-axis
-
-        // Log for debugging
-        console.log('Touch position:', { x: data.position.x, y: data.position.y });
-        console.log('Joystick vector:', moveDirection);
+        moveDirection.x = data.vector.x;
+        moveDirection.y = -data.vector.y;
     });
 
     joystick.on('end', () => {
@@ -72,7 +61,6 @@ if (isTouchDevice) {
             }
         }
     });
-
     document.addEventListener('touchmove', (event) => {
         for (let touch of event.changedTouches) {
             if (touch.identifier === cameraTouchId) {
@@ -80,10 +68,8 @@ if (isTouchDevice) {
                 const deltaY = touch.clientY - lastTouchY;
                 lastTouchX = touch.clientX;
                 lastTouchY = touch.clientY;
-
-                // Update yaw (horizontal) and pitch (vertical)
-                yaw -= deltaX * 0.002; // Adjust sensitivity as needed
-                pitch -= deltaY * 0.002;
+                yaw -= deltaX * 0.005;
+                pitch -= deltaY * 0.005;
                 pitch = Math.max(minPitch, Math.min(maxPitch, pitch));
 
                 // Apply rotation to camera
@@ -106,8 +92,7 @@ if (isTouchDevice) {
     jumpBtn.addEventListener('touchstart', () => {
         if (avatarState.selectedAvatarId !== null) {
             if (avatarState.avatarBody.canJump && avatarState.avatarBody.isGrounded) {
-                const jumpForce = 5;
-                avatarState.avatarBody.velocity.y = jumpForce;
+                avatarState.avatarBody.velocity.y = JUMP_FORCE;
                 avatarState.avatarBody.canJump = false;
             }
         }
@@ -116,9 +101,7 @@ if (isTouchDevice) {
     // Sprint button handler                                                       Combine with other jump logic, not 2 different
     const sprintBtn = document.getElementById('sprint-btn');
     sprintBtn.addEventListener('touchstart', () => {
-        
-        // Increase Movement Speed
-
+        isSprinting = true;
     });
 
     // ESC button handler                                                       Combine with other jump logic, not 2 different
@@ -126,6 +109,15 @@ if (isTouchDevice) {
     escBtn.addEventListener('touchstart', () => {
         escButtonPress();
     });
+}
+
+// Speed multiplier function
+function getSpeedMultiplier() {
+    if (isTouchDevice) {
+        return isSprinting ? 2 : 1;
+    } else {
+        return keys.has('shift') ? 2 : 1;
+    }
 }
 
 export function animate() {
@@ -140,8 +132,7 @@ export function animate() {
 
     if (controls.isLocked || isTouchDevice) {
         if (avatarState.avatarMesh && avatarState.avatarBody) {
-
-            // Determine closest interaction point (consider checking only nearby Khets (e.g., within 5 units) if performance becomes an issue)
+            // Interaction logic
             let closestPoint = null;
             let minDistance = Infinity;
 
@@ -161,8 +152,6 @@ export function animate() {
                             minDistance = distance;
                             closestPoint = { point, object: obj };
                         }
-                        console.log(distance);
-                        
                     });
                 }
             });
@@ -179,28 +168,73 @@ export function animate() {
             camDirection.y = 0;
             camDirection.normalize();
 
-            const baseSpeed = 4.0;
-            const walkSpeed = keys.has('shift') ? baseSpeed * 2 : baseSpeed; // Double speed when Shift is pressed
-            const forward = camDirection.clone().multiplyScalar(walkSpeed);
-            const right = new THREE.Vector3().crossVectors(camDirection, new THREE.Vector3(0, 1, 0)).normalize().multiplyScalar(walkSpeed);
-
-            const moveVelocity = new CANNON.Vec3(0, avatarState.avatarBody.velocity.y, 0);
+            // Calculate local direction
+            let localDirection = new THREE.Vector3();
             if (isTouchDevice) {
-                // Touch-based movement using joystick
-                const movementDirection = new THREE.Vector3(moveDirection.x, 0, moveDirection.y).applyQuaternion(camera.quaternion);
-                const movementVelocity = new CANNON.Vec3(movementDirection.x, 0, movementDirection.z).scale(walkSpeed);
-                moveVelocity.x = movementVelocity.x;
-                moveVelocity.z = movementVelocity.z;
+                localDirection.set(moveDirection.x, 0, moveDirection.y);
             } else {
-                // Keyboard-based movement
-                if (keys.has('w')) moveVelocity.vadd(new CANNON.Vec3(forward.x, 0, forward.z), moveVelocity);
-                if (keys.has('s')) moveVelocity.vadd(new CANNON.Vec3(-forward.x, 0, -forward.z), moveVelocity);
-                if (keys.has('a')) moveVelocity.vadd(new CANNON.Vec3(-right.x, 0, -right.z), moveVelocity);
-                if (keys.has('d')) moveVelocity.vadd(new CANNON.Vec3(right.x, 0, right.z), moveVelocity);
+                if (keys.has('w')) localDirection.z -= 1;
+                if (keys.has('s')) localDirection.z += 1;
+                if (keys.has('a')) localDirection.x -= 1;
+                if (keys.has('d')) localDirection.x += 1;
             }
-            avatarState.avatarBody.velocity.set(moveVelocity.x, avatarState.avatarBody.velocity.y, moveVelocity.z);
 
-            // Check grounding using physics contacts
+            // Calculate input magnitude
+            let inputMagnitude;
+            if (isTouchDevice) {
+                inputMagnitude = localDirection.length();
+            } else {
+                inputMagnitude = localDirection.length() > 0 ? 1 : 0;
+            }
+
+            // Normalize localDirection if magnitude > 0
+            if (inputMagnitude > 0) {
+                localDirection.normalize();
+            }
+
+            // Transform to world space
+            const movementDirection = localDirection.applyQuaternion(camera.quaternion);
+
+            if (avatarState.avatarBody.isGrounded) {
+                // Grounded movement: set velocity directly
+                const speedMultiplier = getSpeedMultiplier();
+                const walkSpeed = BASE_SPEED * speedMultiplier;
+                const targetSpeed = walkSpeed * (isTouchDevice ? inputMagnitude : 1);
+                const targetVelocity = movementDirection.clone().multiplyScalar(targetSpeed);
+                avatarState.avatarBody.velocity.set(targetVelocity.x, avatarState.avatarBody.velocity.y, targetVelocity.z);
+
+                // Clear preserved velocity when grounded
+                //avatarState.avatarBody.preservedVelocity = null;
+            } else {
+                /* In-air movement: preserve velocity and apply slight adjustments
+                if (!avatarState.avatarBody.preservedVelocity) {
+                    // Capture velocity the moment the avatar becomes airborne
+                    avatarState.avatarBody.preservedVelocity = {
+                        x: avatarState.avatarBody.velocity.x,
+                        y: avatarState.avatarBody.velocity.y,
+                        z: avatarState.avatarBody.velocity.z
+                    };
+                } */
+
+                // Set initial horizontal velocity to preserved values
+                //avatarState.avatarBody.velocity.x = avatarState.avatarBody.preservedVelocity.x;
+                //avatarState.avatarBody.velocity.z = avatarState.avatarBody.preservedVelocity.z;
+                // Note: y-velocity is preserved initially but will be modified by gravity via the physics engine
+
+                // Apply slight adjustments based on input
+                if (inputMagnitude > 0) {
+                    const adjustmentMagnitude = AIR_ADJUSTMENT_ACCELERATION * (isTouchDevice ? inputMagnitude : 1);
+                    const adjustment = movementDirection.clone().multiplyScalar(adjustmentMagnitude);
+                    avatarState.avatarBody.velocity.x += adjustment.x * delta;
+                    avatarState.avatarBody.velocity.z += adjustment.z * delta;
+
+                    // Update preserved velocity to reflect adjustments
+                    //avatarState.avatarBody.preservedVelocity.x = avatarState.avatarBody.velocity.x;
+                    //avatarState.avatarBody.preservedVelocity.z = avatarState.avatarBody.velocity.z;
+                }
+            }
+
+            // Grounding check
             avatarState.avatarBody.isGrounded = false;
             world.contacts.forEach(contact => {
                 sceneObjects.forEach(obj => {
@@ -215,8 +249,7 @@ export function animate() {
 
             // Jumping logic
             if (keys.has(' ') && avatarState.avatarBody.canJump && avatarState.avatarBody.isGrounded) {
-                const jumpForce = 5;
-                avatarState.avatarBody.velocity.y = jumpForce;
+                avatarState.avatarBody.velocity.y = JUMP_FORCE;
                 avatarState.avatarBody.canJump = false;
             }
 
@@ -271,7 +304,6 @@ export function animate() {
                 const movementDirection = new THREE.Vector3(moveDirection.x, 0, moveDirection.y).applyQuaternion(camera.quaternion);
                 camera.position.add(movementDirection.multiplyScalar(moveSpeed));
             } else {
-                // Keyboard-based camera movement
                 if (keys.has('w')) controls.moveForward(moveSpeed);
                 if (keys.has('s')) controls.moveForward(-moveSpeed);
                 if (keys.has('a')) controls.moveRight(-moveSpeed);
