@@ -12,7 +12,7 @@ export const isTouchDevice = 'ontouchstart' in window;
 // Constants for movement and jumping
 const BASE_SPEED = 4.0;
 const JUMP_FORCE = 7;
-const AIR_ADJUSTMENT_ACCELERATION = 10.0; // Small acceleration for slight in-air adjustments (m/s^2)
+const AIR_ADJUSTMENT_ACCELERATION = 100.0; // Small acceleration for slight in-air adjustments (m/s^2)
 
 // Variables for camera rotation and movement
 let yaw = 0;
@@ -30,7 +30,7 @@ if (isTouchDevice) {
     const joystickZone = document.getElementById('joystick-zone');
     const joystick = nipplejs.create({
         zone: joystickZone,
-        mode: 'static',
+        mode: 'dynamic',
         position: { left: '50%', top: '50%' },
         color: 'blue'
     });
@@ -120,6 +120,7 @@ function getSpeedMultiplier() {
     }
 }
 
+// Animation Loop
 export function animate() {
     if (!isAnimating) return;
     requestAnimationFrame(animate);
@@ -128,6 +129,7 @@ export function animate() {
 
     world.step(1 / 60, delta, 3); // Fixed timestep with accumulation
 
+    // Execute Khet Code
     khetState.executors.forEach(executor => executor());
 
     if (controls.isLocked || isTouchDevice) {

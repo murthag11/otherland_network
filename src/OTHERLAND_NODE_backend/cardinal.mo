@@ -1,0 +1,1 @@
+// Dumb wrapper that just returns the fixed canister and storage id for now

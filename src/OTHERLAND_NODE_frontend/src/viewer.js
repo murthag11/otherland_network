@@ -18,7 +18,7 @@ export function stopAnimation() {
 // **Renderer Setup**
 // Get the canvas element from the DOM and initialize the WebGL renderer
 export const canvas = document.getElementById('canvas');
-export const renderer = new THREE.WebGLRenderer({ canvas });
+export const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight); // Set renderer size to match window
 renderer.outputEncoding = THREE.sRGBEncoding; // Use sRGB encoding for better color accuracy
 
@@ -239,10 +239,10 @@ const onlineParams = new Proxy(new URLSearchParams(window.location.search), {
 if (onlineParams.standalone) { 
     document.getElementById("body").requestFullscreen();
 };
-console.log(onlineParams);
+console.log("Detecting quick connect ...");
 if (onlineParams.id) {
     online.remoteID = onlineParams.id;
-    console.log('Remote ID:', online.remoteID);
+    console.log('Found, Remote ID:', online.remoteID);
     online.quickConnect = true;
     online.openPeer();
 };
