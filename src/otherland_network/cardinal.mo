@@ -68,6 +68,11 @@ actor Cardinal {
     );
   };
 
+  // Return storage canister ID
+  public query func getStorageCanisterId() : async Text {
+    return "be2us-64aaa-aaaaa-qaabq-cai"; // Hardcoded storage canister ID
+  };
+
   // Request a new canister
   public shared({ caller }) func requestCanister() : async Result.Result<Principal, Text> {
     if (not isWasmReady) {

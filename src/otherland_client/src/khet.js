@@ -2,10 +2,9 @@
 import * as esprima from 'esprima';
 import { Actor, HttpAgent } from '@dfinity/agent';
 import { Principal } from '@dfinity/principal';
-import { idlFactory as cardinalIdlFactory } from '../../declarations/cardinal';
 import { idlFactory as backendIdlFactory } from '../../declarations/user_node';
 import { idlFactory as storageIdlFactory } from '../../declarations/storage'; // Adjust path after dfx generate
-import { getBackendCanisterId, getStorageCanisterId } from './nodeManager.js';
+import { getUserCanisterId, getStorageCanisterId } from './nodeManager.js';
 import { editProperty, pickupObject } from './interaction.js';
 import { authReady, getIdentity } from './user.js';
 import { avatarState } from './avatar.js';

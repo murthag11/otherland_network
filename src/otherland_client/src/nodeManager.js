@@ -11,11 +11,9 @@ const CARDINAL_CANISTER_ID = 'bw4dl-smaaa-aaaaa-qaacq-cai';
 export async function requestNewCanister() {
   try {
     // Initialize agent with user identity (e.g., Internet Identity)
-    const agent = new HttpAgent({ host: 'https://ic0.app' });
-    const cardinalActor = Actor.createActor(cardinalIdl, {
-      agent,
-      canisterId: CARDINAL_CANISTER_ID,
-    });
+    const agent = new HttpAgent({ host: window.location.origin, identity: getIdentity() });
+    if (process.env.DFX_NETWORK === 'local') { await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err)) };
+    const cardinalActor = Actor.createActor(cardinalIdlFactory, { agent, canisterId: CARDINAL_CANISTER_ID });
 
     // Call the cardinal canister’s requestCanister function
     const result = await cardinalActor.requestCanister();
@@ -27,7 +25,6 @@ export async function requestNewCanister() {
     return userCanisterId;
   } catch (error) {
     console.error('Error requesting canister:', error);
-    displayError('Failed to request a canister. Please try again.');
   }
 }
 
@@ -35,7 +32,7 @@ export async function requestNewCanister() {
 export async function getUserCanisterId() {
     const canisterId = this.userOwnedNodes[0] || null;
     if (!canisterId) {
-      displayError('No canister assigned. Please request a canister first.');
+      console.error('No canister assigned. Please request a canister first.');
       return null;
     }
   
@@ -114,22 +111,10 @@ export const nodeSettings = {
     }
 };
 
-// Function to fetch the backend canister ID
-export async function getBackendCanisterId() {
-  const agent = new HttpAgent({ host: window.location.origin });
-  if (process.env.DFX_NETWORK === 'local') {
-    await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
-  }
-  const cardinalActor = Actor.createActor(cardinalIdlFactory, { agent, canisterId: CARDINAL_CANISTER_ID });
-  return await cardinalActor.getBackendCanisterId();
-}
-
 // Function to fetch the storage canister ID
 export async function getStorageCanisterId() {
-  const agent = new HttpAgent({ host: window.location.origin });
-  if (process.env.DFX_NETWORK === 'local') {
-    await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
-  }
+  const agent = new HttpAgent({ host: window.location.origin, identity: getIdentity() });
+  if (process.env.DFX_NETWORK === 'local') { await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err)) };
   const cardinalActor = Actor.createActor(cardinalIdlFactory, { agent, canisterId: CARDINAL_CANISTER_ID });
   return await cardinalActor.getStorageCanisterId();
 }

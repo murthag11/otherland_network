@@ -1,7 +1,7 @@
 # Ignore
 node_modules/
 .dfx/
-src/OTHERLAND_NODE_frontend/dist/
+src/otherland_client/dist/
 src/declarations/
 
 # Explicitly include

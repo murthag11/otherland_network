@@ -98,7 +98,7 @@ actor {
   };
 
   // **Initialization by Cardinal**
-  let cardinal = actor("bw4dl-smaaa-aaaaa-qaacq-cai") : actor {}; // Replace with actual cardinal canister ID
+  let cardinal = actor("bw4dl-smaaa-aaaaa-qaacq-cai") : actor {};
   public shared({ caller }) func init(ownerPrincipal : Principal) : async () {
     assert(caller == Principal.fromActor(cardinal));
     assert(Option.isNull(owner));
