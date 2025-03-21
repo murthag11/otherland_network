@@ -4,6 +4,10 @@
       "main": "src/OTHERLAND_NODE_backend/main.mo",
       "type": "motoko"
     },
+    "cardinal": {
+      "main": "src/OTHERLAND_NODE_backend/cardinal.mo",
+      "type": "motoko"
+    },
     "Storage": {
       "main": "src/OTHERLAND_NODE_backend/storage.mo",
       "type": "motoko"

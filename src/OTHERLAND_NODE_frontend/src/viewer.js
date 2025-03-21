@@ -222,7 +222,7 @@ document.getElementById('upload-btn').addEventListener('click', async () => {
         const khet = await createKhet(file, khetType, textures, khetCode);
         
         // Upload the Khet to the backend (hardcoded canister ID)
-        const khetWithRef = await uploadKhet(khet, 'be2us-64aaa-aaaaa-qaabq-cai');
+        const khetWithRef = await uploadKhet(khet);
         
         // Clear the file input after successful upload
         fileInput.value = '';

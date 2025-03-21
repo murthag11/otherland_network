@@ -4,7 +4,9 @@ import { Actor, HttpAgent } from '@dfinity/agent';
 import { Principal } from '@dfinity/principal';
 import { idlFactory as backendIdlFactory } from '../../declarations/OTHERLAND_NODE_backend';
 import { idlFactory as storageIdlFactory } from '../../declarations/Storage'; // Adjust path after dfx generate
+import { getBackendCanisterId, getStorageCanisterId } from './nodeManager.js';
 import { editProperty, pickupObject } from './interaction.js';
+import { authReady, getIdentity } from './user.js';
 import { avatarState } from './avatar.js';
 import { online } from './peermesh.js';
 import { updateKhetTable } from './menu.js';
@@ -206,12 +208,19 @@ export const khetController = {
         } else {
 
             console.log("Loading Khet List from Node Backend");
+
+            // Wait for authentication to complete
+            await authReady;
+            
+            // Fetch canister IDs dynamically
+            const backendCanisterId = await getBackendCanisterId();
+            const storageCanisterId = await getStorageCanisterId();
         
             // Set up the agent to communicate with the backend
-            const agent = new HttpAgent({ host: window.location.origin });
+            const agent = new HttpAgent({ host: window.location.origin, identity: getIdentity() });
             if (process.env.DFX_NETWORK === 'local') { await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err)); }
-            const backendActor = Actor.createActor(backendIdlFactory, {  agent, canisterId: 'bkyz2-fmaaa-aaaaa-qaaaq-cai' });
-            const storageActor = Actor.createActor(storageIdlFactory, { agent, canisterId: 'be2us-64aaa-aaaaa-qaabq-cai' });
+            const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: backendCanisterId });
+            const storageActor = Actor.createActor(storageIdlFactory, { agent, canisterId: storageCanisterId });
 
             try {
                 const backendKhets = await backendActor.getAllKhets();
@@ -410,12 +419,21 @@ export async function createKhet(file, khetTypeStr, textures = {}, code = null, 
 
 // **Upload Khet to Canisters**
 // Upload the Khet to the storage and backend canisters
-export async function uploadKhet(khet, storageCanisterId = 'be2us-64aaa-aaaaa-qaabq-cai') { // Default storage canister ID
-    const agent = new HttpAgent({ host: window.location.origin }); // Local agent for development
+export async function uploadKhet(khet) {
+
+    // Wait for authentication to complete
+    await authReady;
+    
+    // Fetch canister IDs dynamically
+    const backendCanisterId = await getBackendCanisterId();
+    const storageCanisterId = await getStorageCanisterId();
+
+    //
+    const agent = new HttpAgent({ host: window.location.origin, identity: getIdentity() }); // Local agent for development
     if (process.env.DFX_NETWORK === 'local') {
         await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
     }
-    const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: 'bkyz2-fmaaa-aaaaa-qaaaq-cai' });
+    const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: backendCanisterId });
     const storageActor = Actor.createActor(storageIdlFactory, { agent, canisterId: storageCanisterId });
 
     const CHUNK_SIZE = 2000000; // Little below 2MB chunk size for uploading large files
@@ -530,14 +548,21 @@ export async function loadKhetMeshOnly(khetId, scene) {
 
 // **Load and Render Khet**
 // Load a Khet by ID and add it to the scene
-export async function loadKhet(khetId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController }) {
+export async function loadKhet(khetId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState }) {
+
+    // Wait for authentication to complete
+    await authReady;
+    
+    // Fetch canister IDs dynamically
+    const backendCanisterId = await getBackendCanisterId();
+    const storageCanisterId = await getStorageCanisterId();
     
     // Prepare secure request
-    const agent = new HttpAgent({ host: window.location.origin });
+    const agent = new HttpAgent({ host: window.location.origin, identity: getIdentity() });
     if (process.env.DFX_NETWORK === 'local') {
         await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
     }
-    const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: 'bkyz2-fmaaa-aaaaa-qaaaq-cai' });
+    const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: backendCanisterId });
     
     let result = { mesh: null, body: null, isAvatar: false };
 
@@ -845,12 +870,21 @@ export async function loadAvatarObject({ scene, sceneObjects, world, groundMater
 
 // **Clear All Khets**
 // Clear all Khets from the backend and storage canisters
-export async function clearAllKhets(storageCanisterId = 'be2us-64aaa-aaaaa-qaabq-cai') {
-    const agent = new HttpAgent({ host: window.location.origin });
+export async function clearAllKhets() {
+
+    // Wait for authentication to complete
+    await authReady;
+    
+    // Fetch canister IDs dynamically
+    const backendCanisterId = await getBackendCanisterId();
+    const storageCanisterId = await getStorageCanisterId();
+
+    // Clear Khets from backend and storage canisters
+    const agent = new HttpAgent({ host: window.location.origin, identity: getIdentity() });
     if (process.env.DFX_NETWORK === 'local') {
         await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
     }
-    const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: 'bkyz2-fmaaa-aaaaa-qaaaq-cai' });
+    const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: backendCanisterId });
     try {
         await backendActor.clearAllKhets(Principal.fromText(storageCanisterId));
         console.log('All Khets cleared successfully');

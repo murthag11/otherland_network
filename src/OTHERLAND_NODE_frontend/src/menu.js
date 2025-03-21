@@ -2,10 +2,19 @@
 import { controls, canvas, scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController, loadScene, stopAnimation, startAnimation } from './viewer.js';
 import { khetController, clearAllKhets, worldController, loadAvatarObject } from './khet.js';
 import { nodeSettings } from './nodeManager.js';
-import { user } from './user.js';
+import { initAuth, getIdentity, login, user } from './user.js';
 import { online } from './peermesh.js'
 import { avatarState } from './avatar.js'
 import { isTouchDevice } from './animation.js'
+
+// Declare Variables
+const startScreen = document.getElementById('start-screen');
+const mainMenu = document.getElementById('main-menu');
+const accountSwitcher = document.getElementById('account-switcher');
+const connectIIBtn = document.getElementById('connect-ii-btn');
+const continueGuestBtn = document.getElementById('continue-guest-btn');
+const welcomeMessage = document.getElementById('welcome-message');
+const tabs = document.querySelectorAll('.tab');
 
 // ### Pointer Lock State Handling
 // Listen for changes in the pointer lock state to manage game menu visibility
@@ -19,7 +28,7 @@ document.addEventListener('pointerlockchange', () => {
 
 function enterViewer() {
     document.getElementById('guiLayer').style.display = 'block'; // Hide the GUI layer when pointer lock is acquired
-    document.getElementById('mobile-controls').style.display = 'block'; // Show the GUI layer when pointer lock is released
+    if (isTouchDevice) { document.getElementById('mobile-controls').style.display = 'block'; } // Show the GUI layer when pointer lock is released
 
     // Hide Jump / Sprint Button depending on Avatar availability
     if (isTouchDevice && avatarState.selectedAvatarId !== null) {
@@ -39,7 +48,7 @@ function leaveViewer() {
     const closeBtn = document.getElementById('close-btn');
     closeBtn.disabled = true;        // Disable the close button temporarily
     document.getElementById('guiLayer').style.display = 'none'; // Show the GUI layer when pointer lock is released
-    document.getElementById('mobile-controls').style.display = 'none'; // Show the GUI layer when pointer lock is released
+    if (isTouchDevice) { document.getElementById('mobile-controls').style.display = 'none'; } // Show the GUI layer when pointer lock is released
     setTimeout(() => {
         closeBtn.disabled = false;   // Re-enable the close button after 1.25 seconds
     }, 1250);
@@ -60,6 +69,7 @@ document.addEventListener('keydown', event => {
     }
 });
 
+// Handle ESC Button press
 export function escButtonPress() {
     const mainMenu = document.getElementById('main-menu');
     const gameMenu = document.getElementById('game-menu');
@@ -186,16 +196,64 @@ function changekhetEditorDrawer(goal) {
     return;
 }
 
+// **Page Switching Function**
+// Helper function to switch between menu pages
+function showPage(page) {
+    mainPage.classList.remove('active');
+    settingsPage.classList.remove('active');
+    avatarPage.classList.remove('active');
+    page.classList.add('active'); // Activate the selected page
+}
+
+// Function to show main menu and hide start screen
+function showMainMenu() {
+}
+
+// Function to move button to account switcher
+function moveToAccountSwitcher(button) {
+    document.getElementById("info-box").style.display = 'block';
+    const clonedButton = button.cloneNode(true);
+    accountSwitcher.innerHTML = '';
+    accountSwitcher.appendChild(clonedButton);
+}
+
 // ### Menu Navigation and UI Toggling
 // Wait for the DOM to load before setting up event listeners
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
 
-    // Declare Variables
-    const startScreen = document.getElementById('start-screen');
-    const mainMenu = document.getElementById('main-menu');
-    const accountSwitcher = document.getElementById('account-switcher');
-    const welcomeMessage = document.getElementById('welcome-message');
-    const tabs = document.querySelectorAll('.tab');
+    // Initialize authentication and get identity
+    await initAuth();
+    const identity = getIdentity();
+
+    // Check if the user is authenticated
+    if (identity.getPrincipal().isAnonymous()) {
+        // User is not logged in
+        startScreen.style.display = 'flex';
+        mainMenu.style.display = 'none';
+        connectIIBtn.textContent = "Connect to Internet Identity";
+    } else {
+        // User is logged in
+        user.setUserPrincipal(identity.getPrincipal().toText());
+        connectIIBtn.textContent = `Logged in as ${user.getUserPrincipal().slice(0, 5)}...`;
+        moveToAccountSwitcher(connectIIBtn); // Move button to account switcher
+        
+        console.log("Moving the main Menu");
+        startScreen.style.display = 'none';                                                                         // Doesnt work yet, why?
+        mainMenu.style.display = 'block';
+    }
+
+    // Event listener for login button
+    connectIIBtn.addEventListener('click', async () => {
+        await login(); // Triggers authentication flow
+    });
+
+    // Event listener for guest button
+    continueGuestBtn.addEventListener('click', () => {
+        moveToAccountSwitcher(continueGuestBtn);
+        
+        startScreen.style.display = 'none';
+        mainMenu.style.display = 'block';
+    });
 
     // **Main Menu**
     const mainPage = document.getElementById('main-page');
@@ -342,44 +400,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             avatarButtonsContainer.appendChild(button);
         });
-    }
-
-    // **Page Switching Function**
-    // Helper function to switch between menu pages
-    function showPage(page) {
-        mainPage.classList.remove('active');
-        settingsPage.classList.remove('active');
-        avatarPage.classList.remove('active');
-        page.classList.add('active'); // Activate the selected page
-    }
-
-    // Start Screen Buttons
-    const connectIIBtn = document.getElementById('connect-ii-btn');
-    const continueGuestBtn = document.getElementById('continue-guest-btn');
-    connectIIBtn.addEventListener('click', () => {
-        console.log('Connecting to Internet Identity...');
-        user.setPrincipal("Test");
-        moveToAccountSwitcher(connectIIBtn);
-        showMainMenu();
-    });
-    continueGuestBtn.addEventListener('click', () => {
-        console.log('Continuing as guest...');
-        moveToAccountSwitcher(connectIIBtn);
-        showMainMenu();
-    });
-
-    // Function to show main menu and hide start screen
-    function showMainMenu() {
-        startScreen.style.display = 'none';
-        mainMenu.style.display = 'block';
-    }
-
-    // Function to move button to account switcher
-    function moveToAccountSwitcher(button) {
-        document.getElementById("info-box").style.display = 'block';
-        const clonedButton = button.cloneNode(true);
-        accountSwitcher.innerHTML = '';
-        accountSwitcher.appendChild(clonedButton);
     }
 
     // Edit Environment Button

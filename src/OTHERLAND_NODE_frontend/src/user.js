@@ -1,21 +1,91 @@
-// import { AuthClient } from "@dfinity/auth-client";
-// import { Actor, HttpAgent } from '@dfinity/agent';
+import { AuthClient } from "@dfinity/auth-client";
+import { AnonymousIdentity } from "@dfinity/agent";
 
+// Authentication client instance and identity
+let authClient;
+let identity;
+
+// Promise to track authentication readiness
+export let authReady = null;
+
+// Existing user object
 export const user = {
     userPrincipal: "",
     userName: "",
 
-    setUserPrincipal (newPrincipal) {
+    setUserPrincipal(newPrincipal) {
         this.userPrincipal = newPrincipal;
     },
-    getUserPrincipal () {
+    getUserPrincipal() {
         return this.userPrincipal;
     },
 
-    setUserName (newName) {
+    setUserName(newName) {
         this.userName = newName;
     },
-    getUserName () {
+    getUserName() {
         return this.userName;
+    }
+};
+
+// Initialize the authentication client
+export async function initAuth() {
+    try {
+        authClient = await AuthClient.create();
+        if (await authClient.isAuthenticated()) {
+            identity = await authClient.getIdentity();
+            user.setUserPrincipal(identity.getPrincipal().toText());
+        } else {
+            identity = new AnonymousIdentity();
+            user.setUserPrincipal(""); // No principal for anonymous users
+        }
+    } catch (error) {
+        console.error("Error initializing auth client:", error);
+        identity = new AnonymousIdentity();
+        user.setUserPrincipal("");
+    }
+    return identity;
+}
+
+// Start authentication immediately and store the promise
+authReady = initAuth();
+
+// Get the current identity
+export function getIdentity() {
+    if (!identity) {
+        console.warn("Identity accessed before initAuth completed");
+    }
+    return identity;
+}
+
+// Trigger Internet Identity login
+export async function login() {
+    try {
+        await authClient.login({
+            identityProvider: "https://identity.ic0.app",
+            onSuccess: async () => {
+                identity = await authClient.getIdentity();
+                user.setUserPrincipal(identity.getPrincipal().toText());
+                console.log("Logged in with principal:", user.getUserPrincipal());
+                location.reload();
+            },
+            onError: (error) => {
+                console.error("Login failed:", error);
+            }
+        });
+    } catch (error) {
+        console.error("Error during login:", error);
+    }
+}
+
+// Logout and revert to anonymous identity
+export async function logout() {
+    try {
+        await authClient.logout();
+        identity = new AnonymousIdentity();
+        user.setUserPrincipal("");
+        console.log("Logged out, reverted to anonymous identity");
+    } catch (error) {
+        console.error("Error during logout:", error);
     }
 }

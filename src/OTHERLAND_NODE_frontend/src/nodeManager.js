@@ -1,5 +1,10 @@
+import { Actor, HttpAgent } from '@dfinity/agent';
+import { idlFactory as cardinalIdlFactory } from '../../declarations/cardinal'; // Adjust path based on your project structure
 import { online } from './peermesh.js'
 import { khetController } from './khet.js';
+
+// Actual cardinal canister ID
+const CARDINAL_CANISTER_ID = 'bw4dl-smaaa-aaaaa-qaacq-cai';
 
 // Create the nodeSettings object
 export const nodeSettings = {
@@ -59,3 +64,23 @@ export const nodeSettings = {
         return;
     }
 };
+
+// Function to fetch the backend canister ID
+export async function getBackendCanisterId() {
+  const agent = new HttpAgent({ host: window.location.origin });
+  if (process.env.DFX_NETWORK === 'local') {
+    await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
+  }
+  const cardinalActor = Actor.createActor(cardinalIdlFactory, { agent, canisterId: CARDINAL_CANISTER_ID });
+  return await cardinalActor.getBackendCanisterId();
+}
+
+// Function to fetch the storage canister ID
+export async function getStorageCanisterId() {
+  const agent = new HttpAgent({ host: window.location.origin });
+  if (process.env.DFX_NETWORK === 'local') {
+    await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
+  }
+  const cardinalActor = Actor.createActor(cardinalIdlFactory, { agent, canisterId: CARDINAL_CANISTER_ID });
+  return await cardinalActor.getStorageCanisterId();
+}
