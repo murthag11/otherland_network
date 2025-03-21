@@ -179,6 +179,11 @@ canvas {
       margin-top: 20%;
     }
 
+    #node-list {
+
+      display: none;
+    }
+
     #khet-list {
 
       max-height: calc(100vh - 382px);

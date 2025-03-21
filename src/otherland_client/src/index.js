@@ -1,5 +1,5 @@
 // Import functions for managing Khet objects from khet.js
-import { createKhet, uploadKhet, khetController, worldController } from './khet.js';
+import { createKhet, uploadKhet, khetController } from './khet.js';
 import { animate } from './animation.js';
 import { online } from './peermesh.js';
 
@@ -244,21 +244,129 @@ if (onlineParams.id) {
     online.remoteID = onlineParams.id;
     console.log('Found, Remote ID:', online.remoteID);
     online.quickConnect = true;
-    online.openPeer();
 };
 
-/* Service Worker
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-        .then(registration => {
-            console.log('Service Worker registered with scope:', registration.scope);
-        })
-        .catch(error => {
-            console.error('Service Worker registration failed:', error);
-        });
-    });
-} */
+// World Controller
+export const worldController = {
+    loadedKhets: new Map(), // khetId => { mesh, body, isAvatar }
+
+    // Sync local world with Node objects
+    async syncWithNode(params) {
+
+        try {
+            // Load all Khets into khetController
+            await khetController.clearKhet();
+            await khetController.loadAllKhets();
+            const backendKhetIds = new Set(Object.keys(khetController.khets));
+            console.log(`Backend has ${backendKhetIds.size} Khets`);
+
+            // Get IDs of currently loaded Khets
+            const loadedKhetIds = new Set(this.loadedKhets.keys());
+            console.log(`Local has ${loadedKhetIds.size} Khets`);
+
+            // Identify Khets to load (in backend but not loaded locally)
+            const toLoad = [...backendKhetIds].filter(id => !loadedKhetIds.has(id));
+            console.log('Khets to load:', toLoad);
+
+            // Identify Khets to unload (loaded locally but not in backend)
+            const toUnload = [...loadedKhetIds].filter(id => !backendKhetIds.has(id));
+            console.log('Khets to unload:', toUnload);
+
+            // Load missing Khets (excluding avatars)
+            for (const khetId of toLoad) {
+                const khet = khetController.khets[khetId];
+                if (khet && khet.khetType !== 'Avatar') { // Skip avatars for now
+                    await this.loadKhet(khetId, params);
+                }
+            }
+
+            // Unload Khets no longer in the world
+            for (const khetId of toUnload) {
+                this.unloadKhet(khetId, params.scene, params.world);
+            }
+
+            console.log(`Synced with node: loaded ${toLoad.length}, unloaded ${toUnload.length} Khets`);
+        } catch (error) {
+            console.error('Error syncing with node:', error);
+        }
+    },
+
+    // Load a Khet if not already loaded
+    async loadKhet(khetId, params) {
+        if (this.loadedKhets.has(khetId)) {
+            console.log(`Khet ${khetId} already loaded`);
+            return this.loadedKhets.get(khetId);
+        }
+        const { mesh, body, isAvatar } = await loadKhet(khetId, params);
+        this.loadedKhets.set(khetId, { mesh, body, isAvatar });
+        return { mesh, body, isAvatar };
+    },
+
+    // Unload a Khet from the scene and physics world
+    unloadKhet(khetId, scene, world) {
+        const khet = this.loadedKhets.get(khetId);
+        if (khet) {
+            scene.remove(khet.mesh);
+            world.removeBody(khet.body);
+            this.loadedKhets.delete(khetId);
+            if (this.currentAvatarId === khetId) {
+                this.currentAvatarId = null;
+            }
+        }
+    },
+
+    // Set the active avatar, unloading the previous one if necessary
+    async setAvatar(newAvatarId, params) { 
+        const currentAvatarId = avatarState.getSelectedAvatarId();
+
+        if (currentAvatarId && currentAvatarId !== newAvatarId) {        
+            await this.unloadKhet(currentAvatarId, params.scene, params.world);
+        }
+        const { mesh, body, isAvatar } = await this.loadKhet(newAvatarId, params);
+        if (isAvatar) {  
+            avatarState.setSelectedAvatarId(newAvatarId);
+            avatarState.setAvatarBody(body);
+            avatarState.setAvatarMesh(mesh);
+            params.cameraController.setTarget(mesh);
+        } else {
+            console.warn(`Khet ${newAvatarId} is not an avatar`); // Improve: Only unload if new khet is Avatar, bypass this case
+        }
+    },
+
+    // Clear all loaded Khets (optional utility)
+    clearAllKhets(scene, world) {
+        for (const khet of this.loadedKhets.values()) {
+            scene.remove(khet.mesh);
+            world.removeBody(khet.body);
+        }
+        this.loadedKhets.clear();
+        avatarState.setSelectedAvatarId(null);
+    }
+};
+
+// Load User Avatar
+export async function loadAvatarObject({ scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController }) {
+    const avatarId = avatarState.getSelectedAvatarId();
+    console.log("Avatar ID: " + avatarId);
+    if (avatarId) {
+        await worldController.setAvatar(avatarId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
+    } else {
+        console.log("Avatar gets selected automatically");
+        const avatars = khetController.getAvatars();
+        if (avatars.length > 0) {
+            const avatarId = avatars[0].khetId;
+            avatarState.setSelectedAvatarId(avatarId);
+
+            if (online.connected) {
+                online.send("avatar", avatarId);
+            }
+
+            await worldController.setAvatar(avatarId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
+        } else {
+            console.warn("No avatars available to select automatically.");
+        }
+    }
+}
 
 // **Fallback Ground Plane**
 // Function to add a ground plane if no scene objects are loaded

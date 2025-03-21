@@ -1,4 +1,4 @@
-import { controls, world, scene, camera, sceneObjects, renderer, khetState, cameraController, isAnimating } from './viewer.js';
+import { controls, world, scene, camera, sceneObjects, renderer, khetState, cameraController, isAnimating } from './index.js';
 import { avatarState } from './avatar.js';
 import { keys, escButtonPress } from './menu.js';
 import { triggerInteraction } from './interaction.js';

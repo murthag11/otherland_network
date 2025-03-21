@@ -6,6 +6,7 @@ import Blob "mo:base/Blob";
 import Option "mo:base/Option";
 import Result "mo:base/Result";
 import Iter "mo:base/Iter";
+import Buffer "mo:base/Buffer";
 
 actor Cardinal {
 
@@ -73,17 +74,49 @@ actor Cardinal {
     return "be2us-64aaa-aaaaa-qaabq-cai"; // Hardcoded storage canister ID
   };
 
+  // Get List of all Canisters with Access
+  public query({ caller }) func getAccessibleCanisters() : async [Principal] {
+      // Use a Buffer for efficient list building
+      let buf = Buffer.Buffer<Principal>(0);
+      
+      // Iterate through all entries in the registry
+      for ((owner, canisterId) in registry.entries()) {
+          // Case 1: Caller is the owner
+          if (caller == owner) {
+              buf.add(canisterId);
+          } else {
+              // Case 2: Check if caller is in the owner's allowed list
+              switch (accessControl.get(owner)) {
+                  case (?allowedMap) {
+                      // If caller is in the allowed map, add the canister ID
+                      if (Option.isSome(allowedMap.get(caller))) {
+                          buf.add(canisterId);
+                      }
+                  };
+                  case null {
+                      // No access control entry for this owner; skip
+                  };
+              }
+          }
+      };
+      
+      // Convert Buffer to array and return
+      return Buffer.toArray(buf);
+  };
+
   // Request a new canister
   public shared({ caller }) func requestCanister() : async Result.Result<Principal, Text> {
     if (not isWasmReady) {
       return #err("WASM module is not ready or is being updated. Please try again later.");
     };
 
+    // Cap User canisters at 1 (remove if unwanted)
     switch (registry.get(caller)) {
       case (?canisterId) {
         return #ok(canisterId); // Return existing canister ID
       };
       case null {
+
         // Create a new canister with initial cycle funding
         Cycles.add<system>(1_000_000_000_000); // 1T cycles
         let ic = actor("aaaaa-aa") : actor {                                                               // Placeholder admin principal

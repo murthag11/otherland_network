@@ -1,6 +1,6 @@
 import { nodeSettings } from './nodeManager.js';
 import { Principal } from '@dfinity/principal';
-import { scene } from './viewer.js';
+import { scene } from './index.js';
 import { khetController, loadKhetMeshOnly } from './khet.js';
 
 function prepareForSending(khet) {
@@ -263,7 +263,6 @@ export const online = {
         };
 
         // Receive Khets
-
         if (data.type === "khetlist") {
             if (online.isJoined) {
                 

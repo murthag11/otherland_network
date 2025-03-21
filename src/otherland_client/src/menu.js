@@ -1,7 +1,7 @@
 // Import necessary components
-import { controls, canvas, scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController, loadScene, stopAnimation, startAnimation } from './viewer.js';
-import { khetController, clearAllKhets, worldController, loadAvatarObject } from './khet.js';
-import { nodeSettings, requestNewCanister } from './nodeManager.js';
+import { controls, canvas, scene, sceneObjects, world, worldController, loadAvatarObject, groundMaterial, animationMixers, khetState, cameraController, loadScene, stopAnimation, startAnimation } from './index.js';
+import { khetController, clearAllKhets } from './khet.js';
+import { nodeSettings, requestNewCanister, getAccessibleCanisters } from './nodeManager.js';
 import { initAuth, getIdentity, login, user } from './user.js';
 import { online } from './peermesh.js'
 import { avatarState } from './avatar.js'
@@ -182,6 +182,67 @@ export async function updateKhetTable() {
     return;
 }
 
+// Update Node List
+export async function updateNodeList(nodeList) {
+
+    // Select the table
+    const table = document.querySelector('#node-table');
+            
+    // Clear existing data rows (keep the header row)
+    const rows = table.querySelectorAll('tr');
+    for (let i = 1; i < rows.length; i++) {
+        rows[i].remove();
+    }
+
+    // Populate the table with Node data
+    const nodes = nodeSettings.availableNodes;
+    if (nodes.length > 0) {
+        document.getElementById("khet-table").style.display = "block";
+        document.getElementById("clear-nodes-btn").style.display = "block";
+        for (const node of nodes) {
+            const tr = document.createElement('tr');
+
+            // Eigener Node farblich hervorheben oder vorne herein laden
+            
+            // NodeID column
+            const tdId = document.createElement('td');
+            tdId.textContent = khet.khetId;
+            tr.appendChild(tdId);
+            
+            // Owner column
+            const tdType = document.createElement('td');
+            tdType.textContent = khet.khetType;
+            tr.appendChild(tdType);
+            
+            // Connect column
+            const tdConnect = document.createElement('td');
+            const connectNodeBtn = document.createElement('button');
+            connectNodeBtn.textContent = "Connect";
+            connectNodeBtn.addEventListener('click', async () => {
+
+                // Switch Node Type
+                nodeSettings.nodeType = 2;
+
+                // Display Node and Button
+                document.getElementById("edit-khet-type").innerHTML = khet.khetType;
+                document.getElementById("edit-khet-id").innerHTML = khet.khetId;
+
+                // 
+                nodeSettings.displayNodeConfig();
+            });
+            tdConnect.appendChild(connectNodeBtn);
+            tr.appendChild(tdConnect);
+            
+            // Append the row to the table
+            table.appendChild(tr);
+        }
+    } else {
+        document.getElementById("khet-table").style.display = "none";
+        document.getElementById("clear-khets-btn").style.display = "none";
+    }
+    return;
+}
+
 // Open / Close KhetEditor
 function changekhetEditorDrawer(goal) {
     if (goal == "open") {
@@ -224,6 +285,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     // **Main Menu**
     const mainPage = document.getElementById('main-page');
 
+    // **Otherland Tab**
+    // Connect to Cardinal
+    const cardinalConnectBtn = document.getElementById("cardinal-connect-btn");
+    cardinalConnectBtn.addEventListener('click', () => {
+        
+        // Get Node List
+        nodeSettings.availableNodes = getAccessibleCanisters()
+        updateNodeList();
+    });
+
     // Create new user node
     const requestCanisterBtn = document.getElementById("request-new-canister");
     requestCanisterBtn.addEventListener('click', () => {
@@ -231,6 +302,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         nodeSettings.userOwnedNodes.push(userNodeId) ;
     });
 
+    // **TreeHouse Tab**
     // Enter TreeHouse
     const enterTreehouseBtn = document.getElementById('enter-treehouse-btn');
     enterTreehouseBtn.addEventListener('click', async () => {
@@ -379,7 +451,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const editEnvBtn = document.getElementById('edit-env-btn');
     editEnvBtn.addEventListener('click', async () => {
 
-        updateKhetTable();
+        if (nodeSettings.nodeType == 0 || nodeSettings.nodeType == 2) {
+            updateKhetTable();
+        }
         
         document.getElementById("assets-title").innerHTML = "TreeHouse > Assets";
         showTab("assets-tab");

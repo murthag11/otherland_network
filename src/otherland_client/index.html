@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Otherland Network</title>
     <link rel="manifest" href="/manifest.json">
-    <!-- <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet"> -->
     <link rel="stylesheet" href="/src/index.scss">
 </head>
 
@@ -33,19 +32,20 @@
         </div>
         <div id="tab-content">
             <div id="otherland-tab" class="tab future-update">
-                <h1>Nodes</h1>
-                <h3>Public Nodes</h3>
-                <ul id="nodes-with-access">
-                    <li>PN1</li>
-                    <li>PN2</li>
-                </ul>
-                <h3>Private Nodes</h3>
-                <ul id="user-owned-nodes">
-                    <li>USER1</li>
-                    <li>Company_2</li>
-                </ul>
-                <button id="request-new-canister">Request New Canister</button>
-                <div id="canister-id-display"></div>
+                <div>
+                    <button id="cardinal-connect-btn">Connect to Cardinal Node</button>
+                </div>
+                <div id="node-list">
+                    <h1>Nodes</h1>
+                    <table id="node-table">
+                        <tr>
+                            <th><p>Node ID</p></th>
+                            <th><p>Owner</p></th>
+                        </tr>
+                    </table>
+                    <button id="request-new-canister">Request New Canister</button>
+                    <div id="canister-id-display"></div>
+                </div>
             </div>
             <div id="treehouse-tab" class="tab">
                 <h1>TreeHouse</h1>
@@ -74,6 +74,8 @@
                     </div>
                 </div>
 
+                <!-- Join Friend's TreeHouse -->
+
             </div>
             <div id="assets-tab" class="tab">
                 <h1 id="assets-title">Assets</h1>
@@ -83,7 +85,6 @@
                 <h3>List of Objects in Node</h3>
                 <div id="khet-list">
                     <table id="khet-table">
-                        <colgroup></colgroup>
                         <tr>
                             <th><p>KhetID</p></th>
                             <th><p>KhetType</p></th>
@@ -202,7 +203,11 @@
         </div>
 
         <!-- User ID -->
-        <div id="node-state">Node: TreeHouse (closed)</div>
+        <div id="node-state">
+            <div id="node-info"></div>
+            <div id="conn-info"></div>
+            <div id="status-info"></div>
+        </div>
 
         <!-- Download Progress Bar -->
         <div id="download-container">
@@ -270,6 +275,6 @@
     <script src="https://cdn.jsdelivr.net/npm/nipplejs@0.9.0/dist/nipplejs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script type="module" src="/src/viewer.js"></script>
+    <script type="module" src="/src/index.js"></script>
 </body>
 </html>

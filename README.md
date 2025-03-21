@@ -92,7 +92,7 @@ Optional:
 - animations (already in the 3d blob?)
 - code for execution (format?)
 
-Test Identity: 2744192
+Test Identity: 2744192 2745115
 
 `AI Workflow`
 
@@ -121,7 +121,7 @@ https://x.com/i/grok/share/NpXASmJhLv5BkjvzW7Q1jQldo
 
 document.getElementsByClassName("w-full max-w-3xl flex flex-col")[document.getElementsByClassName("w-full max-w-3xl flex flex-col").length - 1].style.maxWidth = "80rem";
 
-Viewer.js:
+index.js:
 
 Debug Logging:
 The CameraController class has several console.log statements (e.g., for scroll factor, camera offset).
@@ -150,7 +150,7 @@ a boolean flag toggled by a timeout, reducing complexity.
 
 Animation Mixer Population:
 The animationMixers array is declared but not filled here. Ensure it’s populated elsewhere
-(e.g., in viewer.js) when loading animated objects, or it won’t have any effect.
+(e.g., in index.js) when loading animated objects, or it won’t have any effect.
 
 
 Khet.js:
