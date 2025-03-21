@@ -1,7 +1,7 @@
 {
   "canisters": {
-    "OTHERLAND_NODE_backend": {
-      "main": "src/OTHERLAND_NODE_backend/main.mo",
+    "user_node": {
+      "main": "src/OTHERLAND_NODE_backend/user_node.mo",
       "type": "motoko"
     },
     "cardinal": {

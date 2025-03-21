@@ -1,7 +1,7 @@
 // Import necessary components
 import { controls, canvas, scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController, loadScene, stopAnimation, startAnimation } from './viewer.js';
 import { khetController, clearAllKhets, worldController, loadAvatarObject } from './khet.js';
-import { nodeSettings } from './nodeManager.js';
+import { nodeSettings, requestNewCanister } from './nodeManager.js';
 import { initAuth, getIdentity, login, user } from './user.js';
 import { online } from './peermesh.js'
 import { avatarState } from './avatar.js'
@@ -221,42 +221,15 @@ function moveToAccountSwitcher(button) {
 // Wait for the DOM to load before setting up event listeners
 document.addEventListener('DOMContentLoaded', async () => {
 
-    // Initialize authentication and get identity
-    await initAuth();
-    const identity = getIdentity();
-
-    // Check if the user is authenticated
-    if (identity.getPrincipal().isAnonymous()) {
-        // User is not logged in
-        startScreen.style.display = 'flex';
-        mainMenu.style.display = 'none';
-        connectIIBtn.textContent = "Connect to Internet Identity";
-    } else {
-        // User is logged in
-        user.setUserPrincipal(identity.getPrincipal().toText());
-        connectIIBtn.textContent = `Logged in as ${user.getUserPrincipal().slice(0, 5)}...`;
-        moveToAccountSwitcher(connectIIBtn); // Move button to account switcher
-        
-        console.log("Moving the main Menu");
-        startScreen.style.display = 'none';                                                                         // Doesnt work yet, why?
-        mainMenu.style.display = 'block';
-    }
-
-    // Event listener for login button
-    connectIIBtn.addEventListener('click', async () => {
-        await login(); // Triggers authentication flow
-    });
-
-    // Event listener for guest button
-    continueGuestBtn.addEventListener('click', () => {
-        moveToAccountSwitcher(continueGuestBtn);
-        
-        startScreen.style.display = 'none';
-        mainMenu.style.display = 'block';
-    });
-
     // **Main Menu**
     const mainPage = document.getElementById('main-page');
+
+    // Create new user node
+    const requestCanisterBtn = document.getElementById("request-new-canister");
+    requestCanisterBtn.addEventListener('click', () => {
+        const userNodeId = requestNewCanister();
+        nodeSettings.userOwnedNodes.push(userNodeId) ;
+    });
 
     // Enter TreeHouse
     const enterTreehouseBtn = document.getElementById('enter-treehouse-btn');
@@ -486,4 +459,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initially, show the start screen
     startScreen.style.display = 'flex';
     mainMenu.style.display = 'none';
+
+    // Initialize authentication and get identity
+    await initAuth();
+    const identity = getIdentity();
+
+    // Check if the user is authenticated
+    if (identity.getPrincipal().isAnonymous()) {
+        // User is not logged in
+        startScreen.style.display = 'flex';
+        mainMenu.style.display = 'none';
+        connectIIBtn.textContent = "Connect to Internet Identity";
+    } else {
+        // User is logged in
+        user.setUserPrincipal(identity.getPrincipal().toText());
+        connectIIBtn.textContent = `Logged in as ${user.getUserPrincipal().slice(0, 5)}...`;
+        moveToAccountSwitcher(connectIIBtn); // Move button to account switcher
+        
+        console.log("Moving the main Menu");
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('main-menu').style.display = 'block';
+    }
+
+    // Event listener for login button
+    connectIIBtn.addEventListener('click', async () => {
+        await login(); // Triggers authentication flow
+    });
+
+    // Event listener for guest button
+    continueGuestBtn.addEventListener('click', () => {
+        moveToAccountSwitcher(continueGuestBtn);
+        
+        startScreen.style.display = 'none';
+        mainMenu.style.display = 'block';
+    });
 });

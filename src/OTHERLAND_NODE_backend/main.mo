@@ -12,6 +12,7 @@ import _Debug "mo:base/Debug";        // For debugging output (aliased to avoid 
 
 // Define the Node actor, representing the main backend canister
 actor Node {
+  
   // Define the KhetType variant to categorize different types of Khet objects
   public type KhetType = {
     #SceneObject;        // Static objects in the scene

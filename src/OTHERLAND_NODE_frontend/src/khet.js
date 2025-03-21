@@ -2,6 +2,7 @@
 import * as esprima from 'esprima';
 import { Actor, HttpAgent } from '@dfinity/agent';
 import { Principal } from '@dfinity/principal';
+import { idlFactory as cardinalIdlFactory } from '../../declarations/cardinal';
 import { idlFactory as backendIdlFactory } from '../../declarations/OTHERLAND_NODE_backend';
 import { idlFactory as storageIdlFactory } from '../../declarations/Storage'; // Adjust path after dfx generate
 import { getBackendCanisterId, getStorageCanisterId } from './nodeManager.js';
@@ -213,13 +214,13 @@ export const khetController = {
             await authReady;
             
             // Fetch canister IDs dynamically
-            const backendCanisterId = await getBackendCanisterId();
+            const userCanisterId = await getUserCanisterId();
             const storageCanisterId = await getStorageCanisterId();
         
-            // Set up the agent to communicate with the backend
+            // Set up the agent to communicate with the node
             const agent = new HttpAgent({ host: window.location.origin, identity: getIdentity() });
             if (process.env.DFX_NETWORK === 'local') { await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err)); }
-            const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: backendCanisterId });
+            const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: userCanisterId });
             const storageActor = Actor.createActor(storageIdlFactory, { agent, canisterId: storageCanisterId });
 
             try {
@@ -425,15 +426,13 @@ export async function uploadKhet(khet) {
     await authReady;
     
     // Fetch canister IDs dynamically
-    const backendCanisterId = await getBackendCanisterId();
     const storageCanisterId = await getStorageCanisterId();
+    const userCanisterId = await getUserCanisterId();
 
-    //
-    const agent = new HttpAgent({ host: window.location.origin, identity: getIdentity() }); // Local agent for development
-    if (process.env.DFX_NETWORK === 'local') {
-        await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
-    }
-    const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: backendCanisterId });
+    // Set up the agent to communicate with the backend
+    const agent = new HttpAgent({ host: window.location.origin, identity: getIdentity() });
+    if (process.env.DFX_NETWORK === 'local') { await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err)); }
+    const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: userCanisterId });
     const storageActor = Actor.createActor(storageIdlFactory, { agent, canisterId: storageCanisterId });
 
     const CHUNK_SIZE = 2000000; // Little below 2MB chunk size for uploading large files
@@ -449,13 +448,21 @@ export async function uploadKhet(khet) {
 
     // Create a metadata-only khet object (exclude the large gltfData)
     const khetMetadata = {
-        ...khet,
-        gltfData: new Uint8Array(0) // Empty array instead of the full gltfData
+        khetId: khet.khetId,
+        khetType: khet.khetType,
+        gltfDataSize: khet.gltfData.byteLength,
+        gltfDataRef: [], // Will be set by initKhetUpload
+        position: khet.position,
+        originalSize: khet.originalSize,
+        scale: khet.scale,
+        textures: khet.textures,
+        animations: khet.animations,
+        code: khet.code,
+        hash: khet.hash
     };
-    console.log("Khet metadata being sent:", khetMetadata);
+    const result = await backendActor.initKhetUpload(khetMetadata, Principal.fromText(storageCanisterId));
 
     // Initialize Khet upload in backend with hash check
-    const result = await backendActor.initKhetUpload(khetMetadata, Principal.fromText(storageCanisterId));
     let blobId;
     if (result.existing) {
         blobId = result.existing;
@@ -554,15 +561,12 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
     await authReady;
     
     // Fetch canister IDs dynamically
-    const backendCanisterId = await getBackendCanisterId();
-    const storageCanisterId = await getStorageCanisterId();
-    
-    // Prepare secure request
+    const userCanisterId = await getUserCanisterId();
+
+    // Set up the agent to communicate with the backend
     const agent = new HttpAgent({ host: window.location.origin, identity: getIdentity() });
-    if (process.env.DFX_NETWORK === 'local') {
-        await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
-    }
-    const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: backendCanisterId });
+    if (process.env.DFX_NETWORK === 'local') { await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err)); }
+    const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: userCanisterId });
     
     let result = { mesh: null, body: null, isAvatar: false };
 
@@ -876,15 +880,14 @@ export async function clearAllKhets() {
     await authReady;
     
     // Fetch canister IDs dynamically
-    const backendCanisterId = await getBackendCanisterId();
     const storageCanisterId = await getStorageCanisterId();
+    const userCanisterId = await getUserCanisterId();
 
-    // Clear Khets from backend and storage canisters
+    // Set up the agent to communicate with the backend
     const agent = new HttpAgent({ host: window.location.origin, identity: getIdentity() });
-    if (process.env.DFX_NETWORK === 'local') {
-        await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
-    }
-    const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: backendCanisterId });
+    if (process.env.DFX_NETWORK === 'local') { await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err)); }
+    const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: userCanisterId });
+
     try {
         await backendActor.clearAllKhets(Principal.fromText(storageCanisterId));
         console.log('All Khets cleared successfully');
