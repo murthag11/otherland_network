@@ -10,7 +10,7 @@ import Iter "mo:base/Iter";
 actor Cardinal {
 
   // Stable variables for raw data
-  stable var adminPrincipal : Principal = Principal.fromText("your-ii-principal-here");
+  stable var adminPrincipal : Principal = Principal.fromText("fxhz4-w423j-q2chq-mcdn2-ihrcb-egwai-7eoh5-x4y76-3zzsk-4loyy-fqe");
   stable var registryEntries : [(Principal, Principal)] = [];
   stable var wasmModule : ?Blob = null;
   stable var isWasmReady : Bool = false;

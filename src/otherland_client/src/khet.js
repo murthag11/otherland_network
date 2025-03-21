@@ -3,8 +3,8 @@ import * as esprima from 'esprima';
 import { Actor, HttpAgent } from '@dfinity/agent';
 import { Principal } from '@dfinity/principal';
 import { idlFactory as cardinalIdlFactory } from '../../declarations/cardinal';
-import { idlFactory as backendIdlFactory } from '../../declarations/OTHERLAND_NODE_backend';
-import { idlFactory as storageIdlFactory } from '../../declarations/Storage'; // Adjust path after dfx generate
+import { idlFactory as backendIdlFactory } from '../../declarations/user_node';
+import { idlFactory as storageIdlFactory } from '../../declarations/storage'; // Adjust path after dfx generate
 import { getBackendCanisterId, getStorageCanisterId } from './nodeManager.js';
 import { editProperty, pickupObject } from './interaction.js';
 import { authReady, getIdentity } from './user.js';

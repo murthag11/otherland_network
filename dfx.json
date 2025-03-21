@@ -1,24 +1,24 @@
 {
   "canisters": {
-    "user_node": {
-      "main": "src/OTHERLAND_NODE_backend/user_node.mo",
-      "type": "motoko"
-    },
     "cardinal": {
-      "main": "src/OTHERLAND_NODE_backend/cardinal.mo",
+      "main": "src/otherland_network/cardinal.mo",
       "type": "motoko"
     },
-    "Storage": {
-      "main": "src/OTHERLAND_NODE_backend/storage.mo",
+    "storage": {
+      "main": "src/otherland_network/storage.mo",
       "type": "motoko"
     },
-    "OTHERLAND_NODE_frontend": {
-      "dependencies": ["OTHERLAND_NODE_backend", "Storage"],
-      "source": ["src/OTHERLAND_NODE_frontend/dist"],
+    "user_node": {
+      "main": "src/otherland_network/user_node.mo",
+      "type": "motoko"
+    },
+    "otherland_client": {
+      "dependencies": ["cardinal", "storage"],
+      "source": ["src/otherland_client/dist"],
       "type": "assets",
-      "workspace": "OTHERLAND_NODE_frontend",
+      "workspace": "otherland_client",
       "headers": {
-        "Content-Security-Policy": "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://unpkg.com; object-src 'none';"
+        "Content-Security-Policy": "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; object-src 'none';"
       }
     }
   },

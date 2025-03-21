@@ -1,10 +1,10 @@
 {
-  "name": "OTHERLAND_NODE_frontend",
+  "name": "otherland_client",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "setup": "npm i && dfx canister create OTHERLAND_NODE_backend && dfx generate OTHERLAND_NODE_backend && dfx deploy",
+    "setup": "npm i && dfx canister create otherland_network && dfx generate otherland_network && dfx deploy",
     "start": "vite --port 3000",
     "prebuild": "dfx generate",
     "build": "tsc && vite build",
