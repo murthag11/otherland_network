@@ -244,6 +244,7 @@ if (onlineParams.id) {
     online.remoteID = onlineParams.id;
     console.log('Found, Remote ID:', online.remoteID);
     online.quickConnect = true;
+    document.getElementById("quick-connect-invitation").style.display = "block";
 };
 
 // World Controller

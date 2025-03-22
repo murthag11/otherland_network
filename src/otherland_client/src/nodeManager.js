@@ -15,11 +15,13 @@ export const nodeSettings = {
     groundPlaneSize: 200,       // Set the ground plane size to 200 units
     groundPlaneColor: 0x00ff00,  // Set the ground plane color to green
 
-    localKhets: {};
+    localKhets: {},
 
     availableNodes: null,
 
     // Connected Node Config
+    nodeId: null,
+    storageId: null,
     nodeType: 0, // 0 = Own TreeHouse | 1 = Friend's TreeHouse | 2 = Own Node | 3 = Private Node | 4 = Public Node
     nodeOwnerPrincipal: null,
     peerNetworkAllowed: false,
@@ -96,6 +98,7 @@ export const nodeSettings = {
           break;
         default:
       }
+      document.getElementById("conn-info").innerHTML = this.nodeId;
       return;
     }
 };

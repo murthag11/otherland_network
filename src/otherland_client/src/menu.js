@@ -206,12 +206,12 @@ export async function updateNodeList(nodeList) {
             
             // NodeID column
             const tdId = document.createElement('td');
-            tdId.textContent = khet.khetId;
+            tdId.textContent = node;
             tr.appendChild(tdId);
             
             // Owner column
             const tdType = document.createElement('td');
-            tdType.textContent = khet.khetType;
+            tdType.textContent = "Coming";
             tr.appendChild(tdType);
             
             // Connect column
@@ -222,6 +222,7 @@ export async function updateNodeList(nodeList) {
 
                 // Switch Node Type
                 nodeSettings.nodeType = 2;
+                nodeSettings.nodeId = node;
 
                 // Display Node and Button
                 document.getElementById("edit-khet-type").innerHTML = khet.khetType;
@@ -288,11 +289,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // **Otherland Tab**
     // Connect to Cardinal
     const cardinalConnectBtn = document.getElementById("cardinal-connect-btn");
-    cardinalConnectBtn.addEventListener('click', () => {
+    cardinalConnectBtn.addEventListener('click', async () => {
         
         // Get Node List
         nodeSettings.availableNodes = getAccessibleCanisters()
         updateNodeList();
+
+        // Get Storage Canister Id
+        nodeSettings.storageId = await getStorageCanisterId();
     });
 
     // Create new user node
@@ -325,6 +329,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         canvas.focus();           // Focus on the canvas for input
     });
+
+    // Join QuickConnect Button
+    const joinQuickConnectBtn = document.getElementById("join-quick-connect");
+    joinQuickConnectBtn.addEventListener('click', async () => {
+        
+        // Switch Node Type
+        nodeSettings.nodeType = 2;
+        nodeSettings.nodeId = node;
+
+        //openPeer, start downloading khets, display new grey button, when loading finished ungrey button
+    })
 
     // Toogle Peer Network Button
     const togglePeerButton = document.getElementById("toggle-p2p-btn");
