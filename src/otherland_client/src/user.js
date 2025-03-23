@@ -62,7 +62,9 @@ export function getIdentity() {
 export async function login() {
     try {
         await authClient.login({
-            identityProvider: "https://identity.ic0.app",
+            identityProvider: process.env.DFX_NETWORK === 'local' 
+            ? `http://b77ix-eeaaa-aaaaa-qaada-cai.localhost:4943/` 
+            : 'https://identity.ic0.app',
             onSuccess: async () => {
                 identity = await authClient.getIdentity();
                 user.setUserPrincipal(identity.getPrincipal().toText());

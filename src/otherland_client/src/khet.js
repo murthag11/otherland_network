@@ -2,14 +2,54 @@
 import * as esprima from 'esprima';
 import { Actor, HttpAgent } from '@dfinity/agent';
 import { Principal } from '@dfinity/principal';
-import { idlFactory as backendIdlFactory } from '../../declarations/user_node';
-import { idlFactory as storageIdlFactory } from '../../declarations/storage'; // Adjust path after dfx generate
-import { nodeSettings, getUserCanisterId, getStorageCanisterId } from './nodeManager.js';
+import { idlFactory as userNodeIdlFactory } from '../../declarations/user_node';
+import { nodeSettings, getUserCanisterId } from './nodeManager.js';
 import { editProperty, pickupObject } from './interaction.js';
 import { authReady, getIdentity } from './user.js';
 import { avatarState } from './avatar.js';
 import { online } from './peermesh.js';
 import { updateKhetTable } from './menu.js';
+
+// Cardinal canister ID
+const CARDINAL_CANISTER_ID = 'bkyz2-fmaaa-aaaaa-qaaaq-cai';
+
+let agentInstance = null;
+let userNodeActor = null;
+
+// Initialize cardinal agent actor with user identity
+async function getUserNodeActor() {
+
+    // Create HTTP Agent with Internet Identity
+    if (!agentInstance) {
+
+        await authReady;
+
+        agentInstance = new HttpAgent({ 
+            host: process.env.DFX_NETWORK === 'local' ? 'http://localhost:4943' : window.location.origin, 
+            identity: getIdentity() 
+        });
+
+        if (process.env.DFX_NETWORK === 'local') {
+            try {
+                await agentInstance.fetchRootKey();
+                console.log('Root key fetched successfully');
+            } catch (err) {
+                console.error('Unable to fetch root key:', err);
+                throw err;
+            }
+        }
+    }
+
+    // Create actor for the cardinal canister
+    if (!userNodeActor) {
+        userNodeActor = Actor.createActor(userNodeIdlFactory, { 
+            agent: agentInstance, 
+            canisterId: nodeSettings.nodeId
+        });
+    }
+
+    return userNodeActor;
+}
 
 // Compute SHA-256 hash of a Uint8Array
 async function computeSHA256(data) {
@@ -115,15 +155,7 @@ export const khetController = {
         } else {
 
             console.log("Loading Khet List from Node Backend");
-
-            // Wait for authentication to complete
-            await authReady;
-        
-            // Set up the agent to communicate with the node
-            const agent = new HttpAgent({ host: window.location.origin, identity: getIdentity() });
-            if (process.env.DFX_NETWORK === 'local') { await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err)); }
-            const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: nodeSettings.nodeId });
-            const storageActor = Actor.createActor(storageIdlFactory, { agent, canisterId: nodeSettings.storageId });
+            const backendActor = await getUserNodeActor();
 
             try {
                 const backendKhets = await backendActor.getAllKhets();
@@ -133,18 +165,18 @@ export const khetController = {
                 for (const khet of backendKhets) {
                     this.khets[khet.khetId] = khet;
                     
-                    // Load 3D asset from cache or storage canister
+                    // Load 3D asset from cache or node
                     const cachedKhet = await getFromCache(khet.khetId);
                     if (cachedKhet && cachedKhet.gltfData) {
                         khet.gltfData = cachedKhet.gltfData;
                         console.log(`Loaded 3D asset for Khet ${khet.khetId} from cache`);
                     } else {
-                        const [storageCanisterId, blobId, gltfDataSize] = khet.gltfDataRef;
+                        const [storageCanisterId, blobId, gltfDataSize] = khet.gltfDataRef; // StorageCanister ID not needed anymore in khet gltfdataref
                         const CHUNK_SIZE = 1024 * 1024;
                         const totalChunks = Math.ceil(Number(gltfDataSize) / CHUNK_SIZE);
                         let gltfDataChunks = [];
                         for (let i = 0; i < totalChunks; i++) {
-                            const chunkOpt = await storageActor.getBlobChunk(blobId, i);
+                            const chunkOpt = await backendActor.getBlobChunk(blobId, i);
                             if (chunkOpt && chunkOpt.length > 0) {
                                 gltfDataChunks.push(chunkOpt[0]);
                             } else {
@@ -320,18 +352,47 @@ export async function createKhet(file, khetTypeStr, textures = {}, code = null, 
     });
 }
 
+// **Khet Upload Handling**
+// Listen for button click to upload a Khet
+document.getElementById('upload-btn').addEventListener('click', async () => {
+    const fileInput = document.getElementById('upload-khet');
+    const files = fileInput.files;
+    
+    // Check if at least one file is selected
+    if (files.length === 0) {
+        alert('Please select a file to upload.');
+        return;
+    }
+    
+    const file = files[0]; // Get the first selected file
+    const textures = files[1] ? { 'texture1': files[1] } : {}; // Optional texture file
+    const khetType = document.getElementById('khet-type').value; // Get selected Khet type
+    
+    try {
+        // Read Code from Input or Agent
+        const khetCode = 'object.rotation.y += 0.01;';
+        
+        // Create a Khet object with a simple rotation behavior
+        const khet = await createKhet(file, khetType, textures, khetCode);
+        
+        // Upload the Khet to the backend (hardcoded canister ID)
+        const khetWithRef = await uploadKhet(khet);
+        
+        // Clear the file input after successful upload
+        fileInput.value = '';
+
+        document.getElementById("upload-container").style.display = "block";
+    } catch (error) {
+        console.error('Upload process failed:', error);
+    }
+});
+
 // **Upload Khet to Canisters**
 // Upload the Khet to the storage and backend canisters
 export async function uploadKhet(khet) {
 
     // Wait for authentication to complete
-    await authReady;
-
-    // Set up the agent to communicate with the backend
-    const agent = new HttpAgent({ host: window.location.origin, identity: getIdentity() });
-    if (process.env.DFX_NETWORK === 'local') { await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err)); }
-    const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: nodeSettings.nodeId });
-    const storageActor = Actor.createActor(storageIdlFactory, { agent, canisterId: nodeSettings.storageId });
+    const backendActor = await getUserNodeActor();
 
     const CHUNK_SIZE = 2000000; // Little below 2MB chunk size for uploading large files
     const gltfData = khet.gltfData;
@@ -358,7 +419,7 @@ export async function uploadKhet(khet) {
         code: khet.code,
         hash: khet.hash
     };
-    const result = await backendActor.initKhetUpload(khetMetadata, Principal.fromText(storageCanisterId));
+    const result = await backendActor.initKhetUpload(khetMetadata);
 
     // Initialize Khet upload in backend with hash check
     let blobId;
@@ -394,11 +455,11 @@ export async function uploadKhet(khet) {
                 const chunk = gltfData.subarray(start, end);
                 const chunkBlob = new Blob([chunk]);
                 console.log(`Uploading chunk ${i + 1} of ${totalChunks} for blobId: ${blobId}, size: ${chunk.length} bytes`);
-                await storageActor.storeBlobChunk(blobId, i, new Uint8Array(await chunkBlob.arrayBuffer()));
+                await backendActor.storeBlobChunk(blobId, i, new Uint8Array(await chunkBlob.arrayBuffer()));
             }
 
             // Finalize the Khet upload
-            const finalizeResult = await backendActor.finalizeKhetUpload(khet.khetId, Principal.fromText(storageCanisterId), blobId, totalChunks);
+            const finalizeResult = await backendActor.finalizeKhetUpload(khet.khetId, blobId, totalChunks);
             if (finalizeResult && finalizeResult.length > 0) {
                 throw new Error(`Finalize failed: ${finalizeResult[0]}`);
             }
@@ -413,7 +474,7 @@ export async function uploadKhet(khet) {
             updateKhetTable();
         } catch (error) {
             console.error('Background upload failed:', error);
-            await storageActor.deleteBlob(blobId); // Clean up on failure
+            await backendActor.deleteBlob(blobId); // Clean up on failure
             await backendActor.abortKhetUpload(khet.khetId); // Clean up pending khet
 
             // Hide the progress bar
@@ -455,13 +516,7 @@ export async function loadKhetMeshOnly(khetId, scene) {
 // Load a Khet by ID and add it to the scene
 export async function loadKhet(khetId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState }) {
 
-    // Wait for authentication to complete
-    await authReady;
-
-    // Set up the agent to communicate with the backend
-    const agent = new HttpAgent({ host: window.location.origin, identity: getIdentity() });
-    if (process.env.DFX_NETWORK === 'local') { await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err)); }
-    const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: nodeSettings.nodeId });
+    const backendActor = await getUserNodeActor();
     
     let result = { mesh: null, body: null, isAvatar: false };
 
@@ -493,7 +548,7 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
 
             // Prepare fetching chunks from Storage
             const [storageCanisterId, blobId, gltfDataSize] = khet.gltfDataRef;
-            const storageActor = Actor.createActor(storageIdlFactory, { agent, canisterId: storageCanisterId });
+            const backendActor = await getUserNodeActor();
 
             // Calculate chunks
             const CHUNK_SIZE = 1024 * 1024; // 1MB
@@ -503,7 +558,7 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
             // Load chunks from Storage canister
             let gltfDataChunks = [];
             for (let i = 0; i < totalChunks; i++) {
-                const chunkOpt = await storageActor.getBlobChunk(blobId, i);
+                const chunkOpt = await backendActor.getBlobChunk(blobId, i);
                 if (chunkOpt && chunkOpt.length > 0) {
                     gltfDataChunks.push(chunkOpt[0]);
                 } else {
@@ -724,16 +779,10 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
 // Clear all Khets from the backend and storage canisters
 export async function clearAllKhets() {
 
-    // Wait for authentication to complete
-    await authReady;
-
-    // Set up the agent to communicate with the backend
-    const agent = new HttpAgent({ host: window.location.origin, identity: getIdentity() });
-    if (process.env.DFX_NETWORK === 'local') { await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err)); }
-    const backendActor = Actor.createActor(backendIdlFactory, { agent, canisterId: nodeSettings.nodeId });
+    const backendActor = await getUserNodeActor();
 
     try {
-        await backendActor.clearAllKhets(Principal.fromText(storageCanisterId));
+        await backendActor.clearAllKhets();
         console.log('All Khets cleared successfully');
     } catch (error) {
         console.error('Error clearing Khets:', error);

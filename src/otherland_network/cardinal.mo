@@ -69,11 +69,6 @@ actor Cardinal {
     );
   };
 
-  // Return storage canister ID
-  public query func getStorageCanisterId() : async Text {
-    return "be2us-64aaa-aaaaa-qaabq-cai"; // Hardcoded storage canister ID
-  };
-
   // Get List of all Canisters with Access
   public query({ caller }) func getAccessibleCanisters() : async [Principal] {
       // Use a Buffer for efficient list building
@@ -202,7 +197,7 @@ actor Cardinal {
   // Upload WASM module (restricted to an admin principal for simplicity)
   public shared({ caller }) func uploadWasmModule(wasmModuleBlob : Blob) : async () {
     // Replace with your admin principal in production
-    assert(caller == adminPrincipal);                                                               // Placeholder admin principal
+    //assert(caller == adminPrincipal);  // Placeholder admin principal
     isWasmReady := false; // Mark as not ready during upload
     wasmModule := ?wasmModuleBlob;
     isWasmReady := true; // Mark as ready after upload completes

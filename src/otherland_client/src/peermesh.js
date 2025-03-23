@@ -154,7 +154,7 @@ export const online = {
             // Open Peer Connection (Join)
             this.peer.on('open', function (id) {
 
-                // Assign Peer ID.
+                // Assign Peer ID
                 online.ownID = id;
                 console.log("ownID: " + online.ownID)
 

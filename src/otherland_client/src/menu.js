@@ -1,7 +1,7 @@
 // Import necessary components
 import { controls, canvas, scene, sceneObjects, world, worldController, loadAvatarObject, groundMaterial, animationMixers, khetState, cameraController, loadScene, stopAnimation, startAnimation } from './index.js';
 import { khetController, clearAllKhets } from './khet.js';
-import { nodeSettings, requestNewCanister, getAccessibleCanisters } from './nodeManager.js';
+import { nodeSettings, requestNewCanister, getAccessibleCanisters, getCardinalActor } from './nodeManager.js';
 import { initAuth, getIdentity, login, user } from './user.js';
 import { online } from './peermesh.js'
 import { avatarState } from './avatar.js'
@@ -294,9 +294,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Get Node List
         nodeSettings.availableNodes = getAccessibleCanisters()
         updateNodeList();
+        document.getElementById("node-list").style.display = "block";
+    });
 
-        // Get Storage Canister Id
-        nodeSettings.storageId = await getStorageCanisterId();
+    // 
+    const enterNodeBtn = document.getElementById("enter-node-btn");
+    enterNodeBtn.addEventListener('click', async () => {
+
+        nodeSettings.nodeType = 2
+
+        // Define the parameters for loadScene and loadAvatarObject
+        const params = { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController };
+
+        // Load Scene with params and nodeSettings
+        await loadScene(params, nodeSettings);
+
+        // Load Avatar with params
+        await loadAvatarObject(params);
+
+        document.getElementById('main-menu').style.display = 'none';
+        const isTouchDevice = 'ontouchstart' in window;
+        if (!isTouchDevice) {
+            controls.lock();      // Lock the pointer for game control
+        } else {   
+            enterViewer();        // Enter the viewer when pointer lock is acquired
+        }
+        canvas.focus();           // Focus on the canvas for input
     });
 
     // Create new user node
@@ -329,16 +352,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         canvas.focus();           // Focus on the canvas for input
     });
+    
+    const uploadBtn = document.getElementById('upload-btn');
+    uploadBtn.disabled = !nodeSettings.nodeId;
 
     // Join QuickConnect Button
     const joinQuickConnectBtn = document.getElementById("join-quick-connect");
     joinQuickConnectBtn.addEventListener('click', async () => {
         
         // Switch Node Type
-        nodeSettings.nodeType = 2;
-        nodeSettings.nodeId = node;
+        nodeSettings.nodeType = 1;
+        nodeSettings.nodeId = "TreeHouse";
+
+        // Connect to Host
+        online.openPeer();
 
         //openPeer, start downloading khets, display new grey button, when loading finished ungrey button
+    })
+
+    // Reset Peer Button
+    const resetPeerBtn = document.getElementById("toggle-p2p-btn");
+    resetPeerBtn.addEventListener('click', async () => {
+        nodeSettings.togglePeerNetworkAllowed();
     })
 
     // Toogle Peer Network Button
@@ -559,6 +594,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         startScreen.style.display = 'flex';
         mainMenu.style.display = 'none';
         connectIIBtn.textContent = "Connect to Internet Identity";
+
+        cardinalConnectBtn.disabled = true;
+        requestCanisterBtn.disabled = true;
+        uploadBtn.disabled = true;
+        clearBtn.disabled = true;
     } else {
         // User is logged in
         user.setUserPrincipal(identity.getPrincipal().toText());
@@ -581,5 +621,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         startScreen.style.display = 'none';
         mainMenu.style.display = 'block';
+    });
+
+    const wasmFileInput = document.getElementById('wasm-file-input');
+    wasmFileInput.addEventListener('change', async () => {
+        const file = wasmFileInput.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async () => {
+            const wasmArrayBuffer = reader.result;
+            const wasmBlob = new Uint8Array(wasmArrayBuffer);
+
+            try {
+                const actor = await getCardinalActor(); // Your actor initialization
+                await actor.uploadWasmModule(wasmBlob);
+                console.log('WASM module uploaded successfully');
+            } catch (error) {
+                console.error('Error uploading WASM module:', error);
+            }
+        };
+        reader.readAsArrayBuffer(file);
     });
 });

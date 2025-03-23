@@ -1,5 +1,6 @@
 // Import functions for managing Khet objects from khet.js
-import { createKhet, uploadKhet, khetController } from './khet.js';
+import { khetController } from './khet.js';
+import { avatarState } from './avatar.js';
 import { animate } from './animation.js';
 import { online } from './peermesh.js';
 
@@ -196,41 +197,6 @@ window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight; // Update aspect ratio
     camera.updateProjectionMatrix(); // Recalculate projection
     renderer.setSize(window.innerWidth, window.innerHeight); // Resize renderer
-});
-
-// **Khet Upload Handling**
-// Listen for button click to upload a Khet
-document.getElementById('upload-btn').addEventListener('click', async () => {
-    const fileInput = document.getElementById('upload-khet');
-    const files = fileInput.files;
-    
-    // Check if at least one file is selected
-    if (files.length === 0) {
-        alert('Please select a file to upload.');
-        return;
-    }
-    
-    const file = files[0]; // Get the first selected file
-    const textures = files[1] ? { 'texture1': files[1] } : {}; // Optional texture file
-    const khetType = document.getElementById('khet-type').value; // Get selected Khet type
-    
-    try {
-        // Read Code from Input or Agent
-        const khetCode = 'object.rotation.y += 0.01;';
-        
-        // Create a Khet object with a simple rotation behavior
-        const khet = await createKhet(file, khetType, textures, khetCode);
-        
-        // Upload the Khet to the backend (hardcoded canister ID)
-        const khetWithRef = await uploadKhet(khet);
-        
-        // Clear the file input after successful upload
-        fileInput.value = '';
-
-        document.getElementById("upload-container").style.display = "block";
-    } catch (error) {
-        console.error('Upload process failed:', error);
-    }
 });
 
 // Online: Detect Quick Connect

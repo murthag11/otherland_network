@@ -32,19 +32,20 @@
         </div>
         <div id="tab-content">
             <div id="otherland-tab" class="tab future-update">
-                <div>
-                    <button id="cardinal-connect-btn">Connect to Cardinal Node</button>
-                </div>
                 <div id="node-list">
-                    <h1>Nodes</h1>
+                    <h1>Network</h1>
                     <table id="node-table">
                         <tr>
                             <th><p>Node ID</p></th>
                             <th><p>Owner</p></th>
                         </tr>
                     </table>
+                    <button id="enter-node-btn">Enter Node</button>
                     <button id="request-new-canister">Request New Canister</button>
                     <div id="canister-id-display"></div>
+                </div>
+                <div>
+                    <button id="cardinal-connect-btn">Connect to Cardinal Node</button>
                 </div>
             </div>
             <div id="treehouse-tab" class="tab">
@@ -74,9 +75,13 @@
                     </div>
                 </div>
 
-                <!-- Join Friend's TreeHouse -->
+                <!-- Join Friends TreeHouses -->
                 <div id="quick-connect-invitation">
-                    <button id="join-quick-connect"></button>
+                    <div>
+                        <p>Invitation to TreeHouse detected: </p>
+                        <button id="join-quick-connect"></button>
+                    </div>
+                    <!-- List all past Connections, store principal for future connections -->
                 </div>
             </div>
             <div id="assets-tab" class="tab">
@@ -115,8 +120,8 @@
                                 <option value="Entity">Entity</option>
                                 <option value="Avatar">Avatar</option>
                             </select>
-                            <button id="upload-btn">Upload</button>
-                            <button id="cache-btn">Cache</button>
+                            <button id="upload-btn">Upload to Node</button>
+                            <button id="cache-btn">Store to Cache</button>
                         </div>
                     </div>
                     <div id="edit-group">
@@ -162,6 +167,7 @@
             </div>
             <div id="settings-tab" class="tab future-update">
                 <h1>Settings</h1>
+                <input type="file" id="wasm-file-input" accept=".wasm" />
                 <!-- Placeholder -->
             </div>
         </div>

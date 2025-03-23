@@ -1,12 +1,112 @@
 import { Actor, HttpAgent } from '@dfinity/agent';
-import { idlFactory as cardinalIdlFactory } from '../../declarations/cardinal'; // Adjust path based on your project structure
-import { online } from './peermesh.js'
-import { khetController } from './khet.js';
 import { Principal } from '@dfinity/principal';
+import { idlFactory as cardinalIdlFactory } from '../../declarations/cardinal'; // Adjust path based on your project structure
+import { authReady, getIdentity } from './user.js';
+import { khetController } from './khet.js';
+import { online } from './peermesh.js'
 
 // Cardinal canister ID
-const CARDINAL_CANISTER_ID = 'bw4dl-smaaa-aaaaa-qaacq-cai';
-  
+const CARDINAL_CANISTER_ID = 'bkyz2-fmaaa-aaaaa-qaaaq-cai';
+
+let agentInstance = null;
+let cardinalActor = null;
+
+// Initialize cardinal agent actor with user identity
+export async function getCardinalActor() {
+
+    // Create HTTP Agent with Internet Identity
+    if (!agentInstance) {
+
+        await authReady;
+
+        agentInstance = new HttpAgent({ 
+            host: process.env.DFX_NETWORK === 'local' ? 'http://localhost:4943' : window.location.origin, 
+            identity: getIdentity() 
+        });
+
+        if (process.env.DFX_NETWORK === 'local') {
+            try {
+                await agentInstance.fetchRootKey();
+                console.log('Root key fetched successfully');
+            } catch (err) {
+                console.error('Unable to fetch root key:', err);
+                throw err;
+            }
+        }
+    }
+
+    // Create actor for the cardinal canister
+    if (!cardinalActor) {
+        cardinalActor = Actor.createActor(cardinalIdlFactory, { 
+            agent: agentInstance, 
+            canisterId: CARDINAL_CANISTER_ID 
+        });
+    }
+
+    return cardinalActor;
+}
+
+// Get List of all Canisters with Access
+export async function getAccessibleCanisters() {
+    try {
+
+        // Get Cardinal Actor
+        const actor = await getCardinalActor();
+
+        // Call the new function
+        const accessibleCanisters = await actor.getAccessibleCanisters();
+        
+        // Convert Principal array to text array
+        return accessibleCanisters.map(principal => principal.toText());
+    } catch (error) {
+        console.error('Error getting accessible canisters:', error);
+        return [];
+    }
+}
+
+// Request new canister creation by Cardinal
+export async function requestNewCanister() {
+
+    try {
+        // Get Cardinal Actor
+        const actor = await getCardinalActor();
+
+        // Call the cardinal canister’s requestCanister function
+        const result = await actor.requestCanister();
+        
+        // Assuming the response contains the canister ID
+        if ('ok' in result) {
+            const userCanisterId = result.ok; // Result.ok is the Principal
+            localStorage.setItem('userCanisterId', userCanisterId.toText());
+            nodeSettings.nodeId = userCanisterId;
+
+
+            // Update Node Table, with edit button
+            return userCanisterId;
+        } else {
+            throw new Error(result.err);
+        }
+    } catch (error) {
+        console.error('Error requesting canister:', error);
+    }
+}
+
+// Get own canister ID from cache or Cardinal
+export async function getUserCanisterId() {
+    const canisterId = nodeSettings.userOwnedNodes[0] || null;
+    if (!canisterId) {
+        console.error('No canister assigned. Please request a canister first.');
+        return null;
+    }
+
+    // Get Cardinal Actor
+    const actor = await getCardinalActor();
+
+    // Get User Owned Canister ID
+    const canisterIdOpt = await actor.getCanisterId(getIdentity().getPrincipal());
+    return canisterIdOpt ? canisterIdOpt[0].toText() : null;
+}
+
 // Create the nodeSettings object
 export const nodeSettings = {
 
@@ -17,18 +117,23 @@ export const nodeSettings = {
 
     localKhets: {},
 
+    userOwnedNodes: [],
     availableNodes: null,
 
     // Connected Node Config
     nodeId: null,
-    storageId: null,
     nodeType: 0, // 0 = Own TreeHouse | 1 = Friend's TreeHouse | 2 = Own Node | 3 = Private Node | 4 = Public Node
     nodeOwnerPrincipal: null,
     peerNetworkAllowed: false,
     freeAvatarChoice: true,
     standardAccessMode: "standard",
 
-    userOwnedNodes: [],
+    // Change Node
+    changeNode (nodeId) {
+
+
+        this.displayNodeConfig();
+    },
 
     // Export Node Configuration
     exportNodeConfig () {
@@ -61,7 +166,7 @@ export const nodeSettings = {
         this.displayNodeConfig();
         return;
     },
-    
+
     // Turn P2P on / off
     togglePeerNetworkAllowed () {
         if (this.peerNetworkAllowed) {
@@ -80,103 +185,25 @@ export const nodeSettings = {
 
     // Update Info Box with new Node Configuration
     displayNodeConfig () {
-      switch (this.nodeType) {
+        switch (this.nodeType) {
         case 0:
-          document.getElementById("node-info").innerHTML = "Node: My TreeHouse";
-          break;
+            document.getElementById("node-info").innerHTML = "Node: My TreeHouse";
+            break;
         case 1:
-          document.getElementById("node-info").innerHTML = "Node: TreeHouse of \n\n" + this.nodeOwner;
-          break;
+            document.getElementById("node-info").innerHTML = "Node: TreeHouse of \n\n" + this.nodeOwner;
+            break;
         case 2:
-          document.getElementById("node-info").innerHTML = "Node: My Node";
-          break;
+            document.getElementById("node-info").innerHTML = "Node: My Node";
+            break;
         case 3:
-          document.getElementById("node-info").innerHTML = "Node: Node of" + this.nodeOwner;
-          break;
+            document.getElementById("node-info").innerHTML = "Node: Node of" + this.nodeOwner;
+            break;
         case 4:
-          document.getElementById("node-info").innerHTML = "Node: Otherland Node";
-          break;
+            document.getElementById("node-info").innerHTML = "Node: Otherland Node";
+            break;
         default:
-      }
-      document.getElementById("conn-info").innerHTML = this.nodeId;
-      return;
+        }
+        document.getElementById("conn-info").innerHTML = this.nodeId;
+        return;
     }
 };
-
-// Fetch the storage canister ID
-export async function getStorageCanisterId() {
-  const agent = new HttpAgent({ host: window.location.origin, identity: getIdentity() });
-  if (process.env.DFX_NETWORK === 'local') { await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err)) };
-  const cardinalActor = Actor.createActor(cardinalIdlFactory, { agent, canisterId: CARDINAL_CANISTER_ID });
-  return await cardinalActor.getStorageCanisterId();
-}
-
-// Get List of all Canisters with Access
-export async function getAccessibleCanisters() {
-  try {
-
-      // Initialize agent with user identity
-      const agent = new HttpAgent({ host: window.location.origin, identity: getIdentity() });
-      if (process.env.DFX_NETWORK === 'local') {
-          await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
-      }
-
-      // Create actor for the cardinal canister
-      const cardinalActor = Actor.createActor(cardinalIdlFactory, { 
-          agent, 
-          canisterId: CARDINAL_CANISTER_ID 
-      });
-
-      // Call the new function
-      const accessibleCanisters = await cardinalActor.getAccessibleCanisters();
-      
-      // Convert Principal array to text array
-      return accessibleCanisters.map(principal => principal.toText());
-  } catch (error) {
-      console.error('Error getting accessible canisters:', error);
-      return [];
-  }
-}
-
-// Request new canister creation by Cardinal
-export async function requestNewCanister() {
-    try {
-        // Initialize agent with user identity (e.g., Internet Identity)
-        const agent = new HttpAgent({ host: window.location.origin, identity: getIdentity() });
-        if (process.env.DFX_NETWORK === 'local') { await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err)) };
-        const cardinalActor = Actor.createActor(cardinalIdlFactory, { agent, canisterId: CARDINAL_CANISTER_ID });
-
-        // Call the cardinal canister’s requestCanister function
-        const result = await cardinalActor.requestCanister();
-        
-        // Assuming the response contains the canister ID
-        const userCanisterId = result.canisterId;
-        localStorage.setItem('userCanisterId', userCanisterId.toString());
-        displayCanisterId(userCanisterId);
-        return userCanisterId;
-    } catch (error) {
-        console.error('Error requesting canister:', error);
-    }
-}
-
-// Get own canister ID from cache or Cardinal
-export async function getUserCanisterId() {
-    const canisterId = nodeSettings.userOwnedNodes[0] || null;
-    if (!canisterId) {
-      console.error('No canister assigned. Please request a canister first.');
-      return null;
-    }
-  
-    await authReady;
-    const agent = new HttpAgent({ host: window.location.origin, identity: getIdentity() });
-    if (process.env.DFX_NETWORK === 'local') {
-        await agent.fetchRootKey().catch(err => console.warn('Unable to fetch root key:', err));
-    }
-
-    const userCanisterActor = Actor.createActor(userCanisterIdl, {
-      agent,
-      canisterId: Principal.fromText(canisterId),
-    });
-    const canisterIdOpt = await cardinalActor.getCanisterId(getIdentity().getPrincipal());
-    return canisterIdOpt ? canisterIdOpt[0].toText() : null;
-}
