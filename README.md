@@ -1,12 +1,14 @@
 # `OTHERLAND_NODE`
 
+Whitepaper:  https://docs.google.com/document/d/10aCnPtlk5jxao3bkXkVag74I6hlBHozo3HQKZCO9zkg/edit?usp=sharing 
+
 `Tech Stack`
 
 - Dfinity ICP Application
 - written in motoko and html5/css/js
 - using Three.js for 3D Rendering
 - using Cannon.js as Physics Engine
-- using Peer.js for p2p communication
+- using Peer.js for P2P communication
 - using esprima for code interpretation
 - written by Grok3
 

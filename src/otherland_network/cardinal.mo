@@ -70,22 +70,22 @@ actor Cardinal {
   };
 
   // Get List of all Canisters with Access
-  public query({ caller }) func getAccessibleCanisters() : async [Principal] {
-      // Use a Buffer for efficient list building
-      let buf = Buffer.Buffer<Principal>(0);
+  public query({ caller }) func getAccessibleCanisters() : async [(Principal, Principal)] {
+      // Use a Buffer for efficient list building, now holding tuples of (canisterId, owner)
+      let buf = Buffer.Buffer<(Principal, Principal)>(0);
       
       // Iterate through all entries in the registry
       for ((owner, canisterId) in registry.entries()) {
           // Case 1: Caller is the owner
           if (caller == owner) {
-              buf.add(canisterId);
+              buf.add((canisterId, owner));
           } else {
               // Case 2: Check if caller is in the owner's allowed list
               switch (accessControl.get(owner)) {
                   case (?allowedMap) {
-                      // If caller is in the allowed map, add the canister ID
+                      // If caller is in the allowed map, add the canister ID and owner
                       if (Option.isSome(allowedMap.get(caller))) {
-                          buf.add(canisterId);
+                          buf.add((canisterId, owner));
                       }
                   };
                   case null {

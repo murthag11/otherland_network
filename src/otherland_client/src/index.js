@@ -1,5 +1,5 @@
 // Import functions for managing Khet objects from khet.js
-import { khetController } from './khet.js';
+import { khetController, loadKhet } from './khet.js';
 import { avatarState } from './avatar.js';
 import { animate } from './animation.js';
 import { online } from './peermesh.js';

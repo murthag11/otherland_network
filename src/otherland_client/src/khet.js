@@ -3,10 +3,9 @@ import * as esprima from 'esprima';
 import { Actor, HttpAgent } from '@dfinity/agent';
 import { Principal } from '@dfinity/principal';
 import { idlFactory as userNodeIdlFactory } from '../../declarations/user_node';
-import { nodeSettings, getUserCanisterId } from './nodeManager.js';
+import { nodeSettings } from './nodeManager.js';
 import { editProperty, pickupObject } from './interaction.js';
 import { authReady, getIdentity } from './user.js';
-import { avatarState } from './avatar.js';
 import { online } from './peermesh.js';
 import { updateKhetTable } from './menu.js';
 
@@ -171,7 +170,7 @@ export const khetController = {
                         khet.gltfData = cachedKhet.gltfData;
                         console.log(`Loaded 3D asset for Khet ${khet.khetId} from cache`);
                     } else {
-                        const [storageCanisterId, blobId, gltfDataSize] = khet.gltfDataRef; // StorageCanister ID not needed anymore in khet gltfdataref
+                        const [nodeId, blobId, gltfDataSize] = khet.gltfDataRef; // StorageCanister ID not needed anymore in khet gltfdataref
                         const CHUNK_SIZE = 1024 * 1024;
                         const totalChunks = Math.ceil(Number(gltfDataSize) / CHUNK_SIZE);
                         let gltfDataChunks = [];
@@ -425,7 +424,7 @@ export async function uploadKhet(khet) {
     let blobId;
     if (result.existing) {
         blobId = result.existing;
-        khet.gltfDataRef = [Principal.fromText(storageCanisterId), blobId, khet.gltfDataSize];
+        khet.gltfDataRef = [Principal.fromText(nodeSettings.nodeId), blobId, khet.gltfDataSize];
         console.log(`Khet ${khet.khetId} reusing existing blobId ${blobId}`); // No upload needed; asset already exists
         
 
@@ -439,7 +438,7 @@ export async function uploadKhet(khet) {
 
     } else if (result.new) {
         blobId = result.new;
-        khet.gltfDataRef = [Principal.fromText(storageCanisterId), blobId, khet.gltfDataSize];
+        khet.gltfDataRef = [Principal.fromText(nodeSettings.nodeId), blobId, khet.gltfDataSize];
         console.log(`Khet ${khet.khetId} initialized with new blobId ${blobId}`);
     } else {
         throw new Error('Unexpected response from initKhetUpload');
@@ -547,7 +546,7 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
         if (!gltfData) {
 
             // Prepare fetching chunks from Storage
-            const [storageCanisterId, blobId, gltfDataSize] = khet.gltfDataRef;
+            const [nodeId, blobId, gltfDataSize] = khet.gltfDataRef;
             const backendActor = await getUserNodeActor();
 
             // Calculate chunks

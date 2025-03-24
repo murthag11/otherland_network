@@ -31,31 +31,35 @@
             </div>
         </div>
         <div id="tab-content">
+
+            <!-- Otherland Nodes -->
             <div id="otherland-tab" class="tab future-update">
+                <h1>Network</h1>
                 <div id="node-list">
-                    <h1>Network</h1>
                     <table id="node-table">
                         <tr>
                             <th><p>Node ID</p></th>
                             <th><p>Owner</p></th>
                         </tr>
                     </table>
-                    <button id="enter-node-btn">Enter Node</button>
-                    <button id="request-new-canister">Request New Canister</button>
-                    <div id="canister-id-display"></div>
                 </div>
                 <div>
                     <button id="cardinal-connect-btn">Connect to Cardinal Node</button>
+                    <button id="request-new-canister">Request New Canister</button>
+                    <button id="enter-node-btn">Enter Node</button>
+                    <button id="edit-node-btn">Edit Environment</button>
+                    <button id="node-settings-btn">Settings</button>
                 </div>
             </div>
+
+            <!-- TreeHouse -->
             <div id="treehouse-tab" class="tab">
                 <h1>TreeHouse</h1>
 
-                <!-- Enter TreeHouse -->
                 <button id="enter-treehouse-btn">Enter TreeHouse</button>
 
-                <button id="edit-env-btn">Edit Environment</button>
-                <button id="node-config-btn">Node Settings</button>
+                <button id="edit-treehouse-btn">Edit Environment</button>
+                <button id="node-config-btn">Settings</button>
 
                 <!-- Peer to Peer -->
                 <div class="flex-row">
@@ -71,7 +75,7 @@
                         <button id="share-th-link-btn">Invite Player</button>
     
                         <!-- Reset Peer -->
-                        <button id="online-reset-button">Disconnect & Reset Peer ID</button>
+                        <button id="reset-p2p-btn">Disconnect & Reset Peer ID</button>
                     </div>
                 </div>
 
@@ -84,6 +88,8 @@
                     <!-- List all past Connections, store principal for future connections -->
                 </div>
             </div>
+
+            <!-- Asset Manager -->
             <div id="assets-tab" class="tab">
                 <h1 id="assets-title">Assets</h1>
                 <h3>List of Avatars</h3>
@@ -167,6 +173,7 @@
             </div>
             <div id="settings-tab" class="tab future-update">
                 <h1>Settings</h1>
+                <input id="wasm-pw" type="text" placeholder="Password">
                 <input type="file" id="wasm-file-input" accept=".wasm" />
                 <!-- Placeholder -->
             </div>

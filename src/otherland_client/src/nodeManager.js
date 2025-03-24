@@ -1,7 +1,6 @@
 import { Actor, HttpAgent } from '@dfinity/agent';
-import { Principal } from '@dfinity/principal';
 import { idlFactory as cardinalIdlFactory } from '../../declarations/cardinal'; // Adjust path based on your project structure
-import { authReady, getIdentity } from './user.js';
+import { user, authReady, getIdentity } from './user.js';
 import { khetController } from './khet.js';
 import { online } from './peermesh.js'
 
@@ -52,12 +51,35 @@ export async function getAccessibleCanisters() {
 
         // Get Cardinal Actor
         const actor = await getCardinalActor();
-
-        // Call the new function
+        
+        // Call the updated function, which returns [(Principal, Principal)]
         const accessibleCanisters = await actor.getAccessibleCanisters();
         
-        // Convert Principal array to text array
-        return accessibleCanisters.map(principal => principal.toText());
+        // Get the user's principal as a string
+        const userPrincipal = user.getUserPrincipal();
+        
+        // Find the user's own canister by matching the owner to the user's principal
+        const ownCanister = accessibleCanisters.find(([canisterId, owner]) => owner.toText() === userPrincipal);
+        if (ownCanister) {
+            nodeSettings.userOwnedNodes = [ownCanister[0].toText()];
+        } else {
+            nodeSettings.userOwnedNodes = [];
+        }
+        
+        // Convert the tuple array to an array of objects for easier use
+        const accessibleList = accessibleCanisters.map(([canisterId, owner]) => ({
+            canisterId: canisterId.toText(),
+            owner: owner.toText()
+        }));
+        
+        // Update UI: Show/hide the "request-new-canister" button
+        if (!ownCanister) {
+            document.getElementById("request-new-canister").style.display = "block";
+        } else {
+            document.getElementById("request-new-canister").style.display = "none";
+        }
+        
+        return accessibleList;
     } catch (error) {
         console.error('Error getting accessible canisters:', error);
         return [];
@@ -66,11 +88,10 @@ export async function getAccessibleCanisters() {
 
 // Request new canister creation by Cardinal
 export async function requestNewCanister() {
-
     try {
         // Get Cardinal Actor
         const actor = await getCardinalActor();
-
+        
         // Call the cardinal canister’s requestCanister function
         const result = await actor.requestCanister();
         
@@ -79,9 +100,9 @@ export async function requestNewCanister() {
             const userCanisterId = result.ok; // Result.ok is the Principal
             localStorage.setItem('userCanisterId', userCanisterId.toText());
             nodeSettings.nodeId = userCanisterId;
-
-
-            // Update Node Table, with edit button
+            nodeSettings.userOwnedNodes = [userCanisterId.toText()];
+            
+            // Update Node Table, with edit button (existing comment preserved)
             return userCanisterId;
         } else {
             throw new Error(result.err);
@@ -97,14 +118,9 @@ export async function getUserCanisterId() {
     if (!canisterId) {
         console.error('No canister assigned. Please request a canister first.');
         return null;
-    }
-
-    // Get Cardinal Actor
-    const actor = await getCardinalActor();
-
-    // Get User Owned Canister ID
-    const canisterIdOpt = await actor.getCanisterId(getIdentity().getPrincipal());
-    return canisterIdOpt ? canisterIdOpt[0].toText() : null;
+    } else {
+        return canisterId;
+    };
 }
 
 // Create the nodeSettings object
@@ -129,8 +145,34 @@ export const nodeSettings = {
     standardAccessMode: "standard",
 
     // Change Node
-    changeNode (nodeId) {
+    changeNode (newNode) {
+        this.nodeType = newNode.type;
+        this.nodeId = newNode.id;
 
+        // Disbale / Hide all Buttons
+        //uploadBtn.disabled = !nodeSettings.nodeId || isGuest;
+        //requestCanisterBtn.disabled = isGuest;
+        //clearBtn.disabled = isGuest;
+        
+        // Enable Buttons based on type again
+        switch (this.nodeType) {
+            case 0:
+                
+            break;
+            case 1:
+                
+            break;
+            case 2:
+                
+            break;
+            case 3:
+                
+            break;
+            case 4:
+                
+            break;
+            default:
+        }
 
         this.displayNodeConfig();
     },

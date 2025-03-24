@@ -179,9 +179,25 @@ canvas {
       margin-top: 20%;
     }
 
-    #node-list {
-      display: none;
+    #otherland-tab {
+
+      #node-list {
+        display: none;
+      }
+      #request-new-canister {
+        display: none;
+      }
+      #enter-node-btn {
+        display: none;
+      }
+      #edit-node-btn {
+        display: none;
+      }
+      #node-settings-btn {
+        display: none;
+      }
     }
+
     #quick-connect-invitation {
       display: none;
     }

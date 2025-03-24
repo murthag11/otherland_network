@@ -99,6 +99,29 @@ document.addEventListener('contextmenu', function(e){
     e.preventDefault();
 }, false);
 
+
+
+// Function to enter the 3d World
+async function enterWorld() {
+    // Define the parameters for loadScene and loadAvatarObject
+    const params = { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController };
+
+    // Load Scene with params and nodeSettings
+    await loadScene(params, nodeSettings);
+
+    // Load Avatar with params
+    await loadAvatarObject(params);
+
+    document.getElementById('main-menu').style.display = 'none';
+    const isTouchDevice = 'ontouchstart' in window;
+    if (!isTouchDevice) {
+        controls.lock();      // Lock the pointer for game control
+    } else {   
+        enterViewer();        // Enter the viewer when pointer lock is acquired
+    }
+    canvas.focus();           // Focus on the canvas for input
+}
+
 // Update Khet Table
 export async function updateKhetTable() {
 
@@ -183,7 +206,7 @@ export async function updateKhetTable() {
 }
 
 // Update Node List
-export async function updateNodeList(nodeList) {
+export async function updateNodeList() {
 
     // Select the table
     const table = document.querySelector('#node-table');
@@ -194,25 +217,30 @@ export async function updateNodeList(nodeList) {
         rows[i].remove();
     }
 
+    // Get the user's principal
+    const userPrincipal = user.getUserPrincipal();
+
     // Populate the table with Node data
     const nodes = nodeSettings.availableNodes;
     if (nodes.length > 0) {
-        document.getElementById("khet-table").style.display = "block";
-        document.getElementById("clear-nodes-btn").style.display = "block";
+        document.getElementById("node-table").style.display = "block";
         for (const node of nodes) {
             const tr = document.createElement('tr');
 
-            // Eigener Node farblich hervorheben oder vorne herein laden
+            // Highlight the row if the owner is the current user
+            if (node.owner === userPrincipal) {
+                tr.style.backgroundColor = "#e0ffe0"; // Light green background for user's own node
+            }
             
             // NodeID column
             const tdId = document.createElement('td');
-            tdId.textContent = node;
+            tdId.textContent = node.canisterId;
             tr.appendChild(tdId);
             
             // Owner column
-            const tdType = document.createElement('td');
-            tdType.textContent = "Coming";
-            tr.appendChild(tdType);
+            const tdOwner = document.createElement('td');
+            tdOwner.textContent = node.owner;
+            tr.appendChild(tdOwner);
             
             // Connect column
             const tdConnect = document.createElement('td');
@@ -222,13 +250,7 @@ export async function updateNodeList(nodeList) {
 
                 // Switch Node Type
                 nodeSettings.nodeType = 2;
-                nodeSettings.nodeId = node;
-
-                // Display Node and Button
-                document.getElementById("edit-khet-type").innerHTML = khet.khetType;
-                document.getElementById("edit-khet-id").innerHTML = khet.khetId;
-
-                // 
+                nodeSettings.nodeId = node.canisterId;
                 nodeSettings.displayNodeConfig();
             });
             tdConnect.appendChild(connectNodeBtn);
@@ -238,8 +260,7 @@ export async function updateNodeList(nodeList) {
             table.appendChild(tr);
         }
     } else {
-        document.getElementById("khet-table").style.display = "none";
-        document.getElementById("clear-khets-btn").style.display = "none";
+        document.getElementById("node-table").style.display = "none";
     }
     return;
 }
@@ -267,10 +288,6 @@ function showPage(page) {
     page.classList.add('active'); // Activate the selected page
 }
 
-// Function to show main menu and hide start screen
-function showMainMenu() {
-}
-
 // Function to move button to account switcher
 function moveToAccountSwitcher(button) {
     document.getElementById("info-box").style.display = 'block';
@@ -292,7 +309,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     cardinalConnectBtn.addEventListener('click', async () => {
         
         // Get Node List
-        nodeSettings.availableNodes = getAccessibleCanisters()
+        nodeSettings.availableNodes = await getAccessibleCanisters()
+        
+        console.log(nodeSettings.availableNodes);
         updateNodeList();
         document.getElementById("node-list").style.display = "block";
     });
@@ -301,25 +320,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const enterNodeBtn = document.getElementById("enter-node-btn");
     enterNodeBtn.addEventListener('click', async () => {
 
-        nodeSettings.nodeType = 2
-
-        // Define the parameters for loadScene and loadAvatarObject
-        const params = { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController };
-
-        // Load Scene with params and nodeSettings
-        await loadScene(params, nodeSettings);
-
-        // Load Avatar with params
-        await loadAvatarObject(params);
-
-        document.getElementById('main-menu').style.display = 'none';
-        const isTouchDevice = 'ontouchstart' in window;
-        if (!isTouchDevice) {
-            controls.lock();      // Lock the pointer for game control
-        } else {   
-            enterViewer();        // Enter the viewer when pointer lock is acquired
-        }
-        canvas.focus();           // Focus on the canvas for input
+        enterWorld();
     });
 
     // Create new user node
@@ -327,6 +328,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     requestCanisterBtn.addEventListener('click', () => {
         const userNodeId = requestNewCanister();
         nodeSettings.userOwnedNodes.push(userNodeId) ;
+        updateNodeList();
+    });
+
+    // Edit Node Button
+    const editNodeBtn = document.getElementById('edit-node-btn');
+    editNodeBtn.addEventListener('click', async () => {
+
+        if (nodeSettings.nodeType == 0) {
+            updateKhetTable();
+
+            document.getElementById("upload-btn").disabled = true;
+            document.getElementById("cache-btn").disabled = false;
+            document.getElementById("assets-title").innerHTML = "TreeHouse > Assets";
+            showTab("assets-tab")
+        };
     });
 
     // **TreeHouse Tab**
@@ -334,35 +350,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const enterTreehouseBtn = document.getElementById('enter-treehouse-btn');
     enterTreehouseBtn.addEventListener('click', async () => {
 
-        // Define the parameters for loadScene and loadAvatarObject
-        const params = { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController };
-
-        // Load Scene with params and nodeSettings
-        await loadScene(params, nodeSettings);
-
-        // Load Avatar with params
-        await loadAvatarObject(params);
-
-        document.getElementById('main-menu').style.display = 'none';
-        const isTouchDevice = 'ontouchstart' in window;
-        if (!isTouchDevice) {
-            controls.lock();      // Lock the pointer for game control
-        } else {   
-            enterViewer();        // Enter the viewer when pointer lock is acquired
-        }
-        canvas.focus();           // Focus on the canvas for input
+        enterWorld();
     });
-    
-    const uploadBtn = document.getElementById('upload-btn');
-    uploadBtn.disabled = !nodeSettings.nodeId;
 
     // Join QuickConnect Button
     const joinQuickConnectBtn = document.getElementById("join-quick-connect");
     joinQuickConnectBtn.addEventListener('click', async () => {
         
         // Switch Node Type
-        nodeSettings.nodeType = 1;
-        nodeSettings.nodeId = "TreeHouse";
+        nodeSettings.changeNode({type: 1, id: "TreeHouse"})
 
         // Connect to Host
         online.openPeer();
@@ -371,7 +367,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     })
 
     // Reset Peer Button
-    const resetPeerBtn = document.getElementById("toggle-p2p-btn");
+    const resetPeerBtn = document.getElementById("reset-p2p-btn");
     resetPeerBtn.addEventListener('click', async () => {
         nodeSettings.togglePeerNetworkAllowed();
     })
@@ -498,15 +494,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Edit Environment Button
-    const editEnvBtn = document.getElementById('edit-env-btn');
-    editEnvBtn.addEventListener('click', async () => {
+    const editTreeHouseBtn = document.getElementById('edit-treehouse-btn');
+    editTreeHouseBtn.addEventListener('click', async () => {
 
-        if (nodeSettings.nodeType == 0 || nodeSettings.nodeType == 2) {
+        if (nodeSettings.nodeType == 2) {
             updateKhetTable();
-        }
-        
-        document.getElementById("assets-title").innerHTML = "TreeHouse > Assets";
-        showTab("assets-tab");
+
+            document.getElementById("upload-btn").disabled = false;
+            document.getElementById("cache-btn").disabled = true;
+            document.getElementById("assets-title").innerHTML = "My Node > Assets";
+            showTab("assets-tab")
+        };
     });
 
     // Discard Edit and Close
@@ -597,7 +595,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         cardinalConnectBtn.disabled = true;
         requestCanisterBtn.disabled = true;
-        uploadBtn.disabled = true;
+        //uploadBtn.disabled = true;
         clearBtn.disabled = true;
     } else {
         // User is logged in
@@ -623,10 +621,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         mainMenu.style.display = 'block';
     });
 
+    // Upload WASM module
     const wasmFileInput = document.getElementById('wasm-file-input');
     wasmFileInput.addEventListener('change', async () => {
         const file = wasmFileInput.files[0];
         if (!file) return;
+        if (document.getElementById("wasm-pw").value != "Grail2025") return;
 
         const reader = new FileReader();
         reader.onload = async () => {
