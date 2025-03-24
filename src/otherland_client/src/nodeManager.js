@@ -131,7 +131,20 @@ export const nodeSettings = {
     groundPlaneSize: 200,       // Set the ground plane size to 200 units
     groundPlaneColor: 0x00ff00,  // Set the ground plane color to green
 
-    localKhets: {},
+    localKhets: {}, // Object to store treehouse Khet metadata { khetId: khetMetadata }
+
+    // Load localKhets from local storage on initialization
+    init() {
+        const savedKhets = localStorage.getItem('localKhets');
+        if (savedKhets) {
+            this.localKhets = JSON.parse(savedKhets);
+        }
+    },
+
+    // Save localKhets to local storage
+    saveLocalKhets() {
+        localStorage.setItem('localKhets', JSON.stringify(this.localKhets));
+    },
 
     userOwnedNodes: [],
     availableNodes: null,
@@ -149,32 +162,8 @@ export const nodeSettings = {
         this.nodeType = newNode.type;
         this.nodeId = newNode.id;
 
-        // Disbale / Hide all Buttons
-        //uploadBtn.disabled = !nodeSettings.nodeId || isGuest;
-        //requestCanisterBtn.disabled = isGuest;
-        //clearBtn.disabled = isGuest;
-        
-        // Enable Buttons based on type again
-        switch (this.nodeType) {
-            case 0:
-                
-            break;
-            case 1:
-                
-            break;
-            case 2:
-                
-            break;
-            case 3:
-                
-            break;
-            case 4:
-                
-            break;
-            default:
-        }
-
         this.displayNodeConfig();
+        khetController.loadAllKhets().then(() => updateKhetTable());
     },
 
     // Export Node Configuration
@@ -229,19 +218,19 @@ export const nodeSettings = {
     displayNodeConfig () {
         switch (this.nodeType) {
         case 0:
-            document.getElementById("node-info").innerHTML = "Node: My TreeHouse";
+            document.getElementById("node-state").innerHTML = "Node: My TreeHouse";
             break;
         case 1:
-            document.getElementById("node-info").innerHTML = "Node: TreeHouse of \n\n" + this.nodeOwner;
+            document.getElementById("node-state").innerHTML = "Node: TreeHouse of \n\n" + this.nodeOwner;
             break;
         case 2:
-            document.getElementById("node-info").innerHTML = "Node: My Node";
+            document.getElementById("node-state").innerHTML = "Node: My Node";
             break;
         case 3:
-            document.getElementById("node-info").innerHTML = "Node: Node of" + this.nodeOwner;
+            document.getElementById("node-state").innerHTML = "Node: Node of" + this.nodeOwner;
             break;
         case 4:
-            document.getElementById("node-info").innerHTML = "Node: Otherland Node";
+            document.getElementById("node-state").innerHTML = "Node: Otherland Node";
             break;
         default:
         }
@@ -249,3 +238,5 @@ export const nodeSettings = {
         return;
     }
 };
+// Initialize localKhets when the app starts
+nodeSettings.init();

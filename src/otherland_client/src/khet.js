@@ -61,7 +61,7 @@ async function computeSHA256(data) {
 // IndexedDB Cache Setup
 const DB_NAME = 'KhetCache';
 const STORE_NAME = 'assets';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 function openDB() {
     return new Promise((resolve, reject) => {
@@ -124,7 +124,9 @@ export const khetController = {
     async loadAllKhets() {
         
         let allKhets = [];
+        this.khets = {};
 
+        // Friend's TreeHouse (existing logic)
         if (nodeSettings.nodeType == 1) {
 
             if (online.khetsAreLoaded) {
@@ -146,11 +148,26 @@ export const khetController = {
                 return [];
             }
 
+        // Own TreeHouse: Load from local cache (treehouseKhets store)
         } else if (nodeSettings.nodeType == 0) {
 
-            // Load from Cache only
+            // Own TreeHouse: Load metadata from nodeSettings.localKhets
+            for (const [khetId, khetMetadata] of Object.entries(nodeSettings.localKhets)) {
+                const cachedKhet = await getFromCache(khetId);
+                if (cachedKhet && cachedKhet.gltfData) {
 
+                    // Combine metadata with cached gltfData
+                    const khet = { ...khetMetadata, gltfData: cachedKhet.gltfData };
+                    this.khets[khetId] = khet;
+                    allKhets.push(khet);
+                } else {
+                    console.warn(`Khet ${khetId} found in localKhets but missing gltfData in cache`);
+                }
+            }
+            console.log(`Loaded ${allKhets.length} Khets from treehouse`);
+            return allKhets;
 
+        // Own Node, Private Node, Public Node: Load from canister
         } else {
 
             console.log("Loading Khet List from Node Backend");
@@ -189,7 +206,6 @@ export const khetController = {
                             for (const chunk of gltfDataChunks) {
                                 khet.gltfData.set(new Uint8Array(chunk), offset);
                                 offset += chunk.length;
-
                             } 
                         }
                         await saveToCache(khet.khetId, khet);
@@ -219,6 +235,26 @@ export const khetController = {
         return avatars;
     },
 
+    // Remove a Khet from the list, but keep the asset in cache
+    async removeEntry(khetId) {
+        if (nodeSettings.nodeType == 0) {
+
+            // Remove from treehouse metadata and persist
+            delete nodeSettings.localKhets[khetId];
+            nodeSettings.saveLocalKhets();
+            delete this.khets[khetId];
+        } else if (nodeSettings.nodeType == 2) {
+
+            // Existing logic for Own Node
+            const backendActor = await getUserNodeActor();
+            await backendActor.removeKhet(khetId);
+            delete this.khets[khetId];
+        } else {
+            console.warn(`Cannot remove Khet for nodeType ${nodeSettings.nodeType}`);
+        }
+    },
+
+    // Removes all khets
     clearKhet() {
         this.khets = {};
         return;
@@ -383,6 +419,41 @@ document.getElementById('upload-btn').addEventListener('click', async () => {
         document.getElementById("upload-container").style.display = "block";
     } catch (error) {
         console.error('Upload process failed:', error);
+    }
+});
+
+// Add to Cache
+document.getElementById('cache-btn').addEventListener('click', async () => {
+    const fileInput = document.getElementById('upload-khet');
+    const files = fileInput.files;
+    if (files.length === 0) {
+        alert('Please select a file to upload.');
+        return;
+    }
+    const file = files[0];
+    const textures = files[1] ? { 'texture1': files[1] } : {};
+    const khetType = document.getElementById('khet-type').value;
+    try {
+        const khetCode = 'object.rotation.y += 0.01;';
+        const khet = await createKhet(file, khetType, textures, khetCode);
+
+        // Save full Khet (including gltfData) to cache
+        await saveToCache(khet.khetId, khet);
+
+        // Save metadata (without gltfData) to nodeSettings.localKhets
+        const khetMetadata = { ...khet };
+        delete khetMetadata.gltfData; // Exclude large blob data
+        nodeSettings.localKhets[khet.khetId] = khetMetadata;
+        nodeSettings.saveLocalKhets();
+
+        // Add full Khet to khetController.khets for immediate use
+        khetController.khets[khet.khetId] = khet;
+
+        fileInput.value = '';
+        console.log(`Khet ${khet.khetId} saved to treehouse`);
+        updateKhetTable();
+    } catch (error) {
+        console.error('Error saving Khet to treehouse:', error);
     }
 });
 

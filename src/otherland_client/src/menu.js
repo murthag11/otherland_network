@@ -173,10 +173,11 @@ export async function updateKhetTable() {
             // Edit column
             const tdEdit = document.createElement('td');
             const editKhetButton = document.createElement('button');
-            editKhetButton.textContent = "Edit Khet";
+            editKhetButton.textContent = "Edit";
             editKhetButton.addEventListener('click', async () => {
 
                 // Switch to Edit Display
+                changekhetEditorDrawer('open');
                 document.getElementById("edit-group").style.display = 'block';
                 document.getElementById("upload-group").style.display = 'none';
 
@@ -192,8 +193,23 @@ export async function updateKhetTable() {
                 document.getElementById('scale-y').value = khet.scale[1];
                 document.getElementById('scale-z').value = khet.scale[2];
             });
+            
             tdEdit.appendChild(editKhetButton);
             tr.appendChild(tdEdit);
+            
+            // Delete column
+            const tdDelete = document.createElement('td');
+            const deleteKhetButton = document.createElement('button');
+            deleteKhetButton.textContent = "Delete";
+            deleteKhetButton.addEventListener('click', async () => {
+
+                // Delete Khet from Khetcontroller, keep asset in cache
+                await khetController.removeEntry(khet.khetId);
+                console.log('Khet deleted'); // Log confirmation
+                updateKhetTable();
+            });
+            tdDelete.appendChild(deleteKhetButton);
+            tr.appendChild(tdDelete);
             
             // Append the row to the table
             table.appendChild(tr);
@@ -229,7 +245,7 @@ export async function updateNodeList() {
 
             // Highlight the row if the owner is the current user
             if (node.owner === userPrincipal) {
-                tr.style.backgroundColor = "#e0ffe0"; // Light green background for user's own node
+                tr.style.color = "#00d4ff";
             }
             
             // NodeID column
@@ -252,6 +268,11 @@ export async function updateNodeList() {
                 nodeSettings.nodeType = 2;
                 nodeSettings.nodeId = node.canisterId;
                 nodeSettings.displayNodeConfig();
+                document.getElementById("enter-node-btn").style.display = "block";
+                if (node.owner === userPrincipal) {
+                    document.getElementById("edit-node-btn").style.display = "block";
+                    document.getElementById("node-settings-btn").style.display = "block";
+                }
             });
             tdConnect.appendChild(connectNodeBtn);
             tr.appendChild(tdConnect);
@@ -314,6 +335,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log(nodeSettings.availableNodes);
         updateNodeList();
         document.getElementById("node-list").style.display = "block";
+        cardinalConnectBtn.innerHTML = "Refresh Node List";
     });
 
     // 
@@ -335,12 +357,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const editNodeBtn = document.getElementById('edit-node-btn');
     editNodeBtn.addEventListener('click', async () => {
 
-        if (nodeSettings.nodeType == 0) {
+        if (nodeSettings.nodeType == 2) {
             updateKhetTable();
 
-            document.getElementById("upload-btn").disabled = true;
-            document.getElementById("cache-btn").disabled = false;
-            document.getElementById("assets-title").innerHTML = "TreeHouse > Assets";
+            document.getElementById("upload-btn").disabled = false;
+            document.getElementById("cache-btn").disabled = true;
+            document.getElementById("assets-title").innerHTML = "My Node > Assets";
             showTab("assets-tab")
         };
     });
@@ -497,12 +519,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const editTreeHouseBtn = document.getElementById('edit-treehouse-btn');
     editTreeHouseBtn.addEventListener('click', async () => {
 
-        if (nodeSettings.nodeType == 2) {
+        if (nodeSettings.nodeType == 0) {
             updateKhetTable();
 
             document.getElementById("upload-btn").disabled = false;
             document.getElementById("cache-btn").disabled = true;
-            document.getElementById("assets-title").innerHTML = "My Node > Assets";
+            document.getElementById("assets-title").innerHTML = "My TreeHouse > Assets";
             showTab("assets-tab")
         };
     });
@@ -530,24 +552,50 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Save Edit and Close
     const saveEditButton = document.getElementById("save-edit-btn");
     saveEditButton.addEventListener('click', async () => {
-
-        // Retrieve position and scale from input fields
-        const posX = parseFloat(document.getElementById('pos-x').value) || 0;
-        const posY = parseFloat(document.getElementById('pos-y').value) || 0;
-        const posZ = parseFloat(document.getElementById('pos-z').value) || 0;
-        const scaleX = parseFloat(document.getElementById('scale-x').value) || 1;
-        const scaleY = parseFloat(document.getElementById('scale-y').value) || 1;
-        const scaleZ = parseFloat(document.getElementById('scale-z').value) || 1;
-
-        // Save Khet: overwrite
-        // khet.js: await saveToCache(khet.khetId, khet);
-
-        // Switch to Upload & Close
+        if (!currentEditingKhetId) {
+            console.error('No Khet selected for editing');
+            return;
+        }
+        const khet = khetController.getKhet(currentEditingKhetId);
+        if (!khet) {
+            console.error(`Khet ${currentEditingKhetId} not found`);
+            return;
+        }
+    
+        // Update position and scale from input fields
+        khet.position = [
+            parseFloat(document.getElementById('pos-x').value) || 0,
+            parseFloat(document.getElementById('pos-y').value) || 0,
+            parseFloat(document.getElementById('pos-z').value) || 0
+        ];
+        khet.scale = [
+            parseFloat(document.getElementById('scale-x').value) || 1,
+            parseFloat(document.getElementById('scale-y').value) || 1,
+            parseFloat(document.getElementById('scale-z').value) || 1
+        ];
+    
+        // Handle based on nodeType
+        if (nodeSettings.nodeType == 0) {
+            // Update metadata in nodeSettings.localKhets
+            const khetMetadata = { ...khet };
+            delete khetMetadata.gltfData; // Exclude gltfData
+            nodeSettings.localKhets[khet.khetId] = khetMetadata;
+            nodeSettings.saveLocalKhets();
+    
+            // Update full Khet in cache
+            await saveToCache(khet.khetId, khet);
+        } else if (nodeSettings.nodeType == 2) {
+            // Existing logic for Own Node (unchanged)
+        }
+    
+        // Update khetController.khets
+        khetController.khets[khet.khetId] = khet;
+    
         changekhetEditorDrawer('close');
         document.getElementById("edit-group").style.display = "none";
         document.getElementById("upload-group").style.display = "block";
-
         updateKhetTable();
+        currentEditingKhetId = null;
     });
 
     // Draw Up Button

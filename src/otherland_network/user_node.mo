@@ -232,6 +232,19 @@ actor UserNode {
         };
     };
 
+    public shared ({ caller }) func removeKhet(khetId : Text) : async () {
+        switch (owner) {
+            case (?own) {
+                assert (caller == own); // Only the owner can delete
+                khets.delete(khetId);   // Remove from the khets HashMap
+                pendingKhets.delete(khetId); // Clean up any pending Khet with this ID
+            };
+            case null {
+                assert (false); // Should not happen post-initialization
+            };
+        };
+    };
+
     public shared ({ caller }) func clearAllKhets() : async () {
         switch (owner) {
             case (?own) {

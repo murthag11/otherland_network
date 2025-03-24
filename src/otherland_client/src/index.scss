@@ -183,18 +183,40 @@ canvas {
 
       #node-list {
         display: none;
+
+        table tr th {
+          text-align: left;
+        }
+        table tr td:nth-child(2) {
+          width: 320px;
+        }
+        table tr td {
+          padding-right: 20px;
+          padding-bottom: 20px;
+        }
+        table tr td:last-child {
+          padding-right: 0;
+        }
+
+        table tr td button {
+          margin: 0;
+          width: 125px;
+        }
       }
-      #request-new-canister {
-        display: none;
-      }
-      #enter-node-btn {
-        display: none;
-      }
-      #edit-node-btn {
-        display: none;
-      }
-      #node-settings-btn {
-        display: none;
+      #node-buttons {
+        display: flex;
+        #request-new-canister {
+          display: none;
+        }
+        #enter-node-btn {
+          display: none;
+        }
+        #edit-node-btn {
+          display: none;
+        }
+        #node-settings-btn {
+          display: none;
+        }
       }
     }
 
