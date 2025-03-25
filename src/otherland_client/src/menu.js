@@ -13,7 +13,6 @@ const mainMenu = document.getElementById('main-menu');
 const accountSwitcher = document.getElementById('account-switcher');
 const connectIIBtn = document.getElementById('connect-ii-btn');
 const continueGuestBtn = document.getElementById('continue-guest-btn');
-const welcomeMessage = document.getElementById('welcome-message');
 const tabs = document.querySelectorAll('.tab');
 
 // ### Pointer Lock State Handling
@@ -265,13 +264,15 @@ export async function updateNodeList() {
             connectNodeBtn.addEventListener('click', async () => {
 
                 // Switch Node Type
-                nodeSettings.nodeType = 2;
-                nodeSettings.nodeId = node.canisterId;
-                nodeSettings.displayNodeConfig();
+
                 document.getElementById("enter-node-btn").style.display = "block";
                 if (node.owner === userPrincipal) {
+                
+                    await nodeSettings.changeNode({type: 2, id: node.canisterId})
                     document.getElementById("edit-node-btn").style.display = "block";
                     document.getElementById("node-settings-btn").style.display = "block";
+                } else {
+                    await nodeSettings.changeNode({type: 3, id: node.canisterId})
                 }
             });
             tdConnect.appendChild(connectNodeBtn);
@@ -347,8 +348,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Create new user node
     const requestCanisterBtn = document.getElementById("request-new-canister");
-    requestCanisterBtn.addEventListener('click', () => {
-        const userNodeId = requestNewCanister();
+    requestCanisterBtn.addEventListener('click', async () => {
+        const userNodeId = await requestNewCanister();
         nodeSettings.userOwnedNodes.push(userNodeId) ;
         updateNodeList();
     });
@@ -372,6 +373,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const enterTreehouseBtn = document.getElementById('enter-treehouse-btn');
     enterTreehouseBtn.addEventListener('click', async () => {
 
+        // Switch Node Type
+        await nodeSettings.changeNode({type: 0, id: "TreeHouse"})
+
         enterWorld();
     });
 
@@ -380,7 +384,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     joinQuickConnectBtn.addEventListener('click', async () => {
         
         // Switch Node Type
-        nodeSettings.changeNode({type: 1, id: "TreeHouse"})
+        await nodeSettings.changeNode({type: 1, id: "TreeHouse"})
 
         // Connect to Host
         online.openPeer();
@@ -422,6 +426,104 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('Khets cleared from menu'); // Log confirmation
         updateKhetTable();
     });
+
+    // Edit TreeHouse Button
+    const editTreeHouseBtn = document.getElementById('edit-treehouse-btn');
+    editTreeHouseBtn.addEventListener('click', async () => {
+
+        // Switch Node Type
+        await nodeSettings.changeNode({type: 0, id: "TreeHouse"})
+        
+        if (nodeSettings.nodeType == 0) {
+            updateKhetTable();
+
+            document.getElementById("upload-btn").disabled = true;
+            document.getElementById("cache-btn").disabled = false;
+            document.getElementById("assets-title").innerHTML = "My TreeHouse > Assets";
+            showTab("assets-tab")
+        };
+    });
+
+    // Discard Edit and Close
+    const discardEditButton = document.getElementById("discard-edit-btn");
+    discardEditButton.addEventListener('click', async () => {
+        
+        // Reset position and scale in input fields
+        document.getElementById('pos-x').value = 0;
+        document.getElementById('pos-y').value = 0;
+        document.getElementById('pos-z').value = 0;
+        document.getElementById('scale-x').value = 1;
+        document.getElementById('scale-y').value = 1;
+        document.getElementById('scale-z').value = 1;
+
+        // Switch to Upload & Close
+        changekhetEditorDrawer('close');
+        document.getElementById("edit-group").style.display = "none";
+        document.getElementById("upload-group").style.display = "block";
+
+        updateKhetTable();
+    });
+
+    // Save Edit and Close
+    const saveEditButton = document.getElementById("save-edit-btn");
+    saveEditButton.addEventListener('click', async () => {
+        if (!currentEditingKhetId) {
+            console.error('No Khet selected for editing');
+            return;
+        }
+        const khet = khetController.getKhet(currentEditingKhetId);
+        if (!khet) {
+            console.error(`Khet ${currentEditingKhetId} not found`);
+            return;
+        }
+    
+        // Update position and scale from input fields
+        khet.position = [
+            parseFloat(document.getElementById('pos-x').value) || 0,
+            parseFloat(document.getElementById('pos-y').value) || 0,
+            parseFloat(document.getElementById('pos-z').value) || 0
+        ];
+        khet.scale = [
+            parseFloat(document.getElementById('scale-x').value) || 1,
+            parseFloat(document.getElementById('scale-y').value) || 1,
+            parseFloat(document.getElementById('scale-z').value) || 1
+        ];
+    
+        // Handle based on nodeType
+        if (nodeSettings.nodeType == 0) {
+            // Update metadata in nodeSettings.localKhets
+            const khetMetadata = { ...khet };
+            delete khetMetadata.gltfData; // Exclude gltfData
+            nodeSettings.localKhets[khet.khetId] = khetMetadata;
+            nodeSettings.saveLocalKhets();
+    
+            // Update full Khet in cache
+            await saveToCache(khet.khetId, khet);
+        } else if (nodeSettings.nodeType == 2) {
+            // Existing logic for Own Node (unchanged)
+        }
+    
+        // Update khetController.khets
+        khetController.khets[khet.khetId] = khet;
+    
+        changekhetEditorDrawer('close');
+        document.getElementById("edit-group").style.display = "none";
+        document.getElementById("upload-group").style.display = "block";
+        updateKhetTable();
+        currentEditingKhetId = null;
+    });
+
+    // Draw Up Button
+    const drawUpButton = document.getElementById("draw-up-btn");
+    drawUpButton.addEventListener('click', async () => {
+        changekhetEditorDrawer('open');
+    })
+
+    // Draw Close Button
+    const drawCloseButton = document.getElementById("draw-close-btn");
+    drawCloseButton.addEventListener('click', async () => {
+        changekhetEditorDrawer('close');
+    })
 
     // **Home Button**
     // Return to the start overlay and unlock controls
@@ -514,101 +616,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             avatarButtonsContainer.appendChild(button);
         });
     }
-
-    // Edit Environment Button
-    const editTreeHouseBtn = document.getElementById('edit-treehouse-btn');
-    editTreeHouseBtn.addEventListener('click', async () => {
-
-        if (nodeSettings.nodeType == 0) {
-            updateKhetTable();
-
-            document.getElementById("upload-btn").disabled = false;
-            document.getElementById("cache-btn").disabled = true;
-            document.getElementById("assets-title").innerHTML = "My TreeHouse > Assets";
-            showTab("assets-tab")
-        };
-    });
-
-    // Discard Edit and Close
-    const discardEditButton = document.getElementById("discard-edit-btn");
-    discardEditButton.addEventListener('click', async () => {
-        
-        // Reset position and scale in input fields
-        document.getElementById('pos-x').value = 0;
-        document.getElementById('pos-y').value = 0;
-        document.getElementById('pos-z').value = 0;
-        document.getElementById('scale-x').value = 1;
-        document.getElementById('scale-y').value = 1;
-        document.getElementById('scale-z').value = 1;
-
-        // Switch to Upload & Close
-        changekhetEditorDrawer('close');
-        document.getElementById("edit-group").style.display = "none";
-        document.getElementById("upload-group").style.display = "block";
-
-        updateKhetTable();
-    });
-
-    // Save Edit and Close
-    const saveEditButton = document.getElementById("save-edit-btn");
-    saveEditButton.addEventListener('click', async () => {
-        if (!currentEditingKhetId) {
-            console.error('No Khet selected for editing');
-            return;
-        }
-        const khet = khetController.getKhet(currentEditingKhetId);
-        if (!khet) {
-            console.error(`Khet ${currentEditingKhetId} not found`);
-            return;
-        }
-    
-        // Update position and scale from input fields
-        khet.position = [
-            parseFloat(document.getElementById('pos-x').value) || 0,
-            parseFloat(document.getElementById('pos-y').value) || 0,
-            parseFloat(document.getElementById('pos-z').value) || 0
-        ];
-        khet.scale = [
-            parseFloat(document.getElementById('scale-x').value) || 1,
-            parseFloat(document.getElementById('scale-y').value) || 1,
-            parseFloat(document.getElementById('scale-z').value) || 1
-        ];
-    
-        // Handle based on nodeType
-        if (nodeSettings.nodeType == 0) {
-            // Update metadata in nodeSettings.localKhets
-            const khetMetadata = { ...khet };
-            delete khetMetadata.gltfData; // Exclude gltfData
-            nodeSettings.localKhets[khet.khetId] = khetMetadata;
-            nodeSettings.saveLocalKhets();
-    
-            // Update full Khet in cache
-            await saveToCache(khet.khetId, khet);
-        } else if (nodeSettings.nodeType == 2) {
-            // Existing logic for Own Node (unchanged)
-        }
-    
-        // Update khetController.khets
-        khetController.khets[khet.khetId] = khet;
-    
-        changekhetEditorDrawer('close');
-        document.getElementById("edit-group").style.display = "none";
-        document.getElementById("upload-group").style.display = "block";
-        updateKhetTable();
-        currentEditingKhetId = null;
-    });
-
-    // Draw Up Button
-    const drawUpButton = document.getElementById("draw-up-btn");
-    drawUpButton.addEventListener('click', async () => {
-        changekhetEditorDrawer('open');
-    })
-
-    // Draw Close Button
-    const drawCloseButton = document.getElementById("draw-close-btn");
-    drawCloseButton.addEventListener('click', async () => {
-        changekhetEditorDrawer('close');
-    })
 
     // Main Menu Buttons
     const menuButtons = document.querySelectorAll('#side-bar-buttons button');

@@ -98,7 +98,7 @@ export const online = {
             this.peer = new Peer();
 
             // Display Node State
-            document.getElementById("node-state").innerHTML = "Node: TreeHouse (open)";
+            document.getElementById("node-info").innerHTML = "Node: TreeHouse (open)";
 
             // On Incoming Connection (Host)
             this.peer.on('connection', function (conn) {

@@ -206,8 +206,8 @@ if (onlineParams.standalone) {
     document.getElementById("body").requestFullscreen();
 };
 console.log("Detecting quick connect ...");
-if (onlineParams.id) {
-    online.remoteID = onlineParams.id;
+if (onlineParams.peerId) {
+    online.remoteID = onlineParams.peerId;
     console.log('Found, Remote ID:', online.remoteID);
     online.quickConnect = true;
     document.getElementById("quick-connect-invitation").style.display = "block";

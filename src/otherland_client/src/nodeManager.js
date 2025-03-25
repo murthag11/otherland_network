@@ -2,6 +2,7 @@ import { Actor, HttpAgent } from '@dfinity/agent';
 import { idlFactory as cardinalIdlFactory } from '../../declarations/cardinal'; // Adjust path based on your project structure
 import { user, authReady, getIdentity } from './user.js';
 import { khetController } from './khet.js';
+import { updateKhetTable } from './menu.js';
 import { online } from './peermesh.js'
 
 // Cardinal canister ID
@@ -151,19 +152,20 @@ export const nodeSettings = {
 
     // Connected Node Config
     nodeId: null,
-    nodeType: 0, // 0 = Own TreeHouse | 1 = Friend's TreeHouse | 2 = Own Node | 3 = Private Node | 4 = Public Node
+    nodeType: 0, // 0 = Own TreeHouse | 1 = Friend's TreeHouse | 2 = Own Node | 3 = Otherland Node
     nodeOwnerPrincipal: null,
     peerNetworkAllowed: false,
     freeAvatarChoice: true,
     standardAccessMode: "standard",
 
     // Change Node
-    changeNode (newNode) {
+    async changeNode (newNode) {
         this.nodeType = newNode.type;
         this.nodeId = newNode.id;
 
         this.displayNodeConfig();
-        khetController.loadAllKhets().then(() => updateKhetTable());
+        await khetController.loadAllKhets();
+        updateKhetTable();
     },
 
     // Export Node Configuration
@@ -218,19 +220,19 @@ export const nodeSettings = {
     displayNodeConfig () {
         switch (this.nodeType) {
         case 0:
-            document.getElementById("node-state").innerHTML = "Node: My TreeHouse";
+            document.getElementById("node-info").innerHTML = "Node: My TreeHouse";
             break;
         case 1:
-            document.getElementById("node-state").innerHTML = "Node: TreeHouse of \n\n" + this.nodeOwner;
+            document.getElementById("node-info").innerHTML = "Node: TreeHouse of \n\n" + this.nodeOwner;
             break;
         case 2:
-            document.getElementById("node-state").innerHTML = "Node: My Node";
+            document.getElementById("node-info").innerHTML = "Node: My Node";
             break;
         case 3:
-            document.getElementById("node-state").innerHTML = "Node: Node of" + this.nodeOwner;
+            document.getElementById("node-info").innerHTML = "Node: Node of" + this.nodeOwner;
             break;
         case 4:
-            document.getElementById("node-state").innerHTML = "Node: Otherland Node";
+            document.getElementById("node-info").innerHTML = "Node: Otherland Node";
             break;
         default:
         }
@@ -240,3 +242,4 @@ export const nodeSettings = {
 };
 // Initialize localKhets when the app starts
 nodeSettings.init();
+nodeSettings.displayNodeConfig();
