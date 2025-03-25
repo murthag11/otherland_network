@@ -4,16 +4,12 @@
       "main": "src/otherland_network/cardinal.mo",
       "type": "motoko"
     },
-    "storage": {
-      "main": "src/otherland_network/storage.mo",
-      "type": "motoko"
-    },
     "user_node": {
       "main": "src/otherland_network/user_node.mo",
       "type": "motoko"
     },
     "otherland_client": {
-      "dependencies": ["cardinal", "storage"],
+      "dependencies": ["cardinal"],
       "source": ["src/otherland_client/dist"],
       "type": "assets",
       "workspace": "otherland_client",

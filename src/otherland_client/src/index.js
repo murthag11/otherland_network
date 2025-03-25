@@ -3,6 +3,7 @@ import { khetController, loadKhet } from './khet.js';
 import { avatarState } from './avatar.js';
 import { animate } from './animation.js';
 import { online } from './peermesh.js';
+import { nodeSettings } from './nodeManager.js';
 
 // Control Animation Loop
 export let isAnimating = false;
@@ -221,6 +222,8 @@ export const worldController = {
     async syncWithNode(params) {
 
         try {
+            console.log(`Node Type is ${nodeSettings.nodeType}`);
+            
             // Load all Khets into khetController
             await khetController.clearKhet();
             await khetController.loadAllKhets();
