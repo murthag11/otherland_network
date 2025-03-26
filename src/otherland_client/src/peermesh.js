@@ -1,6 +1,7 @@
 import { nodeSettings } from './nodeManager.js';
 import { Principal } from '@dfinity/principal';
 import { scene } from './index.js';
+import { userIsInWorld } from './menu.js';
 import { khetController, loadKhetMeshOnly } from './khet.js';
 
 function prepareForSending(khet) {
@@ -74,7 +75,14 @@ export const online = {
             document.getElementById("user-id-title").innerHTML = "Waiting for Peer ID...";
             this.peer = new Peer();
 
-            document.getElementById("node-info").innerHTML = "Node: TreeHouse (open)";
+            if (nodeSettings.nodeType === 0) { // Only for host
+                document.getElementById("node-info").innerHTML = "Node: TreeHouse (open)";
+                this.isHosting = true;
+                this.isJoined = false;
+            } else {
+                this.isHosting = false;
+                this.isJoined = true;
+            }
 
             // Handle incoming connections (for host and guests)
             this.peer.on('connection', (conn) => {
@@ -164,6 +172,7 @@ export const online = {
         switch (data.type) {
             case "init":
                 if (this.isJoined) {
+                    console.log("Node Configuration received, asking for khetlist");
                     this.khetLoadingProgress = 0;
                     this.khetLoadingGoal = data.value.totalSize;
                     nodeSettings.importNodeConfig(data.value);
@@ -174,6 +183,7 @@ export const online = {
 
             case "request-khetlist":
                 if (this.isHosting) {
+                    console.log("Khetlist Request received, sending khets");
                     const preparedKhets = {};
                     for (const [khetId, khet] of Object.entries(khetController.khets)) {
                         preparedKhets[khetId] = prepareForSending(khet);
@@ -184,6 +194,7 @@ export const online = {
 
             case "khetlist":
                 if (this.isJoined) {
+                    console.log("Khetlist received");
                     const khetsReceived = data.value;
                     const khets = {};
                     for (const [khetId, khet] of Object.entries(khetsReceived)) {
@@ -230,6 +241,7 @@ export const online = {
                         scene.remove(remote.mesh);
                     }
                     remote.avatarId = data.value;
+                    await this.khetsAreLoaded;
                     loadKhetMeshOnly(data.value, scene).then(mesh => {
                         if (mesh) {
                             remote.mesh = mesh;
@@ -240,14 +252,16 @@ export const online = {
                 break;
 
             case "position":
-                const remoteAvatar = this.remoteAvatars.get(peerId);
-                if (remoteAvatar && remoteAvatar.mesh) {
-                    const {
-                        position,
-                        quaternion
-                    } = data.value;
-                    remoteAvatar.mesh.position.set(position.x, position.y, position.z);
-                    remoteAvatar.mesh.quaternion.set(quaternion.x, quaternion.y, quaternion.z, quaternion.w);
+                if (userIsInWorld) {
+                    const remoteAvatar = this.remoteAvatars.get(peerId);
+                    if (remoteAvatar && remoteAvatar.mesh) {
+                        const {
+                            position,
+                            quaternion
+                        } = data.value;
+                        remoteAvatar.mesh.position.set(position.x, position.y, position.z);
+                        remoteAvatar.mesh.quaternion.set(quaternion.x, quaternion.y, quaternion.z, quaternion.w);
+                    }
                 }
                 break;
 

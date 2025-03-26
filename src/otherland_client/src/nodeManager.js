@@ -100,10 +100,7 @@ export async function requestNewCanister() {
         if ('ok' in result) {
             const userCanisterId = result.ok; // Result.ok is the Principal
             localStorage.setItem('userCanisterId', userCanisterId.toText());
-            nodeSettings.nodeId = userCanisterId;
-            nodeSettings.userOwnedNodes = [userCanisterId.toText()];
-            
-            // Update Node Table, with edit button (existing comment preserved)
+            console.log(`User Canister ID: ${userCanisterId}`);
             return userCanisterId;
         } else {
             throw new Error(result.err);
@@ -164,8 +161,9 @@ export const nodeSettings = {
         this.nodeId = newNode.id;
 
         this.displayNodeConfig();
-        await khetController.loadAllKhets();
-        updateKhetTable();
+        if (this.nodeType == 0 || this.nodeType == 2) {
+            await updateKhetTable();
+        }
     },
 
     // Export Node Configuration
@@ -179,7 +177,7 @@ export const nodeSettings = {
 
         // Export own TreeHouse
         return {
-            type: 0,
+            type: 1,
             owner: online.ownID,
             totalSize: totalSize,
             peerNetworkAllowed: this.peerNetworkAllowed,
@@ -211,7 +209,7 @@ export const nodeSettings = {
             document.getElementById("toggle-p2p-btn").innerHTML = "On";
             document.getElementById("peer-info").style.display = "block";
             khetController.loadAllKhets();
-            online.openPeer();
+            online.openPeer();                                       // Evtl if not already exists from other source check
         }
         return;
     },
@@ -223,7 +221,11 @@ export const nodeSettings = {
             document.getElementById("node-info").innerHTML = "Node: My TreeHouse";
             break;
         case 1:
-            document.getElementById("node-info").innerHTML = "Node: TreeHouse of \n\n" + this.nodeOwner;
+            if (this.nodeOwner) {
+                document.getElementById("node-info").innerHTML = "Node: TreeHouse of \n\n" + this.nodeOwner;
+            } else {
+                document.getElementById("node-info").innerHTML = "Node: Connecting ...";
+            }
             break;
         case 2:
             document.getElementById("node-info").innerHTML = "Node: My Node";

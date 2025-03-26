@@ -451,7 +451,7 @@ document.getElementById('cache-btn').addEventListener('click', async () => {
 
         fileInput.value = '';
         console.log(`Khet ${khet.khetId} saved to treehouse`);
-        updateKhetTable();
+        await updateKhetTable();
     } catch (error) {
         console.error('Error saving Khet to treehouse:', error);
     }
@@ -541,7 +541,7 @@ export async function uploadKhet(khet) {
             }, 2000);
 
             console.log(`Khet ${khet.khetId} upload finalized successfully`);
-            updateKhetTable();
+            await updateKhetTable();
         } catch (error) {
             console.error('Background upload failed:', error);
             await backendActor.deleteBlob(blobId); // Clean up on failure
@@ -588,9 +588,11 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
 
     let result = { mesh: null, body: null, isAvatar: false };
 
+    // Load Khet
     try {
         let khet;
         if (nodeSettings.nodeType === 0 || nodeSettings.nodeType === 1) {
+
             // TreeHouse or Friend's TreeHouse: Load from khetController
             khet = khetController.getKhet(khetId);
             if (!khet) {
@@ -649,7 +651,7 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
         
         const loader = new THREE.GLTFLoader();
         await new Promise((resolve) => {
-            loader.parse(gltfData.buffer, '', (gltf) => {
+            loader.parse(khet.gltfData.buffer, '', (gltf) => {
                 
                 console.log(`Parsing GLTF for Khet ${khetId}`);
                 const object = gltf.scene;
@@ -823,6 +825,7 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                 result.mesh = object;
                 result.body = body;
                 result.isAvatar = isAvatar;
+                khet.khetType === 'Avatar';
 
                 resolve();
             }, (error) => {

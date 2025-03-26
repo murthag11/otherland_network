@@ -14,6 +14,7 @@ const accountSwitcher = document.getElementById('account-switcher');
 const connectIIBtn = document.getElementById('connect-ii-btn');
 const continueGuestBtn = document.getElementById('continue-guest-btn');
 const tabs = document.querySelectorAll('.tab');
+export let userIsInWorld = false;
 
 // ### Pointer Lock State Handling
 // Listen for changes in the pointer lock state to manage game menu visibility
@@ -26,6 +27,7 @@ document.addEventListener('pointerlockchange', () => {
 });
 
 function enterViewer() {
+    userIsInWorld = true;
     document.getElementById('guiLayer').style.display = 'block'; // Hide the GUI layer when pointer lock is acquired
     if (isTouchDevice) { document.getElementById('mobile-controls').style.display = 'block'; } // Show the GUI layer when pointer lock is released
 
@@ -40,6 +42,7 @@ function enterViewer() {
     startAnimation();                // Start animation when pointer lock is acquired
 }
 function leaveViewer() {
+    userIsInWorld = false;
     const gameMenu = document.getElementById('game-menu');
     stopAnimation();                 // Stop animation when pointer lock is released
     gameMenu.style.display = 'flex'; // Show the game menu when pointer lock is released
@@ -205,7 +208,7 @@ export async function updateKhetTable() {
                 // Delete Khet from Khetcontroller, keep asset in cache
                 await khetController.removeEntry(khet.khetId);
                 console.log('Khet deleted'); // Log confirmation
-                updateKhetTable();
+                await updateKhetTable();
             });
             tdDelete.appendChild(deleteKhetButton);
             tr.appendChild(tdDelete);
@@ -264,7 +267,6 @@ export async function updateNodeList() {
             connectNodeBtn.addEventListener('click', async () => {
 
                 // Switch Node Type
-
                 document.getElementById("enter-node-btn").style.display = "block";
                 if (node.owner === userPrincipal) {
                 
@@ -339,18 +341,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         cardinalConnectBtn.innerHTML = "Refresh Node List";
     });
 
-    // 
+    // Enter Node World
     const enterNodeBtn = document.getElementById("enter-node-btn");
     enterNodeBtn.addEventListener('click', async () => {
 
-        enterWorld();
+        if (nodeSettings.nodeType == 2 || nodeSettings.nodeType == 3) {
+            enterWorld();
+        }
     });
 
     // Create new user node
     const requestCanisterBtn = document.getElementById("request-new-canister");
     requestCanisterBtn.addEventListener('click', async () => {
         const userNodeId = await requestNewCanister();
-        nodeSettings.userOwnedNodes.push(userNodeId) ;
+        nodeSettings.userOwnedNodes.push(userNodeId);
+        nodeSettings.availableNodes.push(userNodeId);
         updateNodeList();
     });
 
@@ -359,7 +364,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     editNodeBtn.addEventListener('click', async () => {
 
         if (nodeSettings.nodeType == 2) {
-            updateKhetTable();
+            await updateKhetTable();
 
             document.getElementById("upload-btn").disabled = false;
             document.getElementById("cache-btn").disabled = true;
@@ -374,9 +379,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     enterTreehouseBtn.addEventListener('click', async () => {
 
         // Switch Node Type
-        await nodeSettings.changeNode({type: 0, id: "TreeHouse"})
-
-        enterWorld();
+        if (nodeSettings.nodeType == 0 || nodeSettings.nodeType == 1) {
+            enterWorld();
+        }
     });
 
     // Join QuickConnect Button
@@ -387,9 +392,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         await nodeSettings.changeNode({type: 1, id: "TreeHouse"})
 
         // Connect to Host
-        online.openPeer();
-
-        //openPeer, start downloading khets, display new grey button, when loading finished ungrey button
+        online.openPeer();                                       // Evtl if not already exists from other source check
     })
 
     // Reset Peer Button
@@ -413,7 +416,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         navigator.share({
             title: 'Otherland Invite',
             text: 'Come visit my TreeHouse!\u000d\u000d',
-            url: (thisurl + '?canisterId=bd3sg-teaaa-aaaaa-qaaba-cai&id=' + online.ownID),
+            url: (thisurl + '?canisterId=be2us-64aaa-aaaaa-qaabq-cai&peerId=' + online.ownID),
         });
     });
 
@@ -424,7 +427,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         await clearAllKhets();              // Call the function to clear Khets on backend
         await khetController.clearKhet();   // Call the function to clear Khets on backend
         console.log('Khets cleared from menu'); // Log confirmation
-        updateKhetTable();
+        await updateKhetTable();
     });
 
     // Edit TreeHouse Button
@@ -432,10 +435,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     editTreeHouseBtn.addEventListener('click', async () => {
 
         // Switch Node Type
-        await nodeSettings.changeNode({type: 0, id: "TreeHouse"})
+        if (nodeSettings.nodeType !== 0) {
+            await nodeSettings.changeNode({type: 0, id: "TreeHouse"})
+        }
         
         if (nodeSettings.nodeType == 0) {
-            updateKhetTable();
+            await updateKhetTable();
 
             document.getElementById("upload-btn").disabled = true;
             document.getElementById("cache-btn").disabled = false;
@@ -461,7 +466,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById("edit-group").style.display = "none";
         document.getElementById("upload-group").style.display = "block";
 
-        updateKhetTable();
+        await updateKhetTable();
     });
 
     // Save Edit and Close
@@ -509,7 +514,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         changekhetEditorDrawer('close');
         document.getElementById("edit-group").style.display = "none";
         document.getElementById("upload-group").style.display = "block";
-        updateKhetTable();
+        await updateKhetTable();
         currentEditingKhetId = null;
     });
 
