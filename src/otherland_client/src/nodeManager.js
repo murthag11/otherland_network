@@ -100,8 +100,10 @@ export async function requestNewCanister() {
         if ('ok' in result) {
             const userCanisterId = result.ok; // Result.ok is the Principal
             localStorage.setItem('userCanisterId', userCanisterId.toText());
-            nodeSettings.nodeId = userCanisterId;
-            nodeSettings.userOwnedNodes = [userCanisterId.toText()];
+            //nodeSettings.nodeId = userCanisterId;
+            //nodeSettings.userOwnedNodes = [userCanisterId.toText()];
+
+            console.log(userCanisterId.toText());
             
             // Update Node Table, with edit button (existing comment preserved)
             return userCanisterId;
@@ -164,8 +166,6 @@ export const nodeSettings = {
         this.nodeId = newNode.id;
 
         this.displayNodeConfig();
-        await khetController.loadAllKhets();
-        updateKhetTable();
     },
 
     // Export Node Configuration

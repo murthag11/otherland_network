@@ -224,22 +224,22 @@ export const worldController = {
         try {
             console.log(`Node Type is ${nodeSettings.nodeType}`);
             
-            // Load all Khets into khetController
+            // Load all Khets freshly into khetController
             await khetController.clearKhet();
             await khetController.loadAllKhets();
-            const backendKhetIds = new Set(Object.keys(khetController.khets));
-            console.log(`Backend has ${backendKhetIds.size} Khets`);
+            const nodeKhetIds = new Set(Object.keys(khetController.khets));
+            console.log(`Target node has ${nodeKhetIds.size} Khets`);
 
             // Get IDs of currently loaded Khets
             const loadedKhetIds = new Set(this.loadedKhets.keys());
-            console.log(`Local has ${loadedKhetIds.size} Khets`);
+            console.log(`Current node has ${loadedKhetIds.size} Khets`);
 
-            // Identify Khets to load (in backend but not loaded locally)
-            const toLoad = [...backendKhetIds].filter(id => !loadedKhetIds.has(id));
+            // Identify Khets to load (in node but not loaded locally)
+            const toLoad = [...nodeKhetIds].filter(id => !loadedKhetIds.has(id));
             console.log('Khets to load:', toLoad);
 
-            // Identify Khets to unload (loaded locally but not in backend)
-            const toUnload = [...loadedKhetIds].filter(id => !backendKhetIds.has(id));
+            // Identify Khets to unload (loaded locally but not in node)
+            const toUnload = [...loadedKhetIds].filter(id => !nodeKhetIds.has(id));
             console.log('Khets to unload:', toUnload);
 
             // Load missing Khets (excluding avatars)

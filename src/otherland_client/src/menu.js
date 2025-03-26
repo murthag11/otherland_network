@@ -264,7 +264,6 @@ export async function updateNodeList() {
             connectNodeBtn.addEventListener('click', async () => {
 
                 // Switch Node Type
-
                 document.getElementById("enter-node-btn").style.display = "block";
                 if (node.owner === userPrincipal) {
                 

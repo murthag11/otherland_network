@@ -157,6 +157,26 @@ export const online = {
         });
     },
 
+    // Track pending gltfData requests
+    pendingGltfData: new Map(), // khetId => resolve function
+
+    // Request gltfData from the host
+    requestGltfData: function(khetId) {
+        return new Promise((resolve, reject) => {
+            if (this.isJoined && this.connectedPeers.size > 0) {
+                const hostConn = this.connectedPeers.values().next().value; // Assume first peer is host
+                if (hostConn) {
+                    this.pendingGltfData.set(khetId, resolve);
+                    hostConn.send({ type: "request-gltfdata", value: khetId });
+                } else {
+                    reject("No host connection");
+                }
+            } else {
+                reject("Not joined or no peers connected");
+            }
+        });
+    },
+
     // Handle incoming data
     incomingData: async function (peerId, data) {
         console.log(`Received from ${peerId}:`, data);
@@ -176,7 +196,8 @@ export const online = {
                 if (this.isHosting) {
                     const preparedKhets = {};
                     for (const [khetId, khet] of Object.entries(khetController.khets)) {
-                        preparedKhets[khetId] = prepareForSending(khet);
+                        const { gltfData, ...metadata } = khet; // Exclude gltfData
+                        preparedKhets[khetId] = prepareForSending(metadata);
                     }
                     this.send("khetlist", preparedKhets, peerId);
                 }
@@ -189,7 +210,7 @@ export const online = {
                     for (const [khetId, khet] of Object.entries(khetsReceived)) {
                         const restoredKhet = restoreAfterReceiving(khet);
                         khets[khetId] = restoredKhet;
-                        this.khetLoadingProgress += khet.gltfData.byteLength;
+                        this.khetLoadingProgress += khet.gltfDataSize || 0; // Use size for progress
                         const progress = (this.khetLoadingProgress / this.khetLoadingGoal) * 100;
                         updateDownloadBar(progress);
                     }
@@ -199,6 +220,35 @@ export const online = {
                     setTimeout(() => {
                         document.getElementById('download-container').style.display = 'none';
                     }, 2000);
+                }
+                break;
+    
+            case "request-gltfdata":
+                if (this.isHosting) {
+                    const khetId = data.value;
+                    const khet = khetController.getKhet(khetId);
+                    if (khet && khet.gltfData) {
+                        const conn = this.connectedPeers.get(peerId);
+                        if (conn) {
+                            conn.send({ type: "gltfdata", value: { khetId, gltfData: Array.from(khet.gltfData) } });
+                        }
+                    }
+                }
+                break;
+    
+            case "gltfdata":
+                if (this.isJoined) {
+                    const { khetId, gltfData } = data.value;
+                    const khet = this.khets[khetId];
+                    if (khet) {
+                        khet.gltfData = new Uint8Array(gltfData);
+                        await saveToCache(khetId, khet);
+                        const resolve = this.pendingGltfData.get(khetId);
+                        if (resolve) {
+                            resolve(khet);
+                            this.pendingGltfData.delete(khetId);
+                        }
+                    }
                 }
                 break;
 
