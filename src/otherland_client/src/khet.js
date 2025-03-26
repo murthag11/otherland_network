@@ -122,72 +122,79 @@ export const khetController = {
 
     // Load all Khets from the backend
     async loadAllKhets() {
-        
         let allKhets = [];
         this.khets = {};
+    
+        if (nodeSettings.nodeType == 0) { // Own TreeHouse: Load khets from local storage
+            for (const [khetId, khetMetadata] of Object.entries(nodeSettings.localKhets)) {
 
-        // Friend's TreeHouse (existing logic)
-        if (nodeSettings.nodeType == 1) {
-
+                // Get 3D data from cache
+                const cachedKhet = await getFromCache(khetId);
+                if (cachedKhet && cachedKhet.gltfData) {
+                    const khet = { ...khetMetadata, gltfData: cachedKhet.gltfData };
+                    this.khets[khetId] = khet;
+                    allKhets.push(khet);
+                } else {
+                    console.warn(`Khet ${khetId} in localKhets missing gltfData in cache`);
+                }
+            }
+            console.log(`Loaded ${allKhets.length} Khets from TreeHouse`);
+            return allKhets;
+            
+        } else if (nodeSettings.nodeType == 1) {// Friend's TreeHouse: Load from online.khets via PeerJS
             if (online.khetsAreLoaded) {
-                console.log("Khets already loaded from Peer Network");
-
-                // Get list from peer
-                this.khets = online.khets;
-
-                // Prepare return value
+                console.log("Loading Khets from Peer Network");
+                this.khets = { ...online.khets }; // Clone to avoid direct reference issues
                 allKhets = Object.values(this.khets);
-
-                // Save Khets to Cache
+    
+                // Ensure gltfData is present; fetch from cache or request from peer if missing
                 for (const [khetId, khet] of Object.entries(this.khets)) {
-                    await saveToCache(khetId, khet); // Wait for each save to complete
-                  }
+                    if (!khet.gltfData) {
+                        const cachedKhet = await getFromCache(khetId);
+                        if (cachedKhet && cachedKhet.gltfData) {
+                            khet.gltfData = cachedKhet.gltfData;
+                            console.log(`Loaded gltfData for Khet ${khetId} from cache`);
+                        } else {
+                            // Request gltfData from the peer (host)
+                            try {
+                                const fullKhet = await online.requestGltfData(khetId);
+                                if (fullKhet && fullKhet.gltfData) {
+                                    khet.gltfData = fullKhet.gltfData;
+                                    await saveToCache(khetId, khet);
+                                    console.log(`Fetched gltfData for Khet ${khetId} from peer`);
+                                } else {
+                                    console.warn(`Failed to fetch gltfData for Khet ${khetId} from peer`);
+                                }
+                            } catch (error) {
+                                console.error(`Error fetching gltfData for Khet ${khetId}:`, error);
+                            }
+                        }
+                    } else {
+                        await saveToCache(khetId, khet); // Cache if gltfData is already present
+                    }
+                }
                 return allKhets;
             } else {
                 console.log("Still loading Khets from Peer Network");
                 return [];
             }
-
-        // Own TreeHouse: Load from local cache (treehouseKhets store)
-        } else if (nodeSettings.nodeType == 0) {
-
-            // Own TreeHouse: Load metadata from nodeSettings.localKhets
-            for (const [khetId, khetMetadata] of Object.entries(nodeSettings.localKhets)) {
-                const cachedKhet = await getFromCache(khetId);
-                if (cachedKhet && cachedKhet.gltfData) {
-
-                    // Combine metadata with cached gltfData
-                    const khet = { ...khetMetadata, gltfData: cachedKhet.gltfData };
-                    this.khets[khetId] = khet;
-                    allKhets.push(khet);
-                } else {
-                    console.warn(`Khet ${khetId} found in localKhets but missing gltfData in cache`);
-                }
-            }
-            console.log(`Loaded ${allKhets.length} Khets from treehouse`);
-            return allKhets;
-
-        // Own Node, Private Node, Public Node: Load from canister
-        } else {
-
+        } else { // Own Node (2) or Otherland Node (3): Load from user_node
             console.log("Loading Khet List from Node Backend");
             const backendActor = await getUserNodeActor();
-
             try {
                 const backendKhets = await backendActor.getAllKhets();
                 console.log(`Backend returned ${backendKhets.length} Khets`);
-        
-                // Merge with cached Khets
                 for (const khet of backendKhets) {
                     this.khets[khet.khetId] = khet;
-                    
-                    // Load 3D asset from cache or node
+
+                    // Get 3D data from cache
                     const cachedKhet = await getFromCache(khet.khetId);
                     if (cachedKhet && cachedKhet.gltfData) {
                         khet.gltfData = cachedKhet.gltfData;
-                        console.log(`Loaded 3D asset for Khet ${khet.khetId} from cache`);
-                    } else {
-                        const [nodeId, blobId, gltfDataSize] = khet.gltfDataRef; // StorageCanister ID not needed anymore in khet gltfdataref
+                        console.log(`Loaded gltfData for Khet ${khet.khetId} from cache`);
+
+                    } else { // Get 3D data from user_node
+                        const [nodeId, blobId, gltfDataSize] = khet.gltfDataRef;
                         const CHUNK_SIZE = 1024 * 1024;
                         const totalChunks = Math.ceil(Number(gltfDataSize) / CHUNK_SIZE);
                         let gltfDataChunks = [];
@@ -196,9 +203,9 @@ export const khetController = {
                             if (chunkOpt && chunkOpt.length > 0) {
                                 gltfDataChunks.push(chunkOpt[0]);
                             } else {
-                                console.warn(`Failed to fetch chunk ${i} for Khet ${khet.khetId}, skipping 3D asset`);
+                                console.warn(`Failed to fetch chunk ${i} for Khet ${khet.khetId}`);
                                 break;
-                            } 
+                            }
                         }
                         if (gltfDataChunks.length === totalChunks) {
                             khet.gltfData = new Uint8Array(Number(gltfDataSize));
@@ -208,15 +215,13 @@ export const khetController = {
                                 offset += chunk.length;
                             } 
                         }
-                        await saveToCache(khet.khetId, khet);
-                        console.log(`Loaded and cached 3D asset for Khet ${khet.khetId} from storage`);
                     }
                     allKhets.push(khet);
                 }
                 console.log(`Total Khets loaded from backend: ${allKhets.length}`);
                 return allKhets;
             } catch (error) {
-                console.error('Error loading all Khets:', error);
+                console.error('Error loading all Khets from backend:', error);
                 return [];
             }
         }
@@ -590,65 +595,16 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
 
     // Load Khet
     try {
-        let khet;
-        if (nodeSettings.nodeType === 0 || nodeSettings.nodeType === 1) {
-
-            // TreeHouse or Friend's TreeHouse: Load from khetController
-            khet = khetController.getKhet(khetId);
-            if (!khet) {
-                console.error(`Khet ${khetId} not found in khetController`);
-                return result;
-            }
-            // Ensure gltfData is available
-            if (!khet.gltfData) {
-                const cachedKhet = await getFromCache(khetId);
-                if (cachedKhet && cachedKhet.gltfData) {
-                    khet.gltfData = cachedKhet.gltfData;
-                } else {
-                    console.error(`gltfData for Khet ${khetId} not found in cache`);
-                    return result;
-                }
-            }
-        } else {
-            // Node: Fetch from backend
-            const backendActor = await getUserNodeActor();
-            const khetOpt = await backendActor.getKhet(khetId);
-            if (khetOpt && khetOpt.length > 0) {
-                khet = khetOpt[0];
-                // Load gltfData from cache or backend
-                let gltfData = null;
-                const cachedKhet = await getFromCache(khetId);
-                if (cachedKhet && cachedKhet.gltfData) {
-                    gltfData = cachedKhet.gltfData;
-                    console.log(`Loaded gltfData for Khet ${khetId} from cache`);
-                } else {
-                    const [nodeId, blobId, gltfDataSize] = khet.gltfDataRef;
-                    const CHUNK_SIZE = 1024 * 1024;
-                    const totalChunks = Math.ceil(Number(gltfDataSize) / CHUNK_SIZE);
-                    let gltfDataChunks = [];
-                    for (let i = 0; i < totalChunks; i++) {
-                        const chunkOpt = await backendActor.getBlobChunk(blobId, i);
-                        if (chunkOpt && chunkOpt.length > 0) {
-                            gltfDataChunks.push(chunkOpt[0]);
-                        } else {
-                            throw new Error(`Failed to fetch chunk ${i} for blobId: ${blobId}`);
-                        }
-                    }
-                    gltfData = new Uint8Array(Number(gltfDataSize));
-                    let offset = 0;
-                    for (const chunk of gltfDataChunks) {
-                        gltfData.set(new Uint8Array(chunk), offset);
-                        offset += chunk.length;
-                    }
-                    khet.gltfData = gltfData;
-                    await saveToCache(khetId, khet);
-                }
-            } else {
-                console.error(`Khet ${khetId} not found in backend`);
-                return result;
-            }
+        const khet = khetController.getKhet(khetId);
+        if (!khet) {
+            console.error(`Khet ${khetId} not found in khetController`);
+            return result;
         }
-        
+        if (!khet.gltfData) {
+            console.error(`gltfData missing for Khet ${khetId} in khetController`);
+            return result;
+        }
+
         const loader = new THREE.GLTFLoader();
         await new Promise((resolve) => {
             loader.parse(khet.gltfData.buffer, '', (gltf) => {
