@@ -51,7 +51,7 @@ async function getUserNodeActor() {
 }
 
 // Compute SHA-256 hash of a Uint8Array
-async function computeSHA256(data) {
+export async function computeSHA256(data) {
     const buffer = await crypto.subtle.digest('SHA-256', data);
     return Array.from(new Uint8Array(buffer))
         .map(b => b.toString(16).padStart(2, '0'))
@@ -75,7 +75,7 @@ function openDB() {
     });
 }
 
-async function getFromCache(id) {
+export async function getFromCache(id) {
     //console.log("DB retrieval, ID: " + id);
     const db = await openDB();
     return new Promise((resolve, reject) => {
@@ -96,7 +96,7 @@ async function getFromCache(id) {
     });
 }
 
-async function saveToCache(id, data) {
+export async function saveToCache(id, data) {
     //console.log("DB storage, ID: " + id);
     const db = await openDB();
     return new Promise((resolve, reject) => {
@@ -155,6 +155,7 @@ export const khetController = {
                             khet.gltfData = cachedKhet.gltfData;
                             console.log(`Loaded gltfData for Khet ${khetId} from cache`);
                         } else {
+
                             // Request gltfData from the peer (host)
                             try {
                                 const fullKhet = await online.requestGltfData(khetId);

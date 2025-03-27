@@ -113,6 +113,8 @@ async function enterWorld() {
 
     // Load Avatar with params
     await loadAvatarObject(params);
+    
+    await online.loadRemoteAvatars();
 
     document.getElementById('main-menu').style.display = 'none';
     const isTouchDevice = 'ontouchstart' in window;
