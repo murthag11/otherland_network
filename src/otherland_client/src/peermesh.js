@@ -1,6 +1,7 @@
 import { nodeSettings } from './nodeManager.js';
 import { Principal } from '@dfinity/principal';
 import { scene } from './index.js';
+import { avatarState } from './avatar.js';
 import { userIsInWorld } from './menu.js';
 import { khetController, loadKhetMeshOnly, saveToCache, getFromCache } from './khet.js';
 
@@ -83,6 +84,7 @@ export const online = {
     gltfDataPromises: new Map(),
     gltfDataResolvers: new Map(), // Added to store resolve/reject functions
     remoteAvatarQueue: new Map(),
+    latestPositions: new Map(), // peerId => { position, quaternion }
     khetQueue: [],
     currentKhetId: null,
 
@@ -121,6 +123,21 @@ export const online = {
                 conn.send({ type: "peerList", value: otherPeers });
                 const nodeConfig = nodeSettings.exportNodeConfig();
                 conn.send({ type: "init", value: nodeConfig });
+
+                // Send avatar IDs of all connected peers, including self
+                const avatarData = {};
+                for (const [id, remote] of this.remoteAvatars.entries()) {
+                    avatarData[id] = remote.avatarId;
+                }
+                if (avatarState.selectedAvatarId) {
+                    avatarData[this.ownID] = avatarState.selectedAvatarId;
+                }
+                conn.send({ type: "avatars", value: avatarData });
+            } else {
+                // Guest: send own avatar ID to host
+                if (avatarState.selectedAvatarId) {
+                    conn.send({ type: "avatar", value: avatarState.selectedAvatarId });
+                }
             }
         });
         conn.on('data', (data) => this.incomingData(peerId, data));
@@ -342,28 +359,52 @@ export const online = {
                     }
                     break;
 
-                case "avatar":
+                case "avatars":
                     if (this.isJoined) {
-                        const avatarId = data.value;
-                        this.remoteAvatarQueue.set(peerId, avatarId);
-                        console.log(`Received avatar ID ${avatarId} from ${peerId}, queued for loading`);
-                        if (this.khets[avatarId] && this.khets[avatarId].gltfData) {
-                            console.log(`Avatar khet ${avatarId} already available`);
-                        } else {
-                            console.log(`Requesting gltfData for avatar khet ${avatarId}`);
-                            this.khetQueue.push(avatarId);
-                            if (!this.currentKhetId) this.processNextKhet();
+                        const avatars = data.value;
+                        for (const [peerId, avatarId] of Object.entries(avatars)) {
+                            this.remoteAvatarQueue.set(peerId, avatarId);
+                            console.log(`Received avatar ID ${avatarId} for peer ${peerId}, queued for loading`);
+                            if (this.khets[avatarId] && this.khets[avatarId].gltfData) {
+                                console.log(`Avatar khet ${avatarId} already available`);
+                            } else {
+                                console.log(`Requesting gltfData for avatar khet ${avatarId}`);
+                                this.khetQueue.push(avatarId);
+                                if (!this.currentKhetId) this.processNextKhet();
+                            }
                         }
                     }
                     break;
 
+                case "avatar":
+                    const avatarId = data.value;
+                    this.remoteAvatarQueue.set(peerId, avatarId);
+                    console.log(`Received avatar ID ${avatarId} from ${peerId}`);
+
+                    if (userIsInWorld) {
+                        if (khetController.khets[avatarId] && khetController.khets[avatarId].gltfData) {
+                            await this.loadRemoteAvatars(); // Load immediately from local data
+                        } else {
+                            console.error(`Khet ${avatarId} not found locally for peer ${peerId}`);
+                        }
+                    } else {
+                        const avatarId = data.value;
+                        this.remoteAvatarQueue.set(peerId, avatarId);
+                        console.log(`Received avatar ID ${avatarId} from ${peerId}, queued for loading`);
+                    }
+                    break;
+
                 case "position":
-                    if (userIsInWorld && this.remoteAvatars.has(peerId)) {
+                    if (userIsInWorld) {
+                        this.latestPositions.set(peerId, data.value);
                         const remoteAvatar = this.remoteAvatars.get(peerId);
                         if (remoteAvatar && remoteAvatar.mesh) {
                             const { position, quaternion } = data.value;
                             remoteAvatar.mesh.position.set(position.x, position.y, position.z);
                             remoteAvatar.mesh.quaternion.set(quaternion.x, quaternion.y, quaternion.z, quaternion.w);
+                            console.log(`Updated position for peer ${peerId}`);
+                        } else {
+                            console.log(`Avatar mesh for peer ${peerId} not yet loaded, position stored`);
                         }
                     }
                     break;
@@ -518,13 +559,20 @@ export const online = {
         this.openPeer();
     },
 
-    loadRemoteAvatars: async function () {
+    async loadRemoteAvatars() {
         for (const [peerId, avatarId] of this.remoteAvatarQueue) {
-            if (this.khets[avatarId] && this.khets[avatarId].gltfData) {
+            const khetData = khetController.khets[avatarId];
+            if (khetData && khetData.gltfData) {
                 const mesh = await loadKhetMeshOnly(avatarId, scene);
                 if (mesh) {
                     this.remoteAvatars.set(peerId, { avatarId, mesh });
                     console.log(`Loaded remote avatar ${avatarId} for peer ${peerId}`);
+                    const latest = this.latestPositions.get(peerId);
+                    if (latest) {
+                        mesh.position.set(latest.position.x, latest.position.y, latest.position.z);
+                        mesh.quaternion.set(latest.quaternion.x, latest.quaternion.y, latest.quaternion.z, latest.quaternion.w);
+                        console.log(`Applied stored position for peer ${peerId}`);
+                    }
                 }
             } else {
                 console.error(`Khet ${avatarId} not found or no gltfData for peer ${peerId}`);

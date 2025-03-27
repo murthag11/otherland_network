@@ -42,9 +42,7 @@ function enterViewer() {
     startAnimation();                // Start animation when pointer lock is acquired
 }
 function leaveViewer() {
-    userIsInWorld = false;
     const gameMenu = document.getElementById('game-menu');
-    stopAnimation();                 // Stop animation when pointer lock is released
     gameMenu.style.display = 'flex'; // Show the game menu when pointer lock is released
     keys.clear();                    // Clear any active key presses
     const closeBtn = document.getElementById('close-btn');
@@ -113,8 +111,6 @@ async function enterWorld() {
 
     // Load Avatar with params
     await loadAvatarObject(params);
-    
-    await online.loadRemoteAvatars();
 
     document.getElementById('main-menu').style.display = 'none';
     const isTouchDevice = 'ontouchstart' in window;
@@ -538,6 +534,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     homeBtn.addEventListener('click', () => {
         document.getElementById('game-menu').style.display = 'none';           // Hide the game menu
         document.getElementById('main-menu').style.display = 'flex';  // Show the start overlay
+        
+        userIsInWorld = false;
+        stopAnimation();
+
         if (!isTouchDevice) {
             controls.unlock();           // Unlock the pointer controls
         } else {   

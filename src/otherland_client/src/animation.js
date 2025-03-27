@@ -285,7 +285,7 @@ export function animate() {
             avatarState.avatarMesh.quaternion.slerp(targetQuaternion, 0.1);
 
             // Send avatar position to other players
-            if (online.connectedPeers.size > 0 && avatarState.avatarMesh) {
+            if (online.connectedPeers.size > 0 && avatarState.avatarMesh && avatarState.selectedAvatarId) {
                 const currentTime = performance.now();
                 if (currentTime - online.lastSendTime > 50) {
                     const position = avatarState.avatarMesh.position;

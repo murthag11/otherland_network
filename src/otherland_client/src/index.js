@@ -365,11 +365,13 @@ async function loadFallbackGround(nodeSettings) {
 // **Scene Initialization**
 // Import the animation function and initialize the scene
 export async function loadScene(params, nodeSettings) {
-    
     await worldController.syncWithNode(params);
 
     // If no scene objects are loaded, add a fallback ground
     if (Object.keys(khetController.khets).length === 0 && nodeSettings.groundPlane) {
         await loadFallbackGround(nodeSettings);
     }
+
+    // Load remote avatars after scene is synced
+    await online.loadRemoteAvatars();
 }

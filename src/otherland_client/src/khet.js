@@ -142,6 +142,9 @@ export const khetController = {
             return allKhets;
             
         } else if (nodeSettings.nodeType == 1) {// Friend's TreeHouse: Load from online.khets via PeerJS
+            for (const [khetId, khet] of Object.entries(online.khets)) {
+                khetController.khets[khetId] = { ...khetController.khets[khetId], gltfData: khet.gltfData };
+            }
             if (online.khetsAreLoaded) {
                 console.log("Loading Khets from Peer Network");
                 this.khets = { ...online.khets }; // Clone to avoid direct reference issues
