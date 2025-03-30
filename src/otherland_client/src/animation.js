@@ -1,7 +1,7 @@
 import { controls, world, scene, camera, sceneObjects, renderer, khetState, cameraController, isAnimating } from './index.js';
 import { avatarState } from './avatar.js';
 import { keys, escButtonPress } from './menu.js';
-import { triggerInteraction } from './interaction.js';
+import { triggerInteraction, preApprovedFunctions } from './interaction.js';
 import { online } from './peermesh.js';
 
 const animationMixers = [];
@@ -22,6 +22,7 @@ const minPitch = (-85 * Math.PI) / 180;
 
 let moveDirection = { x: 0, y: 0 }; // Joystick
 let isSprinting = false;
+let lastPosition = [null, null, null];
 
 // Touch control setup for mobile devices
 if (isTouchDevice) {
@@ -104,6 +105,11 @@ if (isTouchDevice) {
         isSprinting = true;
     });
 
+    // Interaction button handler    
+    const interactBtn = document.getElementById('interact-btn');
+    interactBtn.addEventListener('touchstart', () => { keys.add('f'); });
+    interactBtn.addEventListener('touchend', () => { keys.delete('f'); });
+
     // ESC button handler                                                       Combine with other jump logic, not 2 different
     const escBtn = document.getElementById('esc-btn');
     escBtn.addEventListener('touchstart', () => {
@@ -134,33 +140,43 @@ export function animate() {
 
     if (controls.isLocked || isTouchDevice) {
         if (avatarState.avatarMesh && avatarState.avatarBody) {
+
             // Interaction logic
             let closestPoint = null;
             let minDistance = Infinity;
+            document.getElementById("interactionHint").style.display = "none";
 
             sceneObjects.forEach(obj => {
-                if (obj.userData && obj.userData.khet && obj.userData.khet.interactionPoints) {
-                    obj.userData.khet.interactionPoints.forEach(point => {
-
-                        // Convert local position to world position
+                if (obj.userData && obj.userData.interactionPoints) { // Updated condition
+                    obj.userData.interactionPoints.forEach(point => {
                         const pointWorldPosition = new THREE.Vector3(
-                            point.position[0],
-                            point.position[1],
-                            point.position[2]
+                            point.position[0], point.position[1], point.position[2]
                         ).applyMatrix4(obj.matrixWorld);
 
                         const distance = avatarState.avatarMesh.position.distanceTo(pointWorldPosition);
-                        if (distance < 1.0 && distance < minDistance) { // Threshold of 1 unit
-                            minDistance = distance;
-                            closestPoint = { point, object: obj };
+                        if (distance < 1.0 && distance < minDistance) {
+                            if (point.action == "pickupObject" && avatarState.hasObjectPickedUp) {
+                                console.log("Can't pick up more than 1 Objects");
+                            } else {
+                                document.getElementById("interactionHint").style.display = "block";
+                                document.getElementById("interactionHint").innerHTML = point.action;
+                                minDistance = distance;
+                                closestPoint = { point, object: obj };
+                            }
                         }
                     });
                 }
             });
 
             // Handle interaction trigger
-            if (closestPoint && keys.has('f')) {
-                triggerInteraction(closestPoint.point, closestPoint.object);
+            if (keys.has('f')) {
+                if (avatarState.hasObjectPickedUp) {
+                    preApprovedFunctions.placeObject();
+                } else {
+                    if (closestPoint) {
+                        triggerInteraction(closestPoint.point, closestPoint.object);
+                    }
+                }
                 keys.delete('f'); // Prevent repeated triggers
             }
 
@@ -290,11 +306,17 @@ export function animate() {
                 if (currentTime - online.lastSendTime > 50) {
                     const position = avatarState.avatarMesh.position;
                     const quaternion = avatarState.avatarMesh.quaternion;
+
                     online.send("position", {
                         position: { x: position.x, y: position.y, z: position.z },
                         quaternion: { x: quaternion.x, y: quaternion.y, z: quaternion.z, w: quaternion.w }
                     });
                     online.lastSendTime = currentTime;
+
+                    /* if (position[0] !== lastPosition[0] || position[2] !== lastPosition[2]) {
+                        
+                    }
+                    lastPosition = position; */
                 }
             }
         } else {

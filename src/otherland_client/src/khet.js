@@ -4,7 +4,7 @@ import { Actor, HttpAgent } from '@dfinity/agent';
 import { Principal } from '@dfinity/principal';
 import { idlFactory as userNodeIdlFactory } from '../../declarations/user_node';
 import { nodeSettings } from './nodeManager.js';
-import { editProperty, pickupObject } from './interaction.js';
+import { preApprovedFunctions, pickupObject } from './interaction.js';
 import { authReady, getIdentity } from './user.js';
 import { online } from './peermesh.js';
 import { updateKhetTable } from './menu.js';
@@ -350,6 +350,9 @@ export async function createKhet(file, khetTypeStr, textures = {}, code = null, 
     const scaleY = parseFloat(document.getElementById('scale-y').value) || 1;
     const scaleZ = parseFloat(document.getElementById('scale-z').value) || 1;
 
+    // Define supported pre-approved interactions
+    const supportedInteractions = ['editProperty'];
+
     return new Promise((resolve) => {
         reader.onload = () => {
             const gltfData = new Uint8Array(reader.result); // Read file as binary data
@@ -385,7 +388,8 @@ export async function createKhet(file, khetTypeStr, textures = {}, code = null, 
                             textures: textureArray.length > 0 ? textureArray : [],
                             animations,
                             code: code ? [code] : [],
-                            interactionPoints: interactionPoints ? [interactionPoints] : [],
+                            supportedInteractions, // Array of pre-approved function names
+                            interactionPoints: [], // Expect array of interaction points
                             hash
                         });
                     });
@@ -496,6 +500,8 @@ export async function uploadKhet(khet) {
         textures: khet.textures,
         animations: khet.animations,
         code: khet.code,
+        supportedInteractions: khet.supportedInteractions,
+        interactionPoints: khet.interactionPoints,
         hash: khet.hash
     };
     const result = await backendActor.initKhetUpload(khetMetadata);
@@ -756,16 +762,16 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                 if (khet.khetId && !isAvatar) {
                     khet.interactionPoints = [
                         {
-                            position: [0, 0.5, 0],
+                            position: [-1, 1, -1],
                             type: 'edit',
                             content: { property: 'color', value: 'red' },
-                            action: editProperty
+                            action: "editProperty"
                         },
                         {
                             position: [1, 1, 1],
                             type: 'pickup',
                             content: null,
-                            action: pickupObject
+                            action: "pickupObject"
                         }
                     ];
                 }
@@ -779,6 +785,7 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                         marker.position.set(point.position[0], point.position[1], point.position[2]);
                         object.add(marker); // Attach marker to the Khet object
                     });
+                    object.userData.interactionPoints = khet.interactionPoints;
                 }
 
                 // Return Variables

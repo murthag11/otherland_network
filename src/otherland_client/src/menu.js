@@ -35,9 +35,11 @@ function enterViewer() {
     if (isTouchDevice && avatarState.selectedAvatarId !== null) {
         document.getElementById('jump-btn').style.display = 'block';
         document.getElementById('sprint-btn').style.display = 'block';
+        document.getElementById('interact-btn').style.display = 'block';
     } else {
         document.getElementById('jump-btn').style.display = 'none';
         document.getElementById('sprint-btn').style.display = 'none';
+        document.getElementById('interact-btn').style.display = 'none';
     }
     startAnimation();                // Start animation when pointer lock is acquired
 }

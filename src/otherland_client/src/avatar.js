@@ -3,6 +3,7 @@ export const avatarState = {
     avatarBody: null,
     avatarMesh: null,
     selectedAvatarId: null,
+    hasObjectPickedUp: false,
 
     setAvatarBody (newBody) {
         this.avatarBody = newBody;

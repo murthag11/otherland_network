@@ -402,9 +402,9 @@ export const online = {
                             const { position, quaternion } = data.value;
                             remoteAvatar.mesh.position.set(position.x, position.y, position.z);
                             remoteAvatar.mesh.quaternion.set(quaternion.x, quaternion.y, quaternion.z, quaternion.w);
-                            console.log(`Updated position for peer ${peerId}`);
+                            //console.log(`Updated position for peer ${peerId}`);
                         } else {
-                            console.log(`Avatar mesh for peer ${peerId} not yet loaded, position stored`);
+                            //console.log(`Avatar mesh for peer ${peerId} not yet loaded, position stored`);
                         }
                     }
                     break;
