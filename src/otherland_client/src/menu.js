@@ -303,26 +303,26 @@ function changekhetEditorDrawer(goal) {
     return;
 }
 
-// **Page Switching Function**
-// Helper function to switch between menu pages
-function showPage(page) {
-    mainPage.classList.remove('active');
-    settingsPage.classList.remove('active');
-    avatarPage.classList.remove('active');
-    page.classList.add('active'); // Activate the selected page
-}
-
-// Function to move button to account switcher
-function moveToAccountSwitcher(button) {
-    document.getElementById("info-box").style.display = 'block';
-    const clonedButton = button.cloneNode(true);
-    accountSwitcher.innerHTML = '';
-    accountSwitcher.appendChild(clonedButton);
-}
-
 // ### Menu Navigation and UI Toggling
 // Wait for the DOM to load before setting up event listeners
 document.addEventListener('DOMContentLoaded', async () => {
+
+    // **Page Switching Function**
+    // Helper function to switch between menu pages
+    function showPage(page) {
+        mainPage.classList.remove('active');
+        settingsPage.classList.remove('active');
+        avatarPage.classList.remove('active');
+        page.classList.add('active'); // Activate the selected page
+    }
+    
+    // Function to move button to account switcher
+    function moveToAccountSwitcher(button) {
+        document.getElementById("info-box").style.display = 'block';
+        const clonedButton = button.cloneNode(true);
+        accountSwitcher.innerHTML = '';
+        accountSwitcher.appendChild(clonedButton);
+    }
 
     // **Main Menu**
     const mainPage = document.getElementById('main-page');
@@ -424,9 +424,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Clear all Khets from the backend and storage canisters
     const clearBtn = document.getElementById('clear-khets-btn');
     clearBtn.addEventListener('click', async () => {
-        await clearAllKhets();              // Call the function to clear Khets on backend
-        await khetController.clearKhet();   // Call the function to clear Khets on backend
-        console.log('Khets cleared from menu'); // Log confirmation
+        
+        if (nodeSettings.nodeType == 0) {
+            await khetController.clearKhet();   // Call the function to clear Khets on treehouse
+            console.log('Khets cleared from treehouse'); // Log confirmation
+        } else if (nodeSettings.nodeType == 2) {
+            await clearAllKhets();              // Call the function to clear Khets on backend
+            console.log('Khets cleared from node'); // Log confirmation
+        }
         await updateKhetTable();
     });
 
@@ -660,7 +665,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         cardinalConnectBtn.disabled = true;
         requestCanisterBtn.disabled = true;
         //uploadBtn.disabled = true;
-        clearBtn.disabled = true;
+        //clearBtn.disabled = true;
     } else {
         // User is logged in
         user.setUserPrincipal(identity.getPrincipal().toText());

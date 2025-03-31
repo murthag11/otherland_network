@@ -7,6 +7,13 @@ $background-semi: rgba(0, 0, 0, 0.7);
 $accent-color: #35bd00;
 $font-family: 'Orbitron', Arial, sans-serif;
 
+* {
+  -webkit-user-select: none;  /* Chrome all / Safari all */
+  -moz-user-select: none;     /* Firefox all */
+  -ms-user-select: none;      /* IE 10+ */
+  user-select: none;
+}
+
 @font-face {
   font-family: 'Orbitron';
   font-style: normal;

@@ -265,6 +265,10 @@ export const khetController = {
 
     // Removes all khets
     clearKhet() {
+        if (nodeSettings.nodeType == 0) {
+            nodeSettings.localKhets = {};
+            nodeSettings.saveLocalKhets();
+        }
         this.khets = {};
         return;
     }
@@ -420,10 +424,10 @@ document.getElementById('upload-btn').addEventListener('click', async () => {
         // Read Code from Input or Agent
         console.log(khetType);
         
-        if (khetType == "SceneObject") {
-            const khetCode = '';
+        let khetCode = '';
+        if (khetType == 'SceneObject') {
         } else {
-            const khetCode = 'object.rotation.y += 0.01;';
+            khetCode = 'object.rotation.y += 0.01;';
         }
         
         // Create a Khet object with a simple rotation behavior
@@ -455,8 +459,8 @@ document.getElementById('cache-btn').addEventListener('click', async () => {
     try {
         console.log(khetType);
         
-        const khetCode = '';
-        if (khetType == "SceneObject") {
+        let khetCode = '';
+        if (khetType == 'SceneObject') {
         } else {
             khetCode = 'object.rotation.y += 0.01;';
         }

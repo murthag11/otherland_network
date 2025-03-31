@@ -266,7 +266,6 @@ export const worldController = {
             console.log(`Node Type is ${nodeSettings.nodeType}`);
             
             // Load all Khets freshly into khetController
-            await khetController.clearKhet();
             await khetController.loadAllKhets();
             const nodeKhetIds = new Set(Object.keys(khetController.khets));
             console.log(`Target node has ${nodeKhetIds.size} Khets`);
