@@ -63,8 +63,44 @@ world.gravity.set(0, -9.82, 0); // Apply Earth-like gravity (m/s²)
 world.broadphase = new CANNON.NaiveBroadphase(); // Use naive broadphase for collision detection
 world.solver.iterations = 10; // Set solver iterations for physics accuracy
 
-// Define a material for the ground in the physics world
+// Existing material definitions (assumed already present)
 export const groundMaterial = new CANNON.Material('ground');
+export const avatarMaterial = new CANNON.Material('avatar');
+export const mobileMaterial = new CANNON.Material('mobile');
+export const staticMaterial = new CANNON.Material('static');
+
+// Existing contact materials (assumed already present)
+const avatarGroundContact = new CANNON.ContactMaterial(groundMaterial, avatarMaterial, {
+    friction: 0.3,
+    restitution: 0.0
+});
+world.addContactMaterial(avatarGroundContact);
+
+const mobileGroundContact = new CANNON.ContactMaterial(groundMaterial, mobileMaterial, {
+    friction: 0.3,
+    restitution: 0.0
+});
+world.addContactMaterial(mobileGroundContact);
+
+const avatarMobileContact = new CANNON.ContactMaterial(avatarMaterial, mobileMaterial, {
+    friction: 0.5,
+    restitution: 0.3
+});
+world.addContactMaterial(avatarMobileContact);
+
+// New contact material for static vs. mobile
+const staticMobileContact = new CANNON.ContactMaterial(staticMaterial, mobileMaterial, {
+    friction: 0.3,
+    restitution: 0.0
+});
+world.addContactMaterial(staticMobileContact);
+
+// Optional: Ensure avatar interacts with static objects (if needed)
+const avatarStaticContact = new CANNON.ContactMaterial(avatarMaterial, staticMaterial, {
+    friction: 0.3,
+    restitution: 0.0
+});
+world.addContactMaterial(avatarStaticContact);
 
 // **Scene Objects and State**
 // Arrays and variables to manage scene objects and animations
@@ -175,6 +211,11 @@ export class CameraController {
             const initialOffset = direction.multiplyScalar(this.maxDistance); // e.g., 2.5 units behind
             this.camera.position.copy(center.clone().add(initialOffset));
             this.camera.lookAt(center); // Look at the center, not mesh.position
+
+            // Set initial yaw and pitch to match the camera's orientation
+            const euler = new THREE.Euler().setFromQuaternion(this.camera.quaternion, 'YXZ');
+            yaw = euler.y;   // Yaw is rotation around Y-axis
+            pitch = euler.x; // Pitch is rotation around X-axis
         }
     }
 }
@@ -368,7 +409,7 @@ export async function loadScene(params, nodeSettings) {
     await worldController.syncWithNode(params);
 
     // If no scene objects are loaded, add a fallback ground
-    if (Object.keys(khetController.khets).length === 0 && nodeSettings.groundPlane) {
+    if (!Object.values(khetController.khets).some(khet => khet.khetType === 'SceneObject') && nodeSettings.groundPlane) {
         await loadFallbackGround(nodeSettings);
     }
 

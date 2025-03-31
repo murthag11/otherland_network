@@ -4,7 +4,7 @@ import { Actor, HttpAgent } from '@dfinity/agent';
 import { Principal } from '@dfinity/principal';
 import { idlFactory as userNodeIdlFactory } from '../../declarations/user_node';
 import { nodeSettings } from './nodeManager.js';
-import { preApprovedFunctions, pickupObject } from './interaction.js';
+import { avatarMaterial, mobileMaterial, staticMaterial } from './index.js';
 import { authReady, getIdentity } from './user.js';
 import { online } from './peermesh.js';
 import { updateKhetTable } from './menu.js';
@@ -418,12 +418,18 @@ document.getElementById('upload-btn').addEventListener('click', async () => {
     
     try {
         // Read Code from Input or Agent
-        const khetCode = 'object.rotation.y += 0.01;';
+        console.log(khetType);
+        
+        if (khetType == "SceneObject") {
+            const khetCode = '';
+        } else {
+            const khetCode = 'object.rotation.y += 0.01;';
+        }
         
         // Create a Khet object with a simple rotation behavior
         const khet = await createKhet(file, khetType, textures, khetCode);
         
-        // Upload the Khet to the backend (hardcoded canister ID)
+        // Upload the Khet to the node
         const khetWithRef = await uploadKhet(khet);
         
         // Clear the file input after successful upload
@@ -447,7 +453,14 @@ document.getElementById('cache-btn').addEventListener('click', async () => {
     const textures = files[1] ? { 'texture1': files[1] } : {};
     const khetType = document.getElementById('khet-type').value;
     try {
-        const khetCode = 'object.rotation.y += 0.01;';
+        console.log(khetType);
+        
+        const khetCode = '';
+        if (khetType == "SceneObject") {
+        } else {
+            khetCode = 'object.rotation.y += 0.01;';
+        }
+
         const khet = await createKhet(file, khetType, textures, khetCode);
 
         // Save full Khet (including gltfData) to cache
@@ -642,19 +655,32 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                     khet.position[2] - center.z  // Center Z
                 );
 
+                // Determine mass and material based on khetType
+                let mass = 0;
+                let material = staticMaterial;
+                if (khet.khetType === 'Avatar') {
+                    mass = 1;
+                    material = avatarMaterial;
+                } else if (khet.khetType === 'MobileObject') {
+                    mass = 1;
+                    material = mobileMaterial;
+                } else {
+                    mass = 0;
+                    material = staticMaterial;
+                }
+
                 // Physics body setup
                 let shape, body;
                 const isAvatar = khet.khetType == 'Avatar';
-                const debugPhysics = false;
+                const debugPhysics = true;
                 let debugMesh; 
 
-                // Avatar Physics
-                if (isAvatar) {
+                if (isAvatar) { // Avatar Physics
                     
                     // Sphere for Avatar
                     const radius = size.y / 2;
                     shape = new CANNON.Sphere(radius);
-                    body = new CANNON.Body({ mass: 1, material: new CANNON.Material('avatar') });
+                    body = new CANNON.Body({ mass, material });
                     body.addShape(shape);
                     
                     // Position body so bottom is at khet.position[1]
@@ -668,11 +694,26 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                         const material = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
                         debugMesh = new THREE.Mesh(geometry, material);
                         debugMesh.position.copy(body.position);
-                        scene.add(debugMesh);
+                        object.add(debugMesh);
                     }
-                } else {
 
-                    // Object Physics
+                } else if (khet.khetType === 'MobileObject') { // Mobile Object
+                    // Use a Box shape instead of Trimesh for mobile objects
+                    const halfExtents = new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2);
+                    shape = new CANNON.Box(halfExtents);
+                    body = new CANNON.Body({ mass, material });
+                    body.addShape(shape);
+                    // Position body so bottom is at khet.position[1]
+                    body.position.set(
+                        khet.position[0],
+                        khet.position[1] + halfExtents.y,
+                        khet.position[2]
+                    );
+                    object.position.copy(body.position); // Center visual object at body position
+
+                    console.log('MobileObject body material:', body.material.name, 'position:', body.position.y);
+
+                } else { // Scene Object Physics
                     const vertices = [];
                     const indices = [];
                     object.traverse(child => {
@@ -693,9 +734,13 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                         }
                     });
                     shape = new CANNON.Trimesh(vertices, indices);
-                    body = new CANNON.Body({ mass: 0 });
+                    body = new CANNON.Body({ mass, material });
                     body.addShape(shape);
-                    body.position.set(khet.position[0], khet.position[1], khet.position[2]);
+                    body.position.set(
+                        khet.position[0] - center.x,
+                        khet.position[1] - minY,
+                        khet.position[2] - center.z
+                    );
 
                     if (debugPhysics) {
                         const geometry = new THREE.BufferGeometry();
@@ -703,9 +748,15 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                         geometry.setIndex(indices);
                         const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
                         debugMesh = new THREE.Mesh(geometry, material);
-                        debugMesh.position.copy(body.position);
+                        debugMesh.position.set(
+                            khet.position[0] - center.x,
+                            khet.position[1] - minY,
+                            khet.position[2] - center.z
+                        );
                         scene.add(debugMesh);
                     }
+
+                    console.log('SceneObject body material:', body.material.name);
                 }
 
                 // Common physics properties
@@ -713,6 +764,7 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                 body.angularDamping = 0.9;
                 world.addBody(body);
                 object.userData = { body, debugMesh };
+                object.userData.khetType = khet.khetType;
                 console.log(`Khet ${khetId} initial position:`, object.position, 'Body position:', body.position);
 
                 // Avatar
@@ -755,7 +807,12 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                 // Custom Code
                 if (khet.code && khet.code.length > 0) {
                     const executor = createKhetCodeExecutor(khet.code[0], object);
-                    khetState.executors.push(executor);
+                    const wrappedExecutor = () => {
+                        if (!object.userData.isPickedUp) {
+                            executor();
+                        }
+                    };
+                    khetState.executors.push(wrappedExecutor);
                 }
 
                 // Interaction Points

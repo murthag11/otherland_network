@@ -135,6 +135,12 @@ export function animate() {
 
     world.step(1 / 60, delta, 3); // Fixed timestep with accumulation
 
+    world.contacts.forEach(contact => {
+        const mat1 = contact.bi.material;
+        const mat2 = contact.bj.material;
+        console.log(`Contact between ${mat1.name} and ${mat2.name}`);
+    });
+
     // Execute Khet Code
     khetState.executors.forEach(executor => executor());
 
@@ -299,6 +305,17 @@ export function animate() {
                 camDirection
             );
             avatarState.avatarMesh.quaternion.slerp(targetQuaternion, 0.1);
+            
+            // Update picked-up object position to follow avatar
+            if (avatarState.hasObjectPickedUp && preApprovedFunctions.pickedUpObject) {
+                console.log("Test");
+                
+                const object = preApprovedFunctions.pickedUpObject;
+                const offset = new THREE.Vector3(0, 1, 1);
+                offset.applyQuaternion(avatarState.avatarMesh.quaternion);
+                object.position.copy(avatarState.avatarMesh.position).add(offset);
+                object.quaternion.copy(avatarState.avatarMesh.quaternion);
+            }
 
             // Send avatar position to other players
             if (online.connectedPeers.size > 0 && avatarState.avatarMesh && avatarState.selectedAvatarId) {
@@ -338,9 +355,9 @@ export function animate() {
         }
     }
 
-    // Sync all scene objects with their physics bodies
+    // Sync all scene objects with their physics bodies, skipping picked-up objects
     sceneObjects.forEach(obj => {
-        if (obj.userData && obj.userData.body) {
+        if (obj.userData && obj.userData.body && !obj.userData.isPickedUp && obj.userData.body.mass > 0) {
             obj.position.copy(obj.userData.body.position);
             if (obj !== avatarState.avatarMesh) {
                 obj.quaternion.copy(obj.userData.body.quaternion);
