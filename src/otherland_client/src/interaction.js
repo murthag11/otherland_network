@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { avatarState } from "./avatar.js";
 import { world, scene, sceneObjects } from "./index.js";
 

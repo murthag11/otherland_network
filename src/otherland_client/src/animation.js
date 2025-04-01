@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 import { controls, world, scene, camera, sceneObjects, renderer, khetState, cameraController, isAnimating } from './index.js';
 import { avatarState } from './avatar.js';
 import { keys, escButtonPress } from './menu.js';

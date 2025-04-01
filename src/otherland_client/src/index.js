@@ -1,3 +1,6 @@
+import * as THREE from 'three';
+import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
+
 // Import functions for managing Khet objects from khet.js
 import { khetController, loadKhet } from './khet.js';
 import { avatarState } from './avatar.js';
@@ -35,7 +38,7 @@ export const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window
 camera.position.set(0, 1, -2.5); // Position camera slightly above and back from origin
 
 // Initialize pointer lock controls for first-person navigation
-export const controls = new THREE.PointerLockControls(camera, renderer.domElement);
+export const controls = new PointerLockControls(camera, renderer.domElement);
 
 // **Mouse Movement Handling**
 // Define pitch constraints to prevent camera flipping

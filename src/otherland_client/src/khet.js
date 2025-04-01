@@ -1,3 +1,6 @@
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+
 // Import necessary libraries for parsing and interacting with the Internet Computer
 import * as esprima from 'esprima';
 import { Actor, HttpAgent } from '@dfinity/agent';
@@ -361,7 +364,7 @@ export async function createKhet(file, khetTypeStr, textures = {}, code = null, 
         reader.onload = () => {
             const gltfData = new Uint8Array(reader.result); // Read file as binary data
             computeSHA256(gltfData).then(hash => {
-                const loader = new THREE.GLTFLoader();
+                const loader = new GLTFLoader();
                 loader.parse(gltfData.buffer, '', (gltf) => {
                     const object = gltf.scene; // Extract the scene from the GLTF data
                     const box = new THREE.Box3().setFromObject(object); // Compute bounding box
@@ -427,7 +430,7 @@ document.getElementById('upload-btn').addEventListener('click', async () => {
         let khetCode = '';
         if (khetType == 'SceneObject') {
         } else {
-            khetCode = 'object.rotation.y += 0.01;';
+            khetCode = '';
         }
         
         // Create a Khet object with a simple rotation behavior
@@ -462,7 +465,7 @@ document.getElementById('cache-btn').addEventListener('click', async () => {
         let khetCode = '';
         if (khetType == 'SceneObject') {
         } else {
-            khetCode = 'object.rotation.y += 0.01;';
+            // khetCode = 'object.rotation.y += 0.01;';
         }
 
         const khet = await createKhet(file, khetType, textures, khetCode);
@@ -597,7 +600,7 @@ export async function loadKhetMeshOnly(khetId, scene) {
         console.error(`Khet ${khetId} not found or no gltfData`);
         return null;
     }
-    const loader = new THREE.GLTFLoader();
+    const loader = new GLTFLoader();
     return new Promise((resolve) => {
         loader.parse(khet.gltfData.buffer, '', (gltf) => {
             const object = gltf.scene;
@@ -632,7 +635,7 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
             return result;
         }
 
-        const loader = new THREE.GLTFLoader();
+        const loader = new GLTFLoader();
         await new Promise((resolve) => {
             loader.parse(khet.gltfData.buffer, '', (gltf) => {
                 
@@ -740,11 +743,7 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                     shape = new CANNON.Trimesh(vertices, indices);
                     body = new CANNON.Body({ mass, material });
                     body.addShape(shape);
-                    body.position.set(
-                        khet.position[0] - center.x,
-                        khet.position[1] - minY,
-                        khet.position[2] - center.z
-                    );
+                    body.position.copy(object.position);
 
                     if (debugPhysics) {
                         const geometry = new THREE.BufferGeometry();
@@ -773,11 +772,6 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
 
                 // Avatar
                 if (isAvatar) {
-                    const contactMaterial = new CANNON.ContactMaterial(groundMaterial, body.material, {
-                        friction: 0.3,
-                        restitution: 0.0
-                    });
-                    world.addContactMaterial(contactMaterial);
                     body.isGrounded = false;
                     body.lastSurfaceHeight = 0;
                     body.sizeY = size.y || 1;
