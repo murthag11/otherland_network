@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
+import { WebGPURenderer } from 'three/webgpu';
+import * as CANNON from 'cannon-es';
 
 // Import functions for managing Khet objects from khet.js
 import { khetController, loadKhet } from './khet.js';
@@ -20,12 +22,31 @@ export function stopAnimation() {
     isAnimating = false;
 }
 
+// Check WebGPU support
+const isWebGPUSupported = !!navigator.gpu;
+
+// Function to create renderer with fallback
+function createRenderer(canvas) {
+    if (isWebGPUSupported) {
+        try {
+            const renderer = new WebGPURenderer({ canvas, antialias: true });
+            console.log('Using WebGPURenderer');
+            return renderer;
+        } catch (error) {
+            console.warn('WebGPURenderer failed to initialize:', error);
+        }
+    }
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    console.log('Using WebGLRenderer');
+    return renderer;
+}
+
 // **Renderer Setup**
-// Get the canvas element from the DOM and initialize the WebGL renderer
+// Get the canvas element from the DOM and initialize the WebGPU / WebGL renderer
 export const canvas = document.getElementById('canvas');
-export const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight); // Set renderer size to match window
-renderer.outputEncoding = THREE.sRGBEncoding; // Use sRGB encoding for better color accuracy
+export const renderer = createRenderer(canvas);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputEncoding = THREE.sRGBEncoding;
 
 // **Scene and Background**
 // Create a new Three.js scene and set a sky-blue background
@@ -66,13 +87,19 @@ world.gravity.set(0, -9.82, 0); // Apply Earth-like gravity (m/s²)
 world.broadphase = new CANNON.NaiveBroadphase(); // Use naive broadphase for collision detection
 world.solver.iterations = 10; // Set solver iterations for physics accuracy
 
-// Existing material definitions (assumed already present)
+// Enable Box-Trimesh collisions
+const boxType = CANNON.Shape.types.BOX;       // 4
+const trimeshType = CANNON.Shape.types.TRIMESH; // 128
+world.collisionMatrix.set(boxType, trimeshType, true);
+world.collisionMatrixPrevious.set(boxType, trimeshType, true);
+
+// Existing material definitions
 export const groundMaterial = new CANNON.Material('ground');
 export const avatarMaterial = new CANNON.Material('avatar');
 export const mobileMaterial = new CANNON.Material('mobile');
 export const staticMaterial = new CANNON.Material('static');
 
-// Existing contact materials (assumed already present)
+// Existing contact materials
 const avatarGroundContact = new CANNON.ContactMaterial(groundMaterial, avatarMaterial, {
     friction: 0.3,
     restitution: 0.0
@@ -98,7 +125,7 @@ const staticMobileContact = new CANNON.ContactMaterial(staticMaterial, mobileMat
 });
 world.addContactMaterial(staticMobileContact);
 
-// Optional: Ensure avatar interacts with static objects (if needed)
+// Optional: Ensure avatar interacts with static objects
 const avatarStaticContact = new CANNON.ContactMaterial(avatarMaterial, staticMaterial, {
     friction: 0.3,
     restitution: 0.0

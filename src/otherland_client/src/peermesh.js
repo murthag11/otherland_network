@@ -1,3 +1,4 @@
+import Peer from 'peerjs';
 import { nodeSettings } from './nodeManager.js';
 import { Principal } from '@dfinity/principal';
 import { scene } from './index.js';

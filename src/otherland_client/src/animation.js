@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import nipplejs from 'nipplejs';
 
 import { controls, world, scene, camera, sceneObjects, renderer, khetState, cameraController, isAnimating } from './index.js';
 import { avatarState } from './avatar.js';
@@ -7,6 +8,7 @@ import { triggerInteraction, preApprovedFunctions } from './interaction.js';
 import { online } from './peermesh.js';
 
 const animationMixers = [];
+const clock = new THREE.Clock();
 
 // Detect if the device supports touch input
 export const isTouchDevice = 'ontouchstart' in window;
@@ -14,7 +16,7 @@ export const isTouchDevice = 'ontouchstart' in window;
 // Constants for movement and jumping
 const BASE_SPEED = 4.0;
 const JUMP_FORCE = 7;
-const AIR_ADJUSTMENT_ACCELERATION = 100.0; // Small acceleration for slight in-air adjustments (m/s^2)
+const AIR_ADJUSTMENT_ACCELERATION = 15.0; // Small acceleration for slight in-air adjustments (m/s^2)
 
 // Variables for camera rotation and movement
 let yaw = 0;
@@ -132,7 +134,6 @@ function getSpeedMultiplier() {
 export function animate() {
     if (!isAnimating) return;
     requestAnimationFrame(animate);
-    const clock = new THREE.Clock();
     const delta = clock.getDelta();
 
     world.step(1 / 60, delta, 3); // Fixed timestep with accumulation

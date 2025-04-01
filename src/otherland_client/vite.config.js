@@ -11,6 +11,7 @@ export default defineConfig({
     emptyOutDir: true,
   },
   optimizeDeps: {
+    include: ['three/webgpu'],
     esbuildOptions: {
       define: {
         global: "globalThis",

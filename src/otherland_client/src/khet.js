@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import * as CANNON from 'cannon-es';
 
 // Import necessary libraries for parsing and interacting with the Internet Computer
 import * as esprima from 'esprima';
