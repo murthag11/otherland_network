@@ -16,8 +16,10 @@ export const isTouchDevice = 'ontouchstart' in window;
 
 // Constants for movement and jumping
 const BASE_SPEED = 4.0;
-const JUMP_FORCE = 7;
+const JUMP_FORCE = 7.0;
 const AIR_ADJUSTMENT_ACCELERATION = 15.0; // Small acceleration for slight in-air adjustments (m/s^2)
+const GROUND_RAY_LENGTH = 0.3; // How far below the avatar's origin to check for ground
+const GROUND_RAY_TOLERANCE = 0.1; // Extra tolerance distance
 
 // Variables for camera rotation and movement
 let yaw = 0;
@@ -133,6 +135,48 @@ function getSpeedMultiplier() {
     }
 }
 
+// Helper function for ground check
+function checkGrounded(world, avatarBody, avatarRadius) {
+    if (!avatarBody || !avatarBody.isDynamic()) return false; // Check if body is valid
+
+    const colliderHandle = avatarBody.userData?.colliderHandle;
+    if (colliderHandle === undefined || colliderHandle === null) {
+        // console.warn("Avatar body missing collider handle in userData");
+        return false; // Cannot perform raycast without handle to ignore
+    }
+
+    const bodyPosition = avatarBody.translation();
+    // Ray origin slightly above the bottom sphere center, cast downwards
+    const rayOrigin = { x: bodyPosition.x, y: bodyPosition.y, z: bodyPosition.z };
+    const rayDirection = { x: 0, y: -1, z: 0 };
+    // Max distance: radius (origin to bottom) + extra length + tolerance
+    const maxDistance = avatarRadius + GROUND_RAY_LENGTH + GROUND_RAY_TOLERANCE;
+
+    const ray = new RAPIER.Ray(rayOrigin, rayDirection);
+    const filterFlags = RAPIER.QueryFilterFlags.EXCLUDE_DYNAMIC | RAPIER.QueryFilterFlags.EXCLUDE_KINEMATIC; // Adjust if needed
+    const filterGroups = undefined; // Use default groups or specify if needed
+    const excludeCollider = world.getCollider(colliderHandle); // Get collider object to exclude
+
+    if (!excludeCollider) {
+        // console.warn("Could not find avatar collider to exclude from raycast.");
+        return false;
+    }
+    const filter = new RAPIER.QueryFilter(filterFlags, filterGroups, excludeCollider);
+
+    // Cast the ray
+    const hit = world.castRay(ray, maxDistance, true, filter);
+
+    if (hit) {
+        // Check if the hit is close enough to be considered grounded
+        // hit.toi is the time-of-impact, effectively the distance along the ray
+        const hitDistance = hit.toi;
+        // Consider grounded if hit distance is within radius + tolerance
+        return hitDistance < (avatarRadius + GROUND_RAY_TOLERANCE);
+    }
+
+    return false; // No hit
+}
+
 // Animation Loop
 export function animate() {
     if (!isAnimating) return;
@@ -186,6 +230,13 @@ export function animate() {
                 keys.delete('f'); // Prevent repeated triggers
             }
 
+            // --- Ground Check using Raycast ---
+            const avatarRadius = avatarState.avatarBody.collider(0)?.radius() || 0.5; // Get radius from collider or default
+            const currentlyGrounded = checkGrounded(viewerState.world, avatarState.avatarBody, avatarRadius);
+
+            // Update grounded state
+            avatarState.isGrounded = currentlyGrounded;
+
             // Avatar movement code
             const camDirection = new THREE.Vector3();
             viewerState.camera.getWorldDirection(camDirection);
@@ -221,32 +272,6 @@ export function animate() {
             const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), euler.y);
             const movementDirection = localDirection.applyQuaternion(yawQuaternion);
 
-            // Collision event handling
-            viewerState.eventQueue.drainCollisionEvents((handle1, handle2, started) => {
-                const collider1 = viewerState.world.getCollider(handle1);
-                const collider2 = viewerState.world.getCollider(handle2);
-                const rb1 = viewerState.world.getRigidBody(collider1.parent());
-                const rb2 = viewerState.world.getRigidBody(collider2.parent());
-                let avatarBody, otherBody;
-                if (rb1.userData.type === 'avatar') {
-                    avatarBody = rb1;
-                    otherBody = rb2;
-                } else if (rb2.userData.type === 'avatar') {
-                    avatarBody = rb2;
-                    otherBody = rb1;
-                } else {
-                    return;
-                }
-                if (otherBody.userData.type === 'sceneObject') {
-                    if (started) {
-                        avatarState.collidingWithGround.add(otherBody);
-                    } else {
-                        avatarState.collidingWithGround.delete(otherBody);
-                    }
-                }
-            });
-            avatarState.avatarBody.isGrounded = avatarState.collidingWithGround.size > 0;
-
             // Actual Movement
             if (avatarState.avatarBody.isGrounded) {
 
@@ -257,38 +282,47 @@ export function animate() {
                 const targetVelocity = movementDirection.clone().multiplyScalar(targetSpeed);
                 const currentVel = avatarState.avatarBody.linvel();
                 avatarState.avatarBody.setLinvel(new RAPIER.Vector3(targetVelocity.x, currentVel.y, targetVelocity.z), true);
+                avatarState.avatarBody.wakeUp();
 
             } else {
                 if (inputMagnitude > 0) {
                     const adjustmentMagnitude = AIR_ADJUSTMENT_ACCELERATION * (isTouchDevice ? inputMagnitude : 1);
-                    const adjustment = movementDirection.clone().multiplyScalar(adjustmentMagnitude);
+                    const adjustment = movementDirection.clone().multiplyScalar(adjustmentMagnitude * delta);
                     const currentVel = avatarState.avatarBody.linvel();
-                    avatarState.avatarBody.setLinvel(
-                        new RAPIER.Vector3(currentVel.x + adjustment.x * delta, currentVel.y, currentVel.z + adjustment.z * delta),
-                        true
-                    );
+                    avatarState.avatarBody.addForce(new RAPIER.Vector3(adjustment.x, 0, adjustment.z), true);
                 }
             }
 
-            // Jumping logic
-            if (keys.has(' ') && avatarState.avatarBody.canJump && avatarState.avatarBody.isGrounded) {
+            // --- Jumping logic ---
+             // Check jump conditions: space pressed, grounded, can jump
+             if ((keys.has(' ') || (isTouchDevice && /* check your jump button state */ false)) && avatarState.canJump && avatarState.isGrounded) {
                 const currentVel = avatarState.avatarBody.linvel();
+                // Apply upward velocity for the jump
                 avatarState.avatarBody.setLinvel({ x: currentVel.x, y: JUMP_FORCE, z: currentVel.z }, true);
-                avatarState.avatarBody.canJump = false;
+                // Immediately prevent jumping again until landed
+                avatarState.canJump = false;
+                avatarState.isGrounded = false; // Assume we are leaving the ground
+                avatarState.wasGrounded = true; // Mark that we *were* grounded to prevent immediate re-jump
             }
 
-            // Reset canJump when landing
-            if (avatarState.avatarBody.isGrounded && !avatarState.avatarBody.wasGrounded) {
-                avatarState.avatarBody.lastLandingTime = performance.now();
-                avatarState.avatarBody.canJump = true;
+            // --- Reset canJump when landing ---
+            // If we are now grounded, but previously were not
+            if (avatarState.isGrounded && !avatarState.wasGrounded) {
+                avatarState.lastLandingTime = performance.now();
+                avatarState.canJump = true; // Allow jumping again
             }
-            avatarState.avatarBody.wasGrounded = avatarState.avatarBody.isGrounded;
+            // Update wasGrounded for the next frame's check
+            avatarState.wasGrounded = avatarState.isGrounded;
 
-            if (avatarState.avatarBody.lastLandingTime) {
-                const timeSinceLanding = (performance.now() - avatarState.avatarBody.lastLandingTime) / 1000;
-                if (timeSinceLanding >= 0.5 && !avatarState.avatarBody.isGrounded) {
-                    avatarState.avatarBody.canJump = false;
-                }
+            // --- Coyote time / Jump buffer (Optional but good) ---
+            // Reset canJump if airborne for too long after leaving ground
+            // (Prevents jumping if falling off a ledge without pressing space)
+            if (avatarState.lastLandingTime) {
+                 const timeSinceLanding = (performance.now() - avatarState.lastLandingTime) / 1000;
+                 // If airborne for more than 0.2 seconds (adjust as needed)
+                 if (timeSinceLanding >= 0.2 && !avatarState.isGrounded) {
+                     avatarState.canJump = false;
+                 }
             }
 
             // Update camera to follow avatar
@@ -296,7 +330,7 @@ export function animate() {
 
             // Sync mesh with body and keep upright
             const pos = avatarState.avatarBody.translation();
-            avatarState.avatarMesh.position.set(pos.x, pos.y, pos.z);
+            avatarState.avatarMesh.position.set(pos.x, pos.y - avatarRadius, pos.z);
             
             // Rotate the avatar's quaternion to match the camera direction
             const targetQuaternion = new THREE.Quaternion().setFromUnitVectors(
@@ -304,10 +338,13 @@ export function animate() {
                 camDirection
             );
             avatarState.avatarMesh.quaternion.slerp(targetQuaternion, 0.1);
+
+            // Keep physics body upright (important!)
+            const currentRotation = avatarState.avatarBody.rotation();
+            avatarState.avatarBody.setRotation({ x: 0, y: currentRotation.y, z: 0, w: currentRotation.w }, true);
             
             // Update picked-up object position to follow avatar
             if (avatarState.hasObjectPickedUp && preApprovedFunctions.pickedUpObject) {
-                console.log("Test");
                 
                 const object = preApprovedFunctions.pickedUpObject;
                 const offset = new THREE.Vector3(0, 1, 1);
@@ -356,7 +393,7 @@ export function animate() {
 
     // Sync all scene objects with their physics bodies, skipping picked-up objects
     sceneObjects.forEach(obj => {
-        if (obj.userData && obj.userData.body && !obj.userData.isPickedUp && obj.userData.body.isDynamic()) {
+        if (obj.userData && obj.userData.body && !obj.userData.isPickedUp /* && obj.userData.body.isDynamic() */) {
             const pos = obj.userData.body.translation();
             obj.position.set(pos.x, pos.y, pos.z);
             if (obj !== avatarState.avatarMesh) {

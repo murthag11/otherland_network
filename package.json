@@ -23,7 +23,6 @@
     "@dfinity/auth-client": "^2.3.0",
     "@dfinity/principal": "^2.3.0",
     "@dimforge/rapier3d-compat": "^0.15.0",
-    "cannon-es": "^0.20.0",
     "nipplejs": "^0.10.2",
     "peerjs": "^1.5.4",
     "three": "^0.175.0"

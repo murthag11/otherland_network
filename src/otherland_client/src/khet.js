@@ -684,13 +684,22 @@ export async function loadKhet(khetId, { sceneObjects, animationMixers, khetStat
                             .setTranslation(khet.position[0], khet.position[1] + radius, khet.position[2]);
                         rigidBody = viewerState.world.createRigidBody(rigidBodyDesc);
                         const colliderDesc = RAPIER.ColliderDesc.ball(radius)
-                            .setFriction(0.95)
+                            .setFriction(1.0)
                             .setRestitution(0.0);
-                        viewerState.world.createCollider(colliderDesc, rigidBody);
-                        rigidBody.userData = { type: 'avatar' };
+                        const collider = viewerState.world.createCollider(colliderDesc, rigidBody); // Get collider handle
+                        rigidBody.userData = {
+                            type: 'avatar',
+                            colliderHandle: collider.handle // Store the handle
+                        };
                         rigidBody.lockRotations(true, true);
-                        object.position.y = rigidBody.translation().y - radius;
-                        object.rotation.y = Math.PI;
+
+                        // Position the mesh relative to the body's center
+                        object.position.set(
+                            rigidBody.translation().x,
+                            rigidBody.translation().y - radius, // Adjust visual mesh position
+                            rigidBody.translation().z
+                        );
+                        object.rotation.y = Math.PI; // Keep initial rotation if needed
 
                         if (debugPhysics) {
                             const geometry = new THREE.SphereGeometry(radius, 16, 16);
@@ -701,76 +710,36 @@ export async function loadKhet(khetId, { sceneObjects, animationMixers, khetStat
                         }
 
                     } else if (khet.khetType === 'MobileObject') { // Mobile Object
-                        
-                        // Replace single Box with compound body of 8 spheres plus a central sphere
-                    
                         const halfExtents = new THREE.Vector3(size.x / 2, size.y / 2, size.z / 2);
-                        // Sort dimensions to determine smallest, middle, largest
-                        const dimensions = [size.x, size.y, size.z].sort((a, b) => a - b);
-                        const smallest = dimensions[0];
-                        const middle = dimensions[1];
-                        const largest = dimensions[2];
-                    
-                        // Calculate sphere radius for corner spheres
-                        // Calculate central sphere radius (diameter = smallest side, so radius = smallest / 2)
-                        let radius = (smallest < middle / 10 && smallest < largest / 10) ? middle / 10 : smallest / 10;
-                        const centralRadius = smallest / 2;
-                    
-                        // Create compound body
+                        
+                        // Create a dynamic rigid body for the mobile object
                         const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
                             .setTranslation(khet.position[0], khet.position[1] + halfExtents.y, khet.position[2]);
                         rigidBody = viewerState.world.createRigidBody(rigidBodyDesc);
-                        // Define corner positions (offset inward by radius)
-                        const corners = [
-                            new RAPIER.Vector3(halfExtents.x - radius, halfExtents.y - radius, halfExtents.z - radius),
-                            new RAPIER.Vector3(halfExtents.x - radius, halfExtents.y - radius, -halfExtents.z + radius),
-                            new RAPIER.Vector3(-halfExtents.x + radius, halfExtents.y - radius, halfExtents.z - radius),
-                            new RAPIER.Vector3(-halfExtents.x + radius, halfExtents.y - radius, -halfExtents.z + radius),
-                            new RAPIER.Vector3(halfExtents.x - radius, -halfExtents.y + radius, halfExtents.z - radius),
-                            new RAPIER.Vector3(halfExtents.x - radius, -halfExtents.y + radius, -halfExtents.z + radius),
-                            new RAPIER.Vector3(-halfExtents.x + radius, -halfExtents.y + radius, halfExtents.z - radius),
-                            new RAPIER.Vector3(-halfExtents.x + radius, -halfExtents.y + radius, -halfExtents.z + radius)
-                        ];
-                    
-                        // Add corner spheres to body
-                        corners.forEach(offset => {
-                            const colliderDesc = RAPIER.ColliderDesc.ball(radius)
-                                .setTranslation(offset.x, offset.y, offset.z)
-                                .setFriction(0.5)
-                                .setRestitution(0.3);
-                                viewerState.world.createCollider(colliderDesc, rigidBody);
-                        });
-                        // Add central sphere to body at the center
-                    
-                        const centralColliderDesc = RAPIER.ColliderDesc.ball(centralRadius)
+                        
+                        // Create a box collider
+                        const colliderDesc = RAPIER.ColliderDesc.cuboid(halfExtents.x, halfExtents.y, halfExtents.z)
                             .setFriction(0.5)
                             .setRestitution(0.3);
-                            viewerState.world.createCollider(centralColliderDesc, rigidBody);
-                        rigidBody.userData = { type: 'mobileObject' };
-                        // Position body so bottom is at khet.position[1]
-                        object.position.set(rigidBody.translation().x, rigidBody.translation().y, rigidBody.translation().z);
-
+                        const collider = viewerState.world.createCollider(colliderDesc, rigidBody); // Get collider handle
+                        rigidBody.userData = {
+                            type: 'mobileObject',
+                            colliderHandle: collider.handle // Store handle if needed
+                        };
+                        
+                        // Position the visual object to match the physics body
+                        object.position.set(rigidBody.translation().x, rigidBody.translation().y - halfExtents.y, rigidBody.translation().z);
+                        
                         // Optional debug visualization
                         if (debugPhysics) {
-                            const centralGeometry = new THREE.SphereGeometry(centralRadius, 16, 16);
-                            const centralMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
-                            const centralDebugMesh = new THREE.Mesh(centralGeometry, centralMaterial);
-                            centralDebugMesh.position.copy(rigidBody.translation());
-                            viewerState.scene.add(centralDebugMesh);
-                            object.userData.debugMeshes = object.userData.debugMeshes || [];
-                            object.userData.debugMeshes.push(centralDebugMesh);
-                    
-                            // Add corner spheres debug meshes (blue)
-                            corners.forEach(offset => {
-                                const geometry = new THREE.SphereGeometry(radius, 16, 16);
-                                const material = new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: true });
-                                const debugMesh = new THREE.Mesh(geometry, material);
-                                debugMesh.position.copy(rigidBody.translation()).add(offset);
-                                viewerState.scene.add(debugMesh);
-                                object.userData.debugMeshes.push(debugMesh);
-                            });
+                            const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+                            const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+                            const debugMesh = new THREE.Mesh(geometry, material);
+                            debugMesh.position.copy(rigidBody.translation());
+                            viewerState.scene.add(debugMesh);
+                            object.userData.debugMesh = debugMesh;
                         }
-                    } else {
+                    } else { // Scene Objects
                         let vertexOffset = 0;
                         const allVertices = [];
                         const allIndices = [];
@@ -806,10 +775,13 @@ export async function loadKhet(khetId, { sceneObjects, animationMixers, khetStat
                             .setTranslation(object.position.x, object.position.y, object.position.z);
                         rigidBody = viewerState.world.createRigidBody(rigidBodyDesc);
                         const colliderDesc = RAPIER.ColliderDesc.trimesh(vertices, indices)
-                            .setFriction(0.3)
+                            .setFriction(0.8)
                             .setRestitution(0.0);
-                        viewerState.world.createCollider(colliderDesc, rigidBody);
-                        rigidBody.userData = { type: 'sceneObject' };
+                        const collider = viewerState.world.createCollider(colliderDesc, rigidBody); // Get collider handle
+                        rigidBody.userData = {
+                            type: 'sceneObject',
+                            colliderHandle: collider.handle // Store handle if needed
+                        };
 
                         if (debugPhysics) {
                             const geometry = new THREE.BufferGeometry();
@@ -825,17 +797,10 @@ export async function loadKhet(khetId, { sceneObjects, animationMixers, khetStat
                     // Common physics properties
                     rigidBody.setLinearDamping(0.9);
                     rigidBody.setAngularDamping(0.9);
+                    object.userData.body = rigidBody;
                     object.userData = { rigidBody, debugMesh };
                     object.userData.khetType = khet.khetType;
                     console.log(`Khet ${khetId} initial position:`, object.position, 'Body position:', rigidBody.translation());
-
-                    // Avatar
-                    if (isAvatar) {
-                        rigidBody.isGrounded = false;
-                        rigidBody.lastSurfaceHeight = 0;
-                        rigidBody.sizeY = size.y || 1;
-                        object.sizeY = size.y || 1;
-                    }
 
                     // Animations
                     if (khet.animations && khet.animations.length > 0) {

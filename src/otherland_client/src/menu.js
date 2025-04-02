@@ -65,6 +65,8 @@ document.addEventListener('keydown', event => {
     const key = event.key.toLowerCase();
     keys.add(key); // Add pressed key to the set
 
+    console.log(`Key Press detected, Key >${key}<`);
+
     // Handle ESC key seperatly
     if (key === 'escape') {
         escButtonPress();

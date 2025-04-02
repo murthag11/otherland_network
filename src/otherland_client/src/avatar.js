@@ -1,14 +1,17 @@
 // Avatar State
 export const avatarState = {
-    avatarBody: {
-        isGrounded: false,
-        wasGrounded: false,
-        canJump: true
-    },
+    avatarBody: null,
     avatarMesh: null,
     selectedAvatarId: null,
     hasObjectPickedUp: false,
-    collidingWithGround: new Set(),
+    collidingWithGround: new Set(), // remove?
+
+    // Add initial state properties here, they will be updated in animate()
+    isGrounded: false,
+    wasGrounded: false,
+    canJump: true,
+    lastLandingTime: 0, // Initialize landing time
+
 
     setAvatarBody (newBody) {
         this.avatarBody = newBody;
