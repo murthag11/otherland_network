@@ -84,14 +84,14 @@ controls.domElement.ownerDocument.onmousemove = function(event) {
 // Initialize Cannon.js physics world with standard gravity
 export const world = new CANNON.World();
 world.gravity.set(0, -9.82, 0); // Apply Earth-like gravity (m/s²)
-world.broadphase = new CANNON.NaiveBroadphase(); // Use naive broadphase for collision detection
+world.broadphase = new CANNON.SAPBroadphase(world); // Use naive broadphase for collision detection
 world.solver.iterations = 10; // Set solver iterations for physics accuracy
 
-// Enable Box-Trimesh collisions
+/* Enable Box-Trimesh collisions (not supported yet, workaround with planes implemented)
 const boxType = CANNON.Shape.types.BOX;       // 4
 const trimeshType = CANNON.Shape.types.TRIMESH; // 128
 world.collisionMatrix.set(boxType, trimeshType, true);
-world.collisionMatrixPrevious.set(boxType, trimeshType, true);
+world.collisionMatrixPrevious.set(boxType, trimeshType, true); */
 
 // Existing material definitions
 export const groundMaterial = new CANNON.Material('ground');

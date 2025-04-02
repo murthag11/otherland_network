@@ -680,7 +680,7 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                 // Physics body setup
                 let shape, body;
                 const isAvatar = khet.khetType == 'Avatar';
-                const debugPhysics = true;
+                const debugPhysics = false;
                 let debugMesh; 
 
                 if (isAvatar) { // Avatar Physics
@@ -706,11 +706,52 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                     }
 
                 } else if (khet.khetType === 'MobileObject') { // Mobile Object
-                    // Use a Box shape instead of Trimesh for mobile objects
+                    
+                    // Replace single Box with compound body of 8 spheres plus a central sphere
                     const halfExtents = new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2);
-                    shape = new CANNON.Box(halfExtents);
+                
+                    // Sort dimensions to determine smallest, middle, largest
+                    const dimensions = [size.x, size.y, size.z].sort((a, b) => a - b);
+                    const smallest = dimensions[0];
+                    const middle = dimensions[1];
+                    const largest = dimensions[2];
+                
+                    // Calculate sphere radius for corner spheres
+                    let radius;
+                    if (smallest < middle / 10 && smallest < largest / 10) {
+                        radius = middle / 10; // Use middle side if smallest is >10x smaller than others
+                    } else {
+                        radius = smallest / 10; // Default: 1/10 of smallest side
+                    }
+                
+                    // Calculate central sphere radius (diameter = smallest side, so radius = smallest / 2)
+                    const centralRadius = smallest / 2;
+                
+                    // Create compound body
                     body = new CANNON.Body({ mass, material });
-                    body.addShape(shape);
+                
+                    // Define corner positions (offset inward by radius)
+                    const corners = [
+                        new CANNON.Vec3(halfExtents.x - radius, halfExtents.y - radius, halfExtents.z - radius),  // Bottom-front-left
+                        new CANNON.Vec3(halfExtents.x - radius, halfExtents.y - radius, -halfExtents.z + radius), // Bottom-back-left
+                        new CANNON.Vec3(-halfExtents.x + radius, halfExtents.y - radius, halfExtents.z - radius), // Bottom-front-right
+                        new CANNON.Vec3(-halfExtents.x + radius, halfExtents.y - radius, -halfExtents.z + radius), // Bottom-back-right
+                        new CANNON.Vec3(halfExtents.x - radius, -halfExtents.y + radius, halfExtents.z - radius), // Top-front-left
+                        new CANNON.Vec3(halfExtents.x - radius, -halfExtents.y + radius, -halfExtents.z + radius), // Top-back-left
+                        new CANNON.Vec3(-halfExtents.x + radius, -halfExtents.y + radius, halfExtents.z - radius), // Top-front-right
+                        new CANNON.Vec3(-halfExtents.x + radius, -halfExtents.y + radius, -halfExtents.z + radius)  // Top-back-right
+                    ];
+                
+                    // Add corner spheres to body
+                    corners.forEach(offset => {
+                        const sphereShape = new CANNON.Sphere(radius);
+                        body.addShape(sphereShape, offset);
+                    });
+                
+                    // Add central sphere to body at the center
+                    const centralSphereShape = new CANNON.Sphere(centralRadius);
+                    body.addShape(centralSphereShape, new CANNON.Vec3(0, 0, 0));
+                
                     // Position body so bottom is at khet.position[1]
                     body.position.set(
                         khet.position[0],
@@ -718,7 +759,29 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
                         khet.position[2]
                     );
                     object.position.copy(body.position); // Center visual object at body position
-
+                
+                    // Optional debug visualization
+                    if (debugPhysics) {
+                        // Add central sphere debug mesh (green to distinguish from corner spheres)
+                        const centralGeometry = new THREE.SphereGeometry(centralRadius, 16, 16);
+                        const centralMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+                        const centralDebugMesh = new THREE.Mesh(centralGeometry, centralMaterial);
+                        centralDebugMesh.position.copy(body.position);
+                        scene.add(centralDebugMesh);
+                        object.userData.debugMeshes = object.userData.debugMeshes || [];
+                        object.userData.debugMeshes.push(centralDebugMesh);
+                
+                        // Add corner spheres debug meshes (blue)
+                        corners.forEach(offset => {
+                            const geometry = new THREE.SphereGeometry(radius, 16, 16);
+                            const material = new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: true });
+                            const debugMesh = new THREE.Mesh(geometry, material);
+                            debugMesh.position.copy(body.position).add(offset);
+                            scene.add(debugMesh);
+                            object.userData.debugMeshes.push(debugMesh);
+                        });
+                    }
+                
                     console.log('MobileObject body material:', body.material.name, 'position:', body.position.y);
 
                 } else { // Scene Object Physics
