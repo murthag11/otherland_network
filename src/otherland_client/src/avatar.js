@@ -1,9 +1,14 @@
 // Avatar State
 export const avatarState = {
-    avatarBody: null,
+    avatarBody: {
+        isGrounded: false,
+        wasGrounded: false,
+        canJump: true
+    },
     avatarMesh: null,
     selectedAvatarId: null,
     hasObjectPickedUp: false,
+    collidingWithGround: new Set(),
 
     setAvatarBody (newBody) {
         this.avatarBody = newBody;

@@ -684,7 +684,7 @@ export async function loadKhet(khetId, { sceneObjects, animationMixers, khetStat
                             .setTranslation(khet.position[0], khet.position[1] + radius, khet.position[2]);
                         rigidBody = viewerState.world.createRigidBody(rigidBodyDesc);
                         const colliderDesc = RAPIER.ColliderDesc.ball(radius)
-                            .setFriction(0.3)
+                            .setFriction(0.95)
                             .setRestitution(0.0);
                         viewerState.world.createCollider(colliderDesc, rigidBody);
                         rigidBody.userData = { type: 'avatar' };

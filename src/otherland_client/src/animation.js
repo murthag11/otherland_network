@@ -125,6 +125,7 @@ if (isTouchDevice) {
 
 // Speed multiplier function
 function getSpeedMultiplier() {
+    console.log('Shift pressed:', keys.has('shift'))
     if (isTouchDevice) {
         return isSprinting ? 2 : 1;
     } else {
@@ -216,8 +217,37 @@ export function animate() {
             }
 
             // Transform to world space
-            const movementDirection = localDirection.applyQuaternion(viewerState.camera.quaternion);
+            const euler = new THREE.Euler().setFromQuaternion(viewerState.camera.quaternion, 'YXZ');
+            const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), euler.y);
+            const movementDirection = localDirection.applyQuaternion(yawQuaternion);
 
+            // Collision event handling
+            viewerState.eventQueue.drainCollisionEvents((handle1, handle2, started) => {
+                const collider1 = viewerState.world.getCollider(handle1);
+                const collider2 = viewerState.world.getCollider(handle2);
+                const rb1 = viewerState.world.getRigidBody(collider1.parent());
+                const rb2 = viewerState.world.getRigidBody(collider2.parent());
+                let avatarBody, otherBody;
+                if (rb1.userData.type === 'avatar') {
+                    avatarBody = rb1;
+                    otherBody = rb2;
+                } else if (rb2.userData.type === 'avatar') {
+                    avatarBody = rb2;
+                    otherBody = rb1;
+                } else {
+                    return;
+                }
+                if (otherBody.userData.type === 'sceneObject') {
+                    if (started) {
+                        avatarState.collidingWithGround.add(otherBody);
+                    } else {
+                        avatarState.collidingWithGround.delete(otherBody);
+                    }
+                }
+            });
+            avatarState.avatarBody.isGrounded = avatarState.collidingWithGround.size > 0;
+
+            // Actual Movement
             if (avatarState.avatarBody.isGrounded) {
 
                 // Grounded movement: set velocity directly
@@ -239,19 +269,6 @@ export function animate() {
                     );
                 }
             }
-
-            // Grounding check
-            avatarState.avatarBody.isGrounded = false;
-            viewerState.eventQueue.drainCollisionEvents((handle1, handle2, started) => {
-                const collider1 = viewerState.world.getCollider(handle1);
-                const collider2 = viewerState.world.getCollider(handle2);
-                const rb1 = viewerState.world.getRigidBody(collider1.parent());
-                const rb2 = viewerState.world.getRigidBody(collider2.parent());
-                if (started && ((rb1.userData.type === 'avatar' && rb2.userData.type === 'sceneObject') || 
-                                (rb2.userData.type === 'avatar' && rb1.userData.type === 'sceneObject'))) {
-                    avatarState.avatarBody.isGrounded = true;
-                }
-            });
 
             // Jumping logic
             if (keys.has(' ') && avatarState.avatarBody.canJump && avatarState.avatarBody.isGrounded) {
@@ -279,7 +296,7 @@ export function animate() {
 
             // Sync mesh with body and keep upright
             const pos = avatarState.avatarBody.translation();
-            avatarState.avatarMesh.position.set(pos.x, pos.y - avatarState.avatarMesh.sizeY / 2, pos.z);
+            avatarState.avatarMesh.position.set(pos.x, pos.y, pos.z);
             
             // Rotate the avatar's quaternion to match the camera direction
             const targetQuaternion = new THREE.Quaternion().setFromUnitVectors(
@@ -350,5 +367,5 @@ export function animate() {
     });
 
     animationMixers.forEach(mixer => mixer.update(delta));
-    viewerState.renderer.render(viewerState.scene, viewerState.camera);
+    viewerState.renderer.renderAsync(viewerState.scene, viewerState.camera);
 }
