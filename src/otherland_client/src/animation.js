@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import nipplejs from 'nipplejs';
+import RAPIER from '@dimforge/rapier3d-compat';
 
-import { controls, world, scene, camera, sceneObjects, renderer, khetState, cameraController, isAnimating } from './index.js';
+import { viewerState, sceneObjects, khetState, isAnimating } from './index.js';
 import { avatarState } from './avatar.js';
 import { keys, escButtonPress } from './menu.js';
 import { triggerInteraction, preApprovedFunctions } from './interaction.js';
@@ -79,7 +80,7 @@ if (isTouchDevice) {
 
                 // Apply rotation to camera
                 const euler = new THREE.Euler(pitch, yaw, 0, 'YXZ');
-                camera.quaternion.setFromEuler(euler);
+                viewerState.camera.quaternion.setFromEuler(euler);
             }
         }
     });
@@ -97,7 +98,8 @@ if (isTouchDevice) {
     jumpBtn.addEventListener('touchstart', () => {
         if (avatarState.selectedAvatarId !== null) {
             if (avatarState.avatarBody.canJump && avatarState.avatarBody.isGrounded) {
-                avatarState.avatarBody.velocity.y = JUMP_FORCE;
+                const currentVel = avatarState.avatarBody.linvel();
+                avatarState.avatarBody.setLinvel({ x: currentVel.x, y: JUMP_FORCE, z: currentVel.z }, true);
                 avatarState.avatarBody.canJump = false;
             }
         }
@@ -136,18 +138,12 @@ export function animate() {
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
 
-    world.step(1 / 60, delta, 3); // Fixed timestep with accumulation
-
-    world.contacts.forEach(contact => {
-        const mat1 = contact.bi.material;
-        const mat2 = contact.bj.material;
-        console.log(`Contact between ${mat1.name} and ${mat2.name}`);
-    });
+    viewerState.world.step(viewerState.eventQueue);
 
     // Execute Khet Code
     khetState.executors.forEach(executor => executor());
 
-    if (controls.isLocked || isTouchDevice) {
+    if (viewerState.controls.isLocked || isTouchDevice) {
         if (avatarState.avatarMesh && avatarState.avatarBody) {
 
             // Interaction logic
@@ -191,7 +187,7 @@ export function animate() {
 
             // Avatar movement code
             const camDirection = new THREE.Vector3();
-            camera.getWorldDirection(camDirection);
+            viewerState.camera.getWorldDirection(camDirection);
             camDirection.y = 0;
             camDirection.normalize();
 
@@ -220,63 +216,47 @@ export function animate() {
             }
 
             // Transform to world space
-            const movementDirection = localDirection.applyQuaternion(camera.quaternion);
+            const movementDirection = localDirection.applyQuaternion(viewerState.camera.quaternion);
 
             if (avatarState.avatarBody.isGrounded) {
+
                 // Grounded movement: set velocity directly
                 const speedMultiplier = getSpeedMultiplier();
                 const walkSpeed = BASE_SPEED * speedMultiplier;
                 const targetSpeed = walkSpeed * (isTouchDevice ? inputMagnitude : 1);
                 const targetVelocity = movementDirection.clone().multiplyScalar(targetSpeed);
-                avatarState.avatarBody.velocity.set(targetVelocity.x, avatarState.avatarBody.velocity.y, targetVelocity.z);
+                const currentVel = avatarState.avatarBody.linvel();
+                avatarState.avatarBody.setLinvel(new RAPIER.Vector3(targetVelocity.x, currentVel.y, targetVelocity.z), true);
 
-                // Clear preserved velocity when grounded
-                //avatarState.avatarBody.preservedVelocity = null;
             } else {
-                /* In-air movement: preserve velocity and apply slight adjustments
-                if (!avatarState.avatarBody.preservedVelocity) {
-                    // Capture velocity the moment the avatar becomes airborne
-                    avatarState.avatarBody.preservedVelocity = {
-                        x: avatarState.avatarBody.velocity.x,
-                        y: avatarState.avatarBody.velocity.y,
-                        z: avatarState.avatarBody.velocity.z
-                    };
-                } */
-
-                // Set initial horizontal velocity to preserved values
-                //avatarState.avatarBody.velocity.x = avatarState.avatarBody.preservedVelocity.x;
-                //avatarState.avatarBody.velocity.z = avatarState.avatarBody.preservedVelocity.z;
-                // Note: y-velocity is preserved initially but will be modified by gravity via the physics engine
-
-                // Apply slight adjustments based on input
                 if (inputMagnitude > 0) {
                     const adjustmentMagnitude = AIR_ADJUSTMENT_ACCELERATION * (isTouchDevice ? inputMagnitude : 1);
                     const adjustment = movementDirection.clone().multiplyScalar(adjustmentMagnitude);
-                    avatarState.avatarBody.velocity.x += adjustment.x * delta;
-                    avatarState.avatarBody.velocity.z += adjustment.z * delta;
-
-                    // Update preserved velocity to reflect adjustments
-                    //avatarState.avatarBody.preservedVelocity.x = avatarState.avatarBody.velocity.x;
-                    //avatarState.avatarBody.preservedVelocity.z = avatarState.avatarBody.velocity.z;
+                    const currentVel = avatarState.avatarBody.linvel();
+                    avatarState.avatarBody.setLinvel(
+                        new RAPIER.Vector3(currentVel.x + adjustment.x * delta, currentVel.y, currentVel.z + adjustment.z * delta),
+                        true
+                    );
                 }
             }
 
             // Grounding check
             avatarState.avatarBody.isGrounded = false;
-            world.contacts.forEach(contact => {
-                sceneObjects.forEach(obj => {
-                    if (obj.userData && obj.userData.body) {
-                        if ((contact.bi === avatarState.avatarBody && contact.bj === obj.userData.body) || 
-                            (contact.bi === obj.userData.body && contact.bj === avatarState.avatarBody)) {
-                            avatarState.avatarBody.isGrounded = true;
-                        }
-                    }
-                });
+            viewerState.eventQueue.drainCollisionEvents((handle1, handle2, started) => {
+                const collider1 = viewerState.world.getCollider(handle1);
+                const collider2 = viewerState.world.getCollider(handle2);
+                const rb1 = viewerState.world.getRigidBody(collider1.parent());
+                const rb2 = viewerState.world.getRigidBody(collider2.parent());
+                if (started && ((rb1.userData.type === 'avatar' && rb2.userData.type === 'sceneObject') || 
+                                (rb2.userData.type === 'avatar' && rb1.userData.type === 'sceneObject'))) {
+                    avatarState.avatarBody.isGrounded = true;
+                }
             });
 
             // Jumping logic
             if (keys.has(' ') && avatarState.avatarBody.canJump && avatarState.avatarBody.isGrounded) {
-                avatarState.avatarBody.velocity.y = JUMP_FORCE;
+                const currentVel = avatarState.avatarBody.linvel();
+                avatarState.avatarBody.setLinvel({ x: currentVel.x, y: JUMP_FORCE, z: currentVel.z }, true);
                 avatarState.avatarBody.canJump = false;
             }
 
@@ -295,12 +275,11 @@ export function animate() {
             }
 
             // Update camera to follow avatar
-            cameraController.update();
+            viewerState.cameraController.update();
 
             // Sync mesh with body and keep upright
-            avatarState.avatarBody.quaternion.set(0, 0, 0, 1); // Keep avatar upright
-            avatarState.avatarMesh.position.copy(avatarState.avatarBody.position);
-            avatarState.avatarMesh.position.y -= avatarState.avatarMesh.sizeY / 2; // Base at physics body center minus half height
+            const pos = avatarState.avatarBody.translation();
+            avatarState.avatarMesh.position.set(pos.x, pos.y - avatarState.avatarMesh.sizeY / 2, pos.z);
             
             // Rotate the avatar's quaternion to match the camera direction
             const targetQuaternion = new THREE.Quaternion().setFromUnitVectors(
@@ -345,29 +324,31 @@ export function animate() {
             const moveSpeed = 0.1;
             if (isTouchDevice) {
                 // Touch-based camera movement
-                const movementDirection = new THREE.Vector3(moveDirection.x, 0, moveDirection.y).applyQuaternion(camera.quaternion);
-                camera.position.add(movementDirection.multiplyScalar(moveSpeed));
+                const movementDirection = new THREE.Vector3(moveDirection.x, 0, moveDirection.y).applyQuaternion(viewerState.camera.quaternion);
+                viewerState.camera.position.add(movementDirection.multiplyScalar(moveSpeed));
             } else {
-                if (keys.has('w')) controls.moveForward(moveSpeed);
-                if (keys.has('s')) controls.moveForward(-moveSpeed);
-                if (keys.has('a')) controls.moveRight(-moveSpeed);
-                if (keys.has('d')) controls.moveRight(moveSpeed);
-                if (keys.has(' ')) camera.position.y += moveSpeed;
-                if (keys.has('control')) camera.position.y -= moveSpeed;
+                if (keys.has('w')) viewerState.controls.moveForward(moveSpeed);
+                if (keys.has('s')) viewerState.controls.moveForward(-moveSpeed);
+                if (keys.has('a')) viewerState.controls.moveRight(-moveSpeed);
+                if (keys.has('d')) viewerState.controls.moveRight(moveSpeed);
+                if (keys.has(' ')) viewerState.camera.position.y += moveSpeed;
+                if (keys.has('control')) viewerState.camera.position.y -= moveSpeed;
             }
         }
     }
 
     // Sync all scene objects with their physics bodies, skipping picked-up objects
     sceneObjects.forEach(obj => {
-        if (obj.userData && obj.userData.body && !obj.userData.isPickedUp && obj.userData.body.mass > 0) {
-            obj.position.copy(obj.userData.body.position);
+        if (obj.userData && obj.userData.body && !obj.userData.isPickedUp && obj.userData.body.isDynamic()) {
+            const pos = obj.userData.body.translation();
+            obj.position.set(pos.x, pos.y, pos.z);
             if (obj !== avatarState.avatarMesh) {
-                obj.quaternion.copy(obj.userData.body.quaternion);
+                const rot = obj.userData.body.rotation();
+                obj.quaternion.set(rot.x, rot.y, rot.z, rot.w);
             }
         }
     });
 
     animationMixers.forEach(mixer => mixer.update(delta));
-    renderer.render(scene, camera);
+    viewerState.renderer.render(viewerState.scene, viewerState.camera);
 }

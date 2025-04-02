@@ -1,5 +1,5 @@
 // Import necessary components
-import { controls, canvas, scene, sceneObjects, world, worldController, loadAvatarObject, groundMaterial, animationMixers, khetState, cameraController, loadScene, stopAnimation, startAnimation } from './index.js';
+import { canvas, viewerState, sceneObjects, worldController, loadAvatarObject, animationMixers, khetState, loadScene, stopAnimation, startAnimation } from './index.js';
 import { khetController, clearAllKhets } from './khet.js';
 import { nodeSettings, requestNewCanister, getAccessibleCanisters, getCardinalActor } from './nodeManager.js';
 import { initAuth, getIdentity, login, user } from './user.js';
@@ -82,7 +82,7 @@ export function escButtonPress() {
         if (!isGameMenuVisible) {
             gameMenu.style.display = 'flex'; // Show the game menu if it's not visible
             if (!isTouchDevice) {
-                controls.unlock();           // Unlock the pointer controls
+                viewerState.controls.unlock();           // Unlock the pointer controls
             } else {   
                 leaveViewer();               // Leave the viewer when pointer lock is released
             }
@@ -106,7 +106,7 @@ document.addEventListener('contextmenu', function(e){
 // Function to enter the 3d World
 async function enterWorld() {
     // Define the parameters for loadScene and loadAvatarObject
-    const params = { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController };
+    const params = { sceneObjects, animationMixers, khetState };
 
     // Load Scene with params and nodeSettings
     await loadScene(params, nodeSettings);
@@ -117,7 +117,7 @@ async function enterWorld() {
     document.getElementById('main-menu').style.display = 'none';
     const isTouchDevice = 'ontouchstart' in window;
     if (!isTouchDevice) {
-        controls.lock();      // Lock the pointer for game control
+        viewerState.controls.lock();      // Lock the pointer for game control
     } else {   
         enterViewer();        // Enter the viewer when pointer lock is acquired
     }
@@ -306,6 +306,8 @@ function changekhetEditorDrawer(goal) {
 // ### Menu Navigation and UI Toggling
 // Wait for the DOM to load before setting up event listeners
 document.addEventListener('DOMContentLoaded', async () => {
+
+    viewerState.init();
 
     // **Page Switching Function**
     // Helper function to switch between menu pages
@@ -546,7 +548,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         stopAnimation();
 
         if (!isTouchDevice) {
-            controls.unlock();           // Unlock the pointer controls
+            viewerState.controls.unlock();           // Unlock the pointer controls
         } else {   
             // leaveViewer();               // Leave the viewer when pointer lock is released
         }
@@ -578,7 +580,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         gameMenu.style.display = 'none'; // Hide the game menu
         const isTouchDevice = 'ontouchstart' in window;
         if (!isTouchDevice) {
-            controls.lock();      // Lock the pointer for game control
+            viewerState.controls.lock();      // Lock the pointer for game control
         } else {   
             enterViewer();        // Enter the viewer when pointer lock is acquired
         }
@@ -622,7 +624,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.log(`Selected Avatar ${avatar.khetId}`);
 
                 // Load Avatar
-                await worldController.setAvatar(avatar.khetId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
+                await worldController.setAvatar(avatar.khetId, { sceneObjects, animationMixers, khetState });
                 startAnimation(); // Start animation loop
                 stopAnimation();  // Stop animation loop
                 console.log(`Avatar loaded sucessfully`);

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import * as CANNON from 'cannon-es';
+import RAPIER from '@dimforge/rapier3d-compat';
 
 // Import necessary libraries for parsing and interacting with the Internet Computer
 import * as esprima from 'esprima';
@@ -8,10 +8,10 @@ import { Actor, HttpAgent } from '@dfinity/agent';
 import { Principal } from '@dfinity/principal';
 import { idlFactory as userNodeIdlFactory } from '../../declarations/user_node';
 import { nodeSettings } from './nodeManager.js';
-import { avatarMaterial, mobileMaterial, staticMaterial } from './index.js';
 import { authReady, getIdentity } from './user.js';
 import { online } from './peermesh.js';
 import { updateKhetTable } from './menu.js';
+import { viewerState } from './index.js';
 
 // Cardinal canister ID
 const CARDINAL_CANISTER_ID = 'bkyz2-fmaaa-aaaaa-qaaaq-cai';
@@ -620,7 +620,7 @@ export async function loadKhetMeshOnly(khetId, scene) {
 
 // **Load and Render Khet**
 // Load a Khet by ID and add it to the scene
-export async function loadKhet(khetId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState }) {
+export async function loadKhet(khetId, { sceneObjects, animationMixers, khetState }) {
 
     let result = { mesh: null, body: null, isAvatar: false };
 
@@ -640,280 +640,278 @@ export async function loadKhet(khetId, { scene, sceneObjects, world, groundMater
         await new Promise((resolve) => {
             loader.parse(khet.gltfData.buffer, '', (gltf) => {
                 
-                console.log(`Parsing GLTF for Khet ${khetId}`);
-                const object = gltf.scene;
+                try {
+                    console.log(`Parsing GLTF for Khet ${khetId}`);
+                    const object = gltf.scene;
 
-                // Scale Object
-                object.scale.set(khet.scale[0], khet.scale[1], khet.scale[2]);
+                    // Scale Object
+                    object.scale.set(khet.scale[0], khet.scale[1], khet.scale[2]);
 
-                // Add Object to Scene
-                scene.add(object);
-                sceneObjects.push(object);
+                    // Add Object to Scene
+                    viewerState.scene.add(object);
+                    sceneObjects.push(object);
 
-                // Compute bounding box and adjust origin
-                const box = new THREE.Box3().setFromObject(object);
-                const size = box.getSize(new THREE.Vector3());
-                const center = box.getCenter(new THREE.Vector3());
-                const minY = box.min.y; // Lowest point on Y-axis
+                    // Compute bounding box and adjust origin
+                    const box = new THREE.Box3().setFromObject(object);
+                    const size = box.getSize(new THREE.Vector3());
+                    const center = box.getCenter(new THREE.Vector3());
+                    const minY = box.min.y; // Lowest point on Y-axis
 
-                // Adjust object position so bottom is at khet.position[1]
-                object.position.set(
-                    khet.position[0] - center.x, // Center X
-                    khet.position[1] - minY,     // Bottom at khet.position[1]
-                    khet.position[2] - center.z  // Center Z
-                );
-
-                // Determine mass and material based on khetType
-                let mass = 0;
-                let material = staticMaterial;
-                if (khet.khetType === 'Avatar') {
-                    mass = 1;
-                    material = avatarMaterial;
-                } else if (khet.khetType === 'MobileObject') {
-                    mass = 1;
-                    material = mobileMaterial;
-                } else {
-                    mass = 0;
-                    material = staticMaterial;
-                }
-
-                // Physics body setup
-                let shape, body;
-                const isAvatar = khet.khetType == 'Avatar';
-                const debugPhysics = false;
-                let debugMesh; 
-
-                if (isAvatar) { // Avatar Physics
-                    
-                    // Sphere for Avatar
-                    const radius = size.y / 2;
-                    shape = new CANNON.Sphere(radius);
-                    body = new CANNON.Body({ mass, material });
-                    body.addShape(shape);
-                    
-                    // Position body so bottom is at khet.position[1]
-                    body.position.set(khet.position[0], khet.position[1] + radius, khet.position[2]);
-                    object.position.y = body.position.y - radius;
-                    object.rotation.y = Math.PI;
-                    body.fixedRotation = true;
-
-                    if (debugPhysics) {
-                        const geometry = new THREE.SphereGeometry(radius, 16, 16);
-                        const material = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
-                        debugMesh = new THREE.Mesh(geometry, material);
-                        debugMesh.position.copy(body.position);
-                        object.add(debugMesh);
-                    }
-
-                } else if (khet.khetType === 'MobileObject') { // Mobile Object
-                    
-                    // Replace single Box with compound body of 8 spheres plus a central sphere
-                    const halfExtents = new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2);
-                
-                    // Sort dimensions to determine smallest, middle, largest
-                    const dimensions = [size.x, size.y, size.z].sort((a, b) => a - b);
-                    const smallest = dimensions[0];
-                    const middle = dimensions[1];
-                    const largest = dimensions[2];
-                
-                    // Calculate sphere radius for corner spheres
-                    let radius;
-                    if (smallest < middle / 10 && smallest < largest / 10) {
-                        radius = middle / 10; // Use middle side if smallest is >10x smaller than others
-                    } else {
-                        radius = smallest / 10; // Default: 1/10 of smallest side
-                    }
-                
-                    // Calculate central sphere radius (diameter = smallest side, so radius = smallest / 2)
-                    const centralRadius = smallest / 2;
-                
-                    // Create compound body
-                    body = new CANNON.Body({ mass, material });
-                
-                    // Define corner positions (offset inward by radius)
-                    const corners = [
-                        new CANNON.Vec3(halfExtents.x - radius, halfExtents.y - radius, halfExtents.z - radius),  // Bottom-front-left
-                        new CANNON.Vec3(halfExtents.x - radius, halfExtents.y - radius, -halfExtents.z + radius), // Bottom-back-left
-                        new CANNON.Vec3(-halfExtents.x + radius, halfExtents.y - radius, halfExtents.z - radius), // Bottom-front-right
-                        new CANNON.Vec3(-halfExtents.x + radius, halfExtents.y - radius, -halfExtents.z + radius), // Bottom-back-right
-                        new CANNON.Vec3(halfExtents.x - radius, -halfExtents.y + radius, halfExtents.z - radius), // Top-front-left
-                        new CANNON.Vec3(halfExtents.x - radius, -halfExtents.y + radius, -halfExtents.z + radius), // Top-back-left
-                        new CANNON.Vec3(-halfExtents.x + radius, -halfExtents.y + radius, halfExtents.z - radius), // Top-front-right
-                        new CANNON.Vec3(-halfExtents.x + radius, -halfExtents.y + radius, -halfExtents.z + radius)  // Top-back-right
-                    ];
-                
-                    // Add corner spheres to body
-                    corners.forEach(offset => {
-                        const sphereShape = new CANNON.Sphere(radius);
-                        body.addShape(sphereShape, offset);
-                    });
-                
-                    // Add central sphere to body at the center
-                    const centralSphereShape = new CANNON.Sphere(centralRadius);
-                    body.addShape(centralSphereShape, new CANNON.Vec3(0, 0, 0));
-                
-                    // Position body so bottom is at khet.position[1]
-                    body.position.set(
-                        khet.position[0],
-                        khet.position[1] + halfExtents.y,
-                        khet.position[2]
+                    // Adjust object position so bottom is at khet.position[1]
+                    object.position.set(
+                        khet.position[0] - center.x, // Center X
+                        khet.position[1] - minY,     // Bottom at khet.position[1]
+                        khet.position[2] - center.z  // Center Z
                     );
-                    object.position.copy(body.position); // Center visual object at body position
-                
-                    // Optional debug visualization
-                    if (debugPhysics) {
-                        // Add central sphere debug mesh (green to distinguish from corner spheres)
-                        const centralGeometry = new THREE.SphereGeometry(centralRadius, 16, 16);
-                        const centralMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
-                        const centralDebugMesh = new THREE.Mesh(centralGeometry, centralMaterial);
-                        centralDebugMesh.position.copy(body.position);
-                        scene.add(centralDebugMesh);
-                        object.userData.debugMeshes = object.userData.debugMeshes || [];
-                        object.userData.debugMeshes.push(centralDebugMesh);
-                
-                        // Add corner spheres debug meshes (blue)
-                        corners.forEach(offset => {
+
+                    // Determine mass and material based on khetType
+                    let mass = 0;
+
+                    // Physics body setup
+                    let shape, body;
+                    const isAvatar = khet.khetType == 'Avatar';
+                    const debugPhysics = false;
+                    let debugMesh; 
+                    let rigidBody;
+
+                    if (isAvatar) { // Avatar Physics
+                        
+                        // Sphere for Avatar
+                        const radius = size.y / 2;
+                        
+                        // Position body so bottom is at khet.position[1]
+                        const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
+                            .setTranslation(khet.position[0], khet.position[1] + radius, khet.position[2]);
+                        rigidBody = viewerState.world.createRigidBody(rigidBodyDesc);
+                        const colliderDesc = RAPIER.ColliderDesc.ball(radius)
+                            .setFriction(0.3)
+                            .setRestitution(0.0);
+                        viewerState.world.createCollider(colliderDesc, rigidBody);
+                        rigidBody.userData = { type: 'avatar' };
+                        rigidBody.lockRotations(true, true);
+                        object.position.y = rigidBody.translation().y - radius;
+                        object.rotation.y = Math.PI;
+
+                        if (debugPhysics) {
                             const geometry = new THREE.SphereGeometry(radius, 16, 16);
-                            const material = new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: true });
-                            const debugMesh = new THREE.Mesh(geometry, material);
-                            debugMesh.position.copy(body.position).add(offset);
-                            scene.add(debugMesh);
-                            object.userData.debugMeshes.push(debugMesh);
-                        });
-                    }
-                
-                    console.log('MobileObject body material:', body.material.name, 'position:', body.position.y);
-
-                } else { // Scene Object Physics
-                    const vertices = [];
-                    const indices = [];
-                    object.traverse(child => {
-                        if (child.isMesh && child.geometry) {
-                            const geometry = child.geometry.isBufferGeometry ? child.geometry : new THREE.BufferGeometry().fromGeometry(child.geometry);
-                            const position = geometry.attributes.position;
-                            const index = geometry.index;
-                            const matrix = child.matrixWorld;
-                            for (let i = 0; i < position.count; i++) {
-                                const vertex = new THREE.Vector3().fromBufferAttribute(position, i).applyMatrix4(matrix);
-                                vertices.push(vertex.x, vertex.y, vertex.z);
-                            }
-                            if (index) {
-                                for (let i = 0; i < index.count; i += 3) {
-                                    indices.push(index.getX(i), index.getX(i + 1), index.getX(i + 2));
-                                }
-                            }
+                            const material = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
+                            debugMesh = new THREE.Mesh(geometry, material);
+                            debugMesh.position.copy(rigidBody.translation());
+                            object.add(debugMesh);
                         }
-                    });
-                    shape = new CANNON.Trimesh(vertices, indices);
-                    body = new CANNON.Body({ mass, material });
-                    body.addShape(shape);
-                    body.position.copy(object.position);
 
-                    if (debugPhysics) {
-                        const geometry = new THREE.BufferGeometry();
-                        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-                        geometry.setIndex(indices);
-                        const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
-                        debugMesh = new THREE.Mesh(geometry, material);
-                        debugMesh.position.set(
-                            khet.position[0] - center.x,
-                            khet.position[1] - minY,
-                            khet.position[2] - center.z
-                        );
-                        scene.add(debugMesh);
-                    }
+                    } else if (khet.khetType === 'MobileObject') { // Mobile Object
+                        
+                        // Replace single Box with compound body of 8 spheres plus a central sphere
+                    
+                        const halfExtents = new THREE.Vector3(size.x / 2, size.y / 2, size.z / 2);
+                        // Sort dimensions to determine smallest, middle, largest
+                        const dimensions = [size.x, size.y, size.z].sort((a, b) => a - b);
+                        const smallest = dimensions[0];
+                        const middle = dimensions[1];
+                        const largest = dimensions[2];
+                    
+                        // Calculate sphere radius for corner spheres
+                        // Calculate central sphere radius (diameter = smallest side, so radius = smallest / 2)
+                        let radius = (smallest < middle / 10 && smallest < largest / 10) ? middle / 10 : smallest / 10;
+                        const centralRadius = smallest / 2;
+                    
+                        // Create compound body
+                        const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
+                            .setTranslation(khet.position[0], khet.position[1] + halfExtents.y, khet.position[2]);
+                        rigidBody = viewerState.world.createRigidBody(rigidBodyDesc);
+                        // Define corner positions (offset inward by radius)
+                        const corners = [
+                            new RAPIER.Vector3(halfExtents.x - radius, halfExtents.y - radius, halfExtents.z - radius),
+                            new RAPIER.Vector3(halfExtents.x - radius, halfExtents.y - radius, -halfExtents.z + radius),
+                            new RAPIER.Vector3(-halfExtents.x + radius, halfExtents.y - radius, halfExtents.z - radius),
+                            new RAPIER.Vector3(-halfExtents.x + radius, halfExtents.y - radius, -halfExtents.z + radius),
+                            new RAPIER.Vector3(halfExtents.x - radius, -halfExtents.y + radius, halfExtents.z - radius),
+                            new RAPIER.Vector3(halfExtents.x - radius, -halfExtents.y + radius, -halfExtents.z + radius),
+                            new RAPIER.Vector3(-halfExtents.x + radius, -halfExtents.y + radius, halfExtents.z - radius),
+                            new RAPIER.Vector3(-halfExtents.x + radius, -halfExtents.y + radius, -halfExtents.z + radius)
+                        ];
+                    
+                        // Add corner spheres to body
+                        corners.forEach(offset => {
+                            const colliderDesc = RAPIER.ColliderDesc.ball(radius)
+                                .setTranslation(offset.x, offset.y, offset.z)
+                                .setFriction(0.5)
+                                .setRestitution(0.3);
+                                viewerState.world.createCollider(colliderDesc, rigidBody);
+                        });
+                        // Add central sphere to body at the center
+                    
+                        const centralColliderDesc = RAPIER.ColliderDesc.ball(centralRadius)
+                            .setFriction(0.5)
+                            .setRestitution(0.3);
+                            viewerState.world.createCollider(centralColliderDesc, rigidBody);
+                        rigidBody.userData = { type: 'mobileObject' };
+                        // Position body so bottom is at khet.position[1]
+                        object.position.set(rigidBody.translation().x, rigidBody.translation().y, rigidBody.translation().z);
 
-                    console.log('SceneObject body material:', body.material.name);
-                }
+                        // Optional debug visualization
+                        if (debugPhysics) {
+                            const centralGeometry = new THREE.SphereGeometry(centralRadius, 16, 16);
+                            const centralMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+                            const centralDebugMesh = new THREE.Mesh(centralGeometry, centralMaterial);
+                            centralDebugMesh.position.copy(rigidBody.translation());
+                            viewerState.scene.add(centralDebugMesh);
+                            object.userData.debugMeshes = object.userData.debugMeshes || [];
+                            object.userData.debugMeshes.push(centralDebugMesh);
+                    
+                            // Add corner spheres debug meshes (blue)
+                            corners.forEach(offset => {
+                                const geometry = new THREE.SphereGeometry(radius, 16, 16);
+                                const material = new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: true });
+                                const debugMesh = new THREE.Mesh(geometry, material);
+                                debugMesh.position.copy(rigidBody.translation()).add(offset);
+                                viewerState.scene.add(debugMesh);
+                                object.userData.debugMeshes.push(debugMesh);
+                            });
+                        }
+                    } else {
+                        let vertexOffset = 0;
+                        const allVertices = [];
+                        const allIndices = [];
 
-                // Common physics properties
-                body.linearDamping = 0.9;
-                body.angularDamping = 0.9;
-                world.addBody(body);
-                object.userData = { body, debugMesh };
-                object.userData.khetType = khet.khetType;
-                console.log(`Khet ${khetId} initial position:`, object.position, 'Body position:', body.position);
-
-                // Avatar
-                if (isAvatar) {
-                    body.isGrounded = false;
-                    body.lastSurfaceHeight = 0;
-                    body.sizeY = size.y || 1;
-                    object.sizeY = size.y || 1;
-                }
-
-                // Animations
-                if (khet.animations && khet.animations.length > 0) {
-                    console.log(`Khet ${khetId} animations:`, khet.animations);
-                    const mixer = new THREE.AnimationMixer(object);
-                    khet.animations.forEach(([name]) => {
-                        const clip = THREE.AnimationClip.findByName(gltf.animations, name);
-                        if (clip) mixer.clipAction(clip).play();
-                    });
-                    animationMixers.push(mixer);
-                }
-
-                // Textures
-                if (khet.textures && khet.textures.length > 0) {
-                    khet.textures.forEach(([name, blob]) => {
-                        const textureLoader = new THREE.TextureLoader();
-                        const texture = textureLoader.load(URL.createObjectURL(new Blob([blob])));
                         object.traverse(child => {
-                            if (child.isMesh && child.material) {
-                                child.material.map = texture;
+                            if (child.isMesh && child.geometry) {
+                                const geometry = child.geometry.isBufferGeometry ? child.geometry : new THREE.BufferGeometry().fromGeometry(child.geometry);
+                                const position = geometry.attributes.position;
+                                const index = geometry.index;
+
+                                // Collect vertices
+                                for (let i = 0; i < position.count; i++) {
+                                    const vertex = new THREE.Vector3().fromBufferAttribute(position, i).applyMatrix4(child.matrixWorld);
+                                    allVertices.push(vertex.x, vertex.y, vertex.z);
+                                }
+
+                                // Collect indices with offset
+                                if (index) {
+                                    for (let i = 0; i < index.count; i++) {
+                                        allIndices.push(index.getX(i) + vertexOffset);
+                                    }
+                                }
+
+                                // Update offset for the next mesh
+                                vertexOffset += position.count;
                             }
                         });
-                    });
-                }
 
-                // Custom Code
-                if (khet.code && khet.code.length > 0) {
-                    const executor = createKhetCodeExecutor(khet.code[0], object);
-                    const wrappedExecutor = () => {
-                        if (!object.userData.isPickedUp) {
-                            executor();
+                        const vertices = new Float32Array(allVertices);
+                        const indices = new Uint32Array(allIndices);
+
+                        const rigidBodyDesc = RAPIER.RigidBodyDesc.fixed()
+                            .setTranslation(object.position.x, object.position.y, object.position.z);
+                        rigidBody = viewerState.world.createRigidBody(rigidBodyDesc);
+                        const colliderDesc = RAPIER.ColliderDesc.trimesh(vertices, indices)
+                            .setFriction(0.3)
+                            .setRestitution(0.0);
+                        viewerState.world.createCollider(colliderDesc, rigidBody);
+                        rigidBody.userData = { type: 'sceneObject' };
+
+                        if (debugPhysics) {
+                            const geometry = new THREE.BufferGeometry();
+                            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+                            geometry.setIndex(new THREE.Uint32BufferAttribute(indices, 1));
+                            const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+                            debugMesh = new THREE.Mesh(geometry, material);
+                            debugMesh.position.copy(rigidBody.translation());
+                            viewerState.scene.add(debugMesh);
                         }
-                    };
-                    khetState.executors.push(wrappedExecutor);
-                }
+                    }
 
-                // Interaction Points
-                if (khet.khetId && !isAvatar) {
-                    khet.interactionPoints = [
-                        {
-                            position: [-1, 1, -1],
-                            type: 'edit',
-                            content: { property: 'color', value: 'red' },
-                            action: "editProperty"
-                        },
-                        {
-                            position: [1, 1, 1],
-                            type: 'pickup',
-                            content: null,
-                            action: "pickupObject"
-                        }
-                    ];
-                }
-                
-                // Add visual markers for interaction points
-                if (khet.interactionPoints) {
-                    khet.interactionPoints.forEach(point => {
-                        const markerGeometry = new THREE.SphereGeometry(0.1, 10, 10);
-                        const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-                        const marker = new THREE.Mesh(markerGeometry, markerMaterial);
-                        marker.position.set(point.position[0], point.position[1], point.position[2]);
-                        object.add(marker); // Attach marker to the Khet object
-                    });
-                    object.userData.interactionPoints = khet.interactionPoints;
-                }
+                    // Common physics properties
+                    rigidBody.setLinearDamping(0.9);
+                    rigidBody.setAngularDamping(0.9);
+                    object.userData = { rigidBody, debugMesh };
+                    object.userData.khetType = khet.khetType;
+                    console.log(`Khet ${khetId} initial position:`, object.position, 'Body position:', rigidBody.translation());
 
-                // Return Variables
-                result.mesh = object;
-                result.body = body;
-                result.isAvatar = isAvatar;
-                khet.khetType === 'Avatar';
+                    // Avatar
+                    if (isAvatar) {
+                        rigidBody.isGrounded = false;
+                        rigidBody.lastSurfaceHeight = 0;
+                        rigidBody.sizeY = size.y || 1;
+                        object.sizeY = size.y || 1;
+                    }
 
-                resolve();
+                    // Animations
+                    if (khet.animations && khet.animations.length > 0) {
+                        console.log(`Khet ${khetId} animations:`, khet.animations);
+                        const mixer = new THREE.AnimationMixer(object);
+                        khet.animations.forEach(([name]) => {
+                            const clip = THREE.AnimationClip.findByName(gltf.animations, name);
+                            if (clip) mixer.clipAction(clip).play();
+                        });
+                        animationMixers.push(mixer);
+                    }
+
+                    // Textures
+                    if (khet.textures && khet.textures.length > 0) {
+                        khet.textures.forEach(([name, blob]) => {
+                            const textureLoader = new THREE.TextureLoader();
+                            const texture = textureLoader.load(URL.createObjectURL(new Blob([blob])));
+                            object.traverse(child => {
+                                if (child.isMesh && child.material) {
+                                    child.material.map = texture;
+                                }
+                            });
+                        });
+                    }
+
+                    // Custom Code
+                    if (khet.code && khet.code.length > 0) {
+                        const executor = createKhetCodeExecutor(khet.code[0], object);
+                        const wrappedExecutor = () => {
+                            if (!object.userData.isPickedUp) {
+                                executor();
+                            }
+                        };
+                        khetState.executors.push(wrappedExecutor);
+                    }
+
+                    // Interaction Points
+                    if (khet.khetId && !isAvatar) {
+                        khet.interactionPoints = [
+                            {
+                                position: [-1, 1, -1],
+                                type: 'edit',
+                                content: { property: 'color', value: 'red' },
+                                action: "editProperty"
+                            },
+                            {
+                                position: [1, 1, 1],
+                                type: 'pickup',
+                                content: null,
+                                action: "pickupObject"
+                            }
+                        ];
+                    }
+                    
+                    // Add visual markers for interaction points
+                    if (khet.interactionPoints) {
+                        khet.interactionPoints.forEach(point => {
+                            const markerGeometry = new THREE.SphereGeometry(0.1, 10, 10);
+                            const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                            const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+                            marker.position.set(point.position[0], point.position[1], point.position[2]);
+                            object.add(marker); // Attach marker to the Khet object
+                        });
+                        object.userData.interactionPoints = khet.interactionPoints;
+                    }
+
+                    // Return Variables
+                    result.mesh = object;
+                    result.body = rigidBody;
+                    result.isAvatar = isAvatar;
+
+                    resolve();
+                } catch (error) {
+                    console.error(`Error processing Khet ${khetId}:`, error);
+                    resolve(); // Still resolve to continue loading other Khets
+                }
             }, (error) => {
                 console.error(`GLTF parse error for Khet ${khetId}:`, error);
                 resolve(); // Resolve even on error to avoid hanging

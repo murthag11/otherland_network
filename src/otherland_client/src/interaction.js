@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { avatarState } from "./avatar.js";
-import { world, scene, sceneObjects } from "./index.js";
 
 // Pre-approved functions
 export const preApprovedFunctions = {
@@ -53,54 +52,7 @@ export const preApprovedFunctions = {
         } else {
             console.log('No object to place down');
         }
-    },
-
-    /* Pick up Object in World
-    pickupObject: function(content, object) {
-        console.log('Picking up object');
-
-        // Store object for later use
-        this.pickedUpObject = object;
-        avatarState.hasObjectPickedUp = true;
-
-        // Switch anchoring of object from world to avatar
-        world.removeBody(object.userData.body);
-        avatarState.avatarMesh.add(object);
-
-        // Calculate the objects position and orientation in world space based on avatar with offset
-        const offset = new THREE.Vector3(0, 1, -0.3); // y=1 (above), z=-0.3 (in front)
-        object.position.copy(offset); // Set position in world space
-        offset.applyQuaternion(avatarState.avatarMesh.quaternion); // Align with avatar's rotation
-    },
-
-    // Place down Object in World
-    placeObject: function() {
-        console.log('Placing down object');
-
-        // Get object
-        let object = this.pickedUpObject;
-        this.pickedUpObject = null; // Clean up
-        if (object) {
-            avatarState.hasObjectPickedUp = false;
-
-            // Calculate position with offset (1 unit in front of avatar)
-            const offset = new THREE.Vector3(0, 0, -1); // Forward direction (-z in Three.js)
-            offset.applyQuaternion(avatarState.avatarMesh.quaternion); // Apply avatar's rotation
-            const desiredPosition = avatarState.avatarMesh.position.clone().add(offset);
-
-            // Switch anchoring of object from avatar to world
-            avatarState.avatarMesh.remove(object);
-            scene.add(object);
-            sceneObjects.push(object);
-            world.addBody(object.userData.body);
-
-            // Set position and orientation of object in world
-            object.position.copy(desiredPosition);
-            object.userData.body.position.copy(desiredPosition);
-        } else {
-            console.log('No object to place down');
-        }
-    } */
+    }
 };
 
 // Trigger Interaction function

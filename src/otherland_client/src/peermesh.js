@@ -1,7 +1,7 @@
 import Peer from 'peerjs';
 import { nodeSettings } from './nodeManager.js';
 import { Principal } from '@dfinity/principal';
-import { scene } from './index.js';
+import { viewerState } from './index.js';
 import { avatarState } from './avatar.js';
 import { userIsInWorld } from './menu.js';
 import { khetController, loadKhetMeshOnly, saveToCache, getFromCache } from './khet.js';
@@ -148,7 +148,7 @@ export const online = {
     removeConnection: function (peerId) {
         this.connectedPeers.delete(peerId);
         const remote = this.remoteAvatars.get(peerId);
-        if (remote && remote.mesh) scene.remove(remote.mesh);
+        if (remote && remote.mesh) viewerState.scene.remove(remote.mesh);
         this.remoteAvatars.delete(peerId);
         this.remoteAvatarQueue.delete(peerId);
         console.log(`Disconnected from ${peerId}`);
@@ -564,7 +564,7 @@ export const online = {
         for (const [peerId, avatarId] of this.remoteAvatarQueue) {
             const khetData = khetController.khets[avatarId];
             if (khetData && khetData.gltfData) {
-                const mesh = await loadKhetMeshOnly(avatarId, scene);
+                const mesh = await loadKhetMeshOnly(avatarId, viewerState.scene);
                 if (mesh) {
                     this.remoteAvatars.set(peerId, { avatarId, mesh });
                     console.log(`Loaded remote avatar ${avatarId} for peer ${peerId}`);

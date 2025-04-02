@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
 import { WebGPURenderer } from 'three/webgpu';
-import * as CANNON from 'cannon-es';
+import RAPIER, { init } from '@dimforge/rapier3d-compat';
 
 // Import functions for managing Khet objects from khet.js
 import { khetController, loadKhet } from './khet.js';
@@ -10,7 +10,105 @@ import { animate } from './animation.js';
 import { online } from './peermesh.js';
 import { nodeSettings } from './nodeManager.js';
 
-// Control Animation Loop
+// Define Physics world Parameters
+export const canvas = document.getElementById('canvas');
+export const viewerState = {
+    scene: null,
+    camera: null,
+    cameraController: null,
+    renderer: null,
+    world: null,
+    controls: null,
+    eventQueue:null,
+
+    // Initialize Physics World
+    async init () {
+
+        // **Physics World Setup**
+        // Initialize Rapier physics world with standard gravity
+        await RAPIER.init();
+        const gravity = new RAPIER.Vector3(0.0, -9.82, 0.0);
+        this.world = new RAPIER.World(gravity);
+
+        // Check WebGPU support
+        const isWebGPUSupported = !!navigator.gpu;
+
+        // Function to create renderer with fallback
+        function createRenderer(canvas) {
+            if (isWebGPUSupported) {
+                try {
+                    const renderer = new WebGPURenderer({ canvas, antialias: true });
+                    console.log('Using WebGPURenderer');
+                    return renderer;
+                } catch (error) {
+                    console.warn('WebGPURenderer failed to initialize:', error);
+                }
+            }
+            const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+            console.log('Using WebGLRenderer');
+            return renderer;
+        }
+
+        // **Renderer Setup**
+        // Get the canvas element from the DOM and initialize the WebGPU / WebGL renderer
+        this.renderer = createRenderer(canvas);
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+        // **Scene and Background**
+        // Create scene and camera
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x87ceeb);
+
+        // **Camera and Controls**
+        // Set up a perspective camera with a 75-degree FOV
+        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.camera.position.set(0, 1, -2.5); // Position camera slightly above and back from origin
+
+        //Setup Event Queue for Collisions
+        this.eventQueue = new RAPIER.EventQueue(true);
+
+        // Initialize pointer lock controls for first-person navigation
+        this.controls = await new PointerLockControls(this.camera, this.renderer.domElement);
+
+        // Update camera rotation based on mouse movement when controls are locked
+        this.controls.domElement.ownerDocument.onmousemove = function(event) {
+            if (!viewerState.controls.isLocked) return; // Only proceed if controls are locked
+            const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0; // Horizontal mouse delta
+            const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0; // Vertical mouse delta
+            yaw -= movementX * 0.002; // Adjust yaw (horizontal rotation)
+            pitch -= movementY * 0.002; // Adjust pitch (vertical rotation)
+            pitch = Math.max(minPitch, Math.min(maxPitch, pitch)); // Clamp pitch to avoid flipping
+            const euler = new THREE.Euler(pitch, yaw, 0, 'YXZ'); // Create Euler angle in YXZ order
+            viewerState.camera.quaternion.setFromEuler(euler); // Apply rotation to camera
+        };
+
+        // **Lighting**
+        // Add ambient light to illuminate the entire scene
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+        this.scene.add(ambientLight);
+
+        // Add directional light for shadows and depth
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        directionalLight.position.set(1, 1, 1); // Position light above and to the side
+        this.scene.add(directionalLight);
+
+        // Instantiate the camera controller with no initial target
+        this.cameraController = new CameraController(this.camera, null);
+
+        // Add more initialization logic for other variables as needed
+
+        /* Control Animation Loopconst rigidBodyDesc = RAPIER.RigidBodyDesc.fixed();
+        const groundBody = world.createRigidBody(rigidBodyDesc);
+        const colliderDesc = RAPIER.ColliderDesc.cuboid(size / 2, 0.1, size / 2)
+            .setFriction(0.3)
+            .setRestitution(0.0);
+        world.createCollider(colliderDesc, groundBody);
+        groundBody.userData = { type: 'sceneObject' }; */
+    }
+}
+
+// Cleaner: 1 object with property isAnimating and start/stop method (adjust import/exports)
 export let isAnimating = false;
 export function startAnimation() {
     if (!isAnimating) {
@@ -22,115 +120,12 @@ export function stopAnimation() {
     isAnimating = false;
 }
 
-// Check WebGPU support
-const isWebGPUSupported = !!navigator.gpu;
-
-// Function to create renderer with fallback
-function createRenderer(canvas) {
-    if (isWebGPUSupported) {
-        try {
-            const renderer = new WebGPURenderer({ canvas, antialias: true });
-            console.log('Using WebGPURenderer');
-            return renderer;
-        } catch (error) {
-            console.warn('WebGPURenderer failed to initialize:', error);
-        }
-    }
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    console.log('Using WebGLRenderer');
-    return renderer;
-}
-
-// **Renderer Setup**
-// Get the canvas element from the DOM and initialize the WebGPU / WebGL renderer
-export const canvas = document.getElementById('canvas');
-export const renderer = createRenderer(canvas);
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.outputEncoding = THREE.sRGBEncoding;
-
-// **Scene and Background**
-// Create a new Three.js scene and set a sky-blue background
-export const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb);
-
-// **Camera and Controls**
-// Set up a perspective camera with a 75-degree FOV
-export const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 1, -2.5); // Position camera slightly above and back from origin
-
-// Initialize pointer lock controls for first-person navigation
-export const controls = new PointerLockControls(camera, renderer.domElement);
-
 // **Mouse Movement Handling**
 // Define pitch constraints to prevent camera flipping
 const maxPitch = (85 * Math.PI) / 180; // Max upward angle (85 degrees)
 const minPitch = (-85 * Math.PI) / 180; // Max downward angle (-85 degrees)
 let pitch = 0; // Current vertical angle
 let yaw = 0; // Current horizontal angle
-
-// Update camera rotation based on mouse movement when controls are locked
-controls.domElement.ownerDocument.onmousemove = function(event) {
-    if (!controls.isLocked) return; // Only proceed if controls are locked
-    const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0; // Horizontal mouse delta
-    const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0; // Vertical mouse delta
-    yaw -= movementX * 0.002; // Adjust yaw (horizontal rotation)
-    pitch -= movementY * 0.002; // Adjust pitch (vertical rotation)
-    pitch = Math.max(minPitch, Math.min(maxPitch, pitch)); // Clamp pitch to avoid flipping
-    const euler = new THREE.Euler(pitch, yaw, 0, 'YXZ'); // Create Euler angle in YXZ order
-    camera.quaternion.setFromEuler(euler); // Apply rotation to camera
-};
-
-// **Physics World Setup**
-// Initialize Cannon.js physics world with standard gravity
-export const world = new CANNON.World();
-world.gravity.set(0, -9.82, 0); // Apply Earth-like gravity (m/s²)
-world.broadphase = new CANNON.SAPBroadphase(world); // Use naive broadphase for collision detection
-world.solver.iterations = 10; // Set solver iterations for physics accuracy
-
-/* Enable Box-Trimesh collisions (not supported yet, workaround with planes implemented)
-const boxType = CANNON.Shape.types.BOX;       // 4
-const trimeshType = CANNON.Shape.types.TRIMESH; // 128
-world.collisionMatrix.set(boxType, trimeshType, true);
-world.collisionMatrixPrevious.set(boxType, trimeshType, true); */
-
-// Existing material definitions
-export const groundMaterial = new CANNON.Material('ground');
-export const avatarMaterial = new CANNON.Material('avatar');
-export const mobileMaterial = new CANNON.Material('mobile');
-export const staticMaterial = new CANNON.Material('static');
-
-// Existing contact materials
-const avatarGroundContact = new CANNON.ContactMaterial(groundMaterial, avatarMaterial, {
-    friction: 0.3,
-    restitution: 0.0
-});
-world.addContactMaterial(avatarGroundContact);
-
-const mobileGroundContact = new CANNON.ContactMaterial(groundMaterial, mobileMaterial, {
-    friction: 0.3,
-    restitution: 0.0
-});
-world.addContactMaterial(mobileGroundContact);
-
-const avatarMobileContact = new CANNON.ContactMaterial(avatarMaterial, mobileMaterial, {
-    friction: 0.5,
-    restitution: 0.3
-});
-world.addContactMaterial(avatarMobileContact);
-
-// New contact material for static vs. mobile
-const staticMobileContact = new CANNON.ContactMaterial(staticMaterial, mobileMaterial, {
-    friction: 0.3,
-    restitution: 0.0
-});
-world.addContactMaterial(staticMobileContact);
-
-// Optional: Ensure avatar interacts with static objects
-const avatarStaticContact = new CANNON.ContactMaterial(avatarMaterial, staticMaterial, {
-    friction: 0.3,
-    restitution: 0.0
-});
-world.addContactMaterial(avatarStaticContact);
 
 // **Scene Objects and State**
 // Arrays and variables to manage scene objects and animations
@@ -158,7 +153,7 @@ export class CameraController {
 
     // Handle zooming with the mouse wheel
     handleScroll(event) {
-        if (!this.target || !controls.isLocked) return; // Only zoom if target exists and controls are locked
+        if (!this.target || !viewerState.controls.isLocked) return; // Only zoom if target exists and controls are locked
         const zoomDelta = event.deltaY > 0 ? -this.zoomSpeed : this.zoomSpeed; // Zoom in or out
         this.scrollFactor = (this.scrollFactor || 1.0) + zoomDelta; // Adjust scroll factor
         this.scrollFactor = Math.max(0.5, Math.min(1.5, this.scrollFactor)); // Clamp zoom range
@@ -250,25 +245,12 @@ export class CameraController {
     }
 }
 
-// Instantiate the camera controller with no initial target
-export const cameraController = new CameraController(camera, null);
-
-// **Lighting**
-// Add ambient light to illuminate the entire scene
-const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
-scene.add(ambientLight);
-
-// Add directional light for shadows and depth
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-directionalLight.position.set(1, 1, 1); // Position light above and to the side
-scene.add(directionalLight);
-
 // **Window Resize Handling**
 // Update camera and renderer when the window is resized
 window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight; // Update aspect ratio
-    camera.updateProjectionMatrix(); // Recalculate projection
-    renderer.setSize(window.innerWidth, window.innerHeight); // Resize renderer
+    viewerState.camera.aspect = window.innerWidth / window.innerHeight; // Update aspect ratio
+    viewerState.camera.updateProjectionMatrix(); // Recalculate projection
+    viewerState.renderer.setSize(window.innerWidth, window.innerHeight); // Resize renderer
 });
 
 // Online: Detect Quick Connect
@@ -284,6 +266,7 @@ if (onlineParams.peerId) {
     online.quickConnect = true;
     document.getElementById("quick-connect-invitation").style.display = "block";
 };
+
 
 // World Controller
 export const worldController = {
@@ -347,7 +330,7 @@ export const worldController = {
         const khet = this.loadedKhets.get(khetId);
         if (khet) {
             scene.remove(khet.mesh);
-            world.removeBody(khet.body);
+            viewerState.world.removeRigidBody(khet.body);
             this.loadedKhets.delete(khetId);
             if (this.currentAvatarId === khetId) {
                 this.currentAvatarId = null;
@@ -360,14 +343,14 @@ export const worldController = {
         const currentAvatarId = avatarState.getSelectedAvatarId();
 
         if (currentAvatarId && currentAvatarId !== newAvatarId) {        
-            await this.unloadKhet(currentAvatarId, params.scene, params.world);
+            await this.unloadKhet(currentAvatarId, viewerState.scene, viewerState.world);
         }
         const { mesh, body, isAvatar } = await this.loadKhet(newAvatarId, params);
-        if (isAvatar) {  
+        if (isAvatar && mesh) {  
             avatarState.setSelectedAvatarId(newAvatarId);
             avatarState.setAvatarBody(body);
             avatarState.setAvatarMesh(mesh);
-            params.cameraController.setTarget(mesh);
+            viewerState.cameraController.setTarget(mesh);
         } else {
             console.warn(`Khet ${newAvatarId} is not an avatar`); // Improve: Only unload if new khet is Avatar, bypass this case
         }
@@ -385,11 +368,11 @@ export const worldController = {
 };
 
 // Load User Avatar
-export async function loadAvatarObject({ scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController }) {
+export async function loadAvatarObject({ scene, sceneObjects, world, animationMixers, khetState }) {
     const avatarId = avatarState.getSelectedAvatarId();
     console.log("Avatar ID: " + avatarId);
     if (avatarId) {
-        await worldController.setAvatar(avatarId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
+        await worldController.setAvatar(avatarId, { scene, sceneObjects, world, animationMixers, khetState });
     } else {
         console.log("Avatar gets selected automatically");
         const avatars = khetController.getAvatars();
@@ -401,7 +384,7 @@ export async function loadAvatarObject({ scene, sceneObjects, world, groundMater
                 online.send("avatar", avatarId);
             }
 
-            await worldController.setAvatar(avatarId, { scene, sceneObjects, world, groundMaterial, animationMixers, khetState, cameraController });
+            await worldController.setAvatar(avatarId, { scene, sceneObjects, world, animationMixers, khetState });
         } else {
             console.warn("No avatars available to select automatically.");
         }
@@ -416,18 +399,22 @@ async function loadFallbackGround(nodeSettings) {
     const color = nodeSettings.groundPlaneColor || 0x888888;
 
     // Create a physics plane with no mass (static)
-    const groundShape = new CANNON.Plane();
-    const groundBody = new CANNON.Body({ mass: 0, material: groundMaterial });
-    groundBody.addShape(groundShape);
-    groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2); // Rotate to lie flat
-    world.addBody(groundBody); // Add to physics world
+    const rigidBodyDesc = RAPIER.RigidBodyDesc.fixed();
+    const groundBody = viewerState.world.createRigidBody(rigidBodyDesc);
+    const colliderDesc = RAPIER.ColliderDesc.cuboid(size / 2, 0.1, size / 2)
+        .setFriction(0.3)
+        .setRestitution(0.0);
+    viewerState.world.createCollider(colliderDesc, groundBody);
+    groundBody.userData = { type: 'sceneObject' };
+    const rotation = new RAPIER.Quaternion().setFromAxisAngle(new RAPIER.Vector3(1, 0, 0), -Math.PI / 2);
+    groundBody.setRotation(rotation, true);
 
     // Create a visual plane mesh
     const groundGeometry = new THREE.PlaneGeometry(size, size); // Use size from nodeSettings
     const groundMaterialVisual = new THREE.MeshLambertMaterial({ color: color }); // Use color from nodeSettings
     const ground = new THREE.Mesh(groundGeometry, groundMaterialVisual);
     ground.userData = { body: groundBody }; // Link physics body for synchronization
-    scene.add(ground); // Add to scene
+    viewerState.scene.add(ground); // Add to scene
     sceneObjects.push(ground); // Track in scene objects array
     console.log('Loaded fallback ground plane'); // Confirm loading
 }
