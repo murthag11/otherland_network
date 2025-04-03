@@ -627,8 +627,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // Load Avatar
                 await worldController.setAvatar(avatar.khetId, { sceneObjects, animationMixers, khetState });
-                startAnimation(); // Start animation loop
-                stopAnimation();  // Stop animation loop
+                //startAnimation(); // Start animation loop
+                //stopAnimation();  // Stop animation loop
                 console.log(`Avatar loaded sucessfully`);
             });
             avatarButtonsContainer.appendChild(button);

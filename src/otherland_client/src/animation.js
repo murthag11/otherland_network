@@ -17,7 +17,7 @@ export const isTouchDevice = 'ontouchstart' in window;
 // Constants for movement and jumping
 const BASE_SPEED = 4.0;
 const JUMP_FORCE = 7.0;
-const AIR_ADJUSTMENT_ACCELERATION = 15.0; // Small acceleration for slight in-air adjustments (m/s^2)
+const AIR_ADJUSTMENT_ACCELERATION = 1.5; // Small acceleration for slight in-air adjustments (m/s^2)
 const GROUND_RAY_LENGTH = 0.3; // How far below the avatar's origin to check for ground
 const GROUND_RAY_TOLERANCE = 0.1; // Extra tolerance distance
 
@@ -107,7 +107,7 @@ if (isTouchDevice) {
         }
     });
 
-    // Sprint button handler                                                       Combine with other jump logic, not 2 different
+    // Sprint button handler                                                    Combine with other jump logic, not 2 different
     const sprintBtn = document.getElementById('sprint-btn');
     sprintBtn.addEventListener('touchstart', () => {
         isSprinting = true;
@@ -146,34 +146,22 @@ function checkGrounded(world, avatarBody, avatarRadius) {
     }
 
     const bodyPosition = avatarBody.translation();
-    // Ray origin slightly above the bottom sphere center, cast downwards
     const rayOrigin = { x: bodyPosition.x, y: bodyPosition.y, z: bodyPosition.z };
     const rayDirection = { x: 0, y: -1, z: 0 };
-    // Max distance: radius (origin to bottom) + extra length + tolerance
     const maxDistance = avatarRadius + GROUND_RAY_LENGTH + GROUND_RAY_TOLERANCE;
 
     const ray = new RAPIER.Ray(rayOrigin, rayDirection);
-    const filterFlags = RAPIER.QueryFilterFlags.EXCLUDE_DYNAMIC | RAPIER.QueryFilterFlags.EXCLUDE_KINEMATIC; // Adjust if needed
-    const filterGroups = undefined; // Use default groups or specify if needed
-    const excludeCollider = world.getCollider(colliderHandle); // Get collider object to exclude
 
-    if (!excludeCollider) {
-        // console.warn("Could not find avatar collider to exclude from raycast.");
-        return false;
-    }
-    const filter = new RAPIER.QueryFilter(filterFlags, filterGroups, excludeCollider);
+    // Use a filterPredicate to exclude the avatar's collider
+    const filterPredicate = (collider) => collider.handle !== colliderHandle;
 
-    // Cast the ray
-    const hit = world.castRay(ray, maxDistance, true, filter);
+    // Cast the ray with the filterPredicate
+    const hit = world.castRay(ray, maxDistance, true, undefined, undefined, filterPredicate);
 
     if (hit) {
-        // Check if the hit is close enough to be considered grounded
-        // hit.toi is the time-of-impact, effectively the distance along the ray
         const hitDistance = hit.toi;
-        // Consider grounded if hit distance is within radius + tolerance
         return hitDistance < (avatarRadius + GROUND_RAY_TOLERANCE);
     }
-
     return false; // No hit
 }
 
@@ -183,7 +171,7 @@ export function animate() {
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
 
-    viewerState.world.step(viewerState.eventQueue);
+    viewerState.world.step(viewerState.eventQueue, delta);
 
     // Execute Khet Code
     khetState.executors.forEach(executor => executor());
@@ -272,8 +260,12 @@ export function animate() {
             const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), euler.y);
             const movementDirection = localDirection.applyQuaternion(yawQuaternion);
 
+
+            console.log(`Grounded: ${avatarState.isGrounded}, inputMagnitude: ${inputMagnitude}`);
+        
+
             // Actual Movement
-            if (avatarState.avatarBody.isGrounded) {
+            if (avatarState.isGrounded) {
 
                 // Grounded movement: set velocity directly
                 const speedMultiplier = getSpeedMultiplier();
@@ -330,7 +322,7 @@ export function animate() {
 
             // Sync mesh with body and keep upright
             const pos = avatarState.avatarBody.translation();
-            avatarState.avatarMesh.position.set(pos.x, pos.y - avatarRadius, pos.z);
+            avatarState.avatarMesh.position.set(pos.x, pos.y, pos.z);
             
             // Rotate the avatar's quaternion to match the camera direction
             const targetQuaternion = new THREE.Quaternion().setFromUnitVectors(

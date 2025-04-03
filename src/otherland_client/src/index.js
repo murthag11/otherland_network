@@ -111,6 +111,11 @@ export const viewerState = {
 // Cleaner: 1 object with property isAnimating and start/stop method (adjust import/exports)
 export let isAnimating = false;
 export function startAnimation() {
+    if (!RAPIER) {
+        console.error('RAPIER not fully initialized. Delaying animation start.');
+        setTimeout(startAnimation, 100); // Retry after 100ms
+        return;
+    }
     if (!isAnimating) {
         isAnimating = true;
         animate();
