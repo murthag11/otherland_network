@@ -691,6 +691,7 @@ export async function loadKhet(khetId, { sceneObjects, animationMixers, khetStat
                             type: 'avatar',
                             colliderHandle: collider.handle // Store the handle
                         };
+                        console.log(`Avatar collider handle set to: ${collider.handle}, type: ${typeof collider.handle}, raw: ${collider.handle.toString()}`);
                         rigidBody.lockRotations(true, true);
 
                         // Position the mesh relative to the body's center

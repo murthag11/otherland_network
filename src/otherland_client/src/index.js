@@ -1,16 +1,17 @@
+// Import External Dependencies
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
 import { WebGPURenderer } from 'three/webgpu';
 import RAPIER, { init } from '@dimforge/rapier3d-compat';
 
-// Import functions for managing Khet objects from khet.js
+// Import Internal Modules
 import { khetController, loadKhet } from './khet.js';
 import { avatarState } from './avatar.js';
-import { animate } from './animation.js';
+import { animator } from './animation.js';
 import { online } from './peermesh.js';
 import { nodeSettings } from './nodeManager.js';
 
-// Define Physics world Parameters
+// Define Viewer State and init
 export const canvas = document.getElementById('canvas');
 export const viewerState = {
     scene: null,
@@ -20,6 +21,7 @@ export const viewerState = {
     world: null,
     controls: null,
     eventQueue:null,
+    characterController: null,
 
     // Initialize Physics World
     async init () {
@@ -65,8 +67,12 @@ export const viewerState = {
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.camera.position.set(0, 1, -2.5); // Position camera slightly above and back from origin
 
-        //Setup Event Queue for Collisions
+        // Setup Event Queue for Collisions
         this.eventQueue = new RAPIER.EventQueue(true);
+
+        // Setup character controller
+        this.characterController = this.world.createCharacterController(0.01); // Small offset from ground
+        //this.characterController.setMaxSlopeAngle(Math.PI / 4); // Optional: max slope for grounding (45°)
 
         // Initialize pointer lock controls for first-person navigation
         this.controls = await new PointerLockControls(this.camera, this.renderer.domElement);
@@ -95,34 +101,7 @@ export const viewerState = {
 
         // Instantiate the camera controller with no initial target
         this.cameraController = new CameraController(this.camera, null);
-
-        // Add more initialization logic for other variables as needed
-
-        /* Control Animation Loopconst rigidBodyDesc = RAPIER.RigidBodyDesc.fixed();
-        const groundBody = world.createRigidBody(rigidBodyDesc);
-        const colliderDesc = RAPIER.ColliderDesc.cuboid(size / 2, 0.1, size / 2)
-            .setFriction(0.3)
-            .setRestitution(0.0);
-        world.createCollider(colliderDesc, groundBody);
-        groundBody.userData = { type: 'sceneObject' }; */
     }
-}
-
-// Cleaner: 1 object with property isAnimating and start/stop method (adjust import/exports)
-export let isAnimating = false;
-export function startAnimation() {
-    if (!RAPIER) {
-        console.error('RAPIER not fully initialized. Delaying animation start.');
-        setTimeout(startAnimation, 100); // Retry after 100ms
-        return;
-    }
-    if (!isAnimating) {
-        isAnimating = true;
-        animate();
-    }
-}
-export function stopAnimation() {
-    isAnimating = false;
 }
 
 // **Mouse Movement Handling**
@@ -399,29 +378,27 @@ export async function loadAvatarObject({ scene, sceneObjects, world, animationMi
 // **Fallback Ground Plane**
 // Function to add a ground plane if no scene objects are loaded
 async function loadFallbackGround(nodeSettings) {
-
     const size = nodeSettings.groundPlaneSize || 100;
     const color = nodeSettings.groundPlaneColor || 0x888888;
 
     // Create a physics plane with no mass (static)
-    const rigidBodyDesc = RAPIER.RigidBodyDesc.fixed();
+    const rigidBodyDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(0, -0.1, 0);
     const groundBody = viewerState.world.createRigidBody(rigidBodyDesc);
     const colliderDesc = RAPIER.ColliderDesc.cuboid(size / 2, 0.1, size / 2)
         .setFriction(0.3)
         .setRestitution(0.0);
     viewerState.world.createCollider(colliderDesc, groundBody);
     groundBody.userData = { type: 'sceneObject' };
-    const rotation = new RAPIER.Quaternion().setFromAxisAngle(new RAPIER.Vector3(1, 0, 0), -Math.PI / 2);
-    groundBody.setRotation(rotation, true);
 
     // Create a visual plane mesh
-    const groundGeometry = new THREE.PlaneGeometry(size, size); // Use size from nodeSettings
-    const groundMaterialVisual = new THREE.MeshLambertMaterial({ color: color }); // Use color from nodeSettings
+    const groundGeometry = new THREE.PlaneGeometry(size, size);
+    const groundMaterialVisual = new THREE.MeshLambertMaterial({ color: color });
     const ground = new THREE.Mesh(groundGeometry, groundMaterialVisual);
-    ground.userData = { body: groundBody }; // Link physics body for synchronization
-    viewerState.scene.add(ground); // Add to scene
-    sceneObjects.push(ground); // Track in scene objects array
-    console.log('Loaded fallback ground plane'); // Confirm loading
+    ground.position.y = 0; // Top of physics ground is at y=0
+    ground.userData = { body: groundBody };
+    viewerState.scene.add(ground);
+    sceneObjects.push(ground);
+    console.log('Loaded fallback ground plane');
 }
 
 // **Scene Initialization**

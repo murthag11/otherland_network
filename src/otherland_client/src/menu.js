@@ -1,11 +1,11 @@
 // Import necessary components
-import { canvas, viewerState, sceneObjects, worldController, loadAvatarObject, animationMixers, khetState, loadScene, stopAnimation, startAnimation } from './index.js';
+import { canvas, viewerState, sceneObjects, worldController, loadAvatarObject, animationMixers, khetState, loadScene } from './index.js';
 import { khetController, clearAllKhets } from './khet.js';
 import { nodeSettings, requestNewCanister, getAccessibleCanisters, getCardinalActor } from './nodeManager.js';
 import { initAuth, getIdentity, login, user } from './user.js';
 import { online } from './peermesh.js'
 import { avatarState } from './avatar.js'
-import { isTouchDevice } from './animation.js'
+import { animator, isTouchDevice } from './animation.js'
 
 // Declare Variables
 const startScreen = document.getElementById('start-screen');
@@ -41,7 +41,7 @@ function enterViewer() {
         document.getElementById('sprint-btn').style.display = 'none';
         document.getElementById('interact-btn').style.display = 'none';
     }
-    startAnimation();                // Start animation when pointer lock is acquired
+    animator.start();                // Start animation when pointer lock is acquired
 }
 function leaveViewer() {
     const gameMenu = document.getElementById('game-menu');
@@ -547,7 +547,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('main-menu').style.display = 'flex';  // Show the start overlay
         
         userIsInWorld = false;
-        stopAnimation();
+        animator.stop();
 
         if (!isTouchDevice) {
             viewerState.controls.unlock();           // Unlock the pointer controls
@@ -626,9 +626,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.log(`Selected Avatar ${avatar.khetId}`);
 
                 // Load Avatar
-                await worldController.setAvatar(avatar.khetId, { sceneObjects, animationMixers, khetState });
-                //startAnimation(); // Start animation loop
-                //stopAnimation();  // Stop animation loop
+                await worldController.setAvatar(avatar.khetId, { sceneObjects, animationMixers, khetState }); // Start animation for 1 frame?
                 console.log(`Avatar loaded sucessfully`);
             });
             avatarButtonsContainer.appendChild(button);

@@ -6,7 +6,7 @@ export const avatarState = {
     hasObjectPickedUp: false,
     collidingWithGround: new Set(), // remove?
 
-    // Add initial state properties here, they will be updated in animate()
+    // Properties
     isGrounded: false,
     wasGrounded: false,
     canJump: true,
