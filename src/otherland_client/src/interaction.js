@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { avatarState } from "./avatar.js";
+import { viewerState } from "./index.js";
 
 // Pre-approved functions
 export const preApprovedFunctions = {
@@ -32,7 +33,7 @@ export const preApprovedFunctions = {
         offset.applyQuaternion(avatarState.avatarMesh.quaternion); // Align with avatar's rotation
         object.position.copy(avatarState.avatarMesh.position).add(offset); // Set position in world space
         //object.quaternion.copy(avatarState.avatarMesh.quaternion);
-        world.removeBody(object.userData.body); // Remove from physics
+        viewerState.world.removeRigidBody(object.userData.body);; // Remove from physics
     },
 
     // Ensure placeObject remains consistent (assuming it’s already working as desired)
@@ -47,7 +48,7 @@ export const preApprovedFunctions = {
             object.userData.body.velocity.set(0, 0, 0); // Reset velocity
             object.userData.body.angularVelocity.set(0, 0, 0); // Reset angular velocity
             console.log('Body position after placing:', object.userData.body.position);
-            world.addBody(object.userData.body);
+            viewerState.world.addBody(object.userData.body);
             this.pickedUpObject = null;
         } else {
             console.log('No object to place down');

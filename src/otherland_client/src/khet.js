@@ -1,12 +1,15 @@
+// Import External Dependencies
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import RAPIER from '@dimforge/rapier3d-compat';
+import * as esprima from 'esprima';
 
 // Import necessary libraries for parsing and interacting with the Internet Computer
-import * as esprima from 'esprima';
 import { Actor, HttpAgent } from '@dfinity/agent';
 import { Principal } from '@dfinity/principal';
 import { idlFactory as userNodeIdlFactory } from '../../declarations/user_node';
+
+// Import Internal Modules
 import { nodeSettings } from './nodeManager.js';
 import { authReady, getIdentity } from './user.js';
 import { online } from './peermesh.js';
@@ -671,8 +674,7 @@ export async function loadKhet(khetId, { sceneObjects, animationMixers, khetStat
                     let shape, body;
                     const isAvatar = khet.khetType == 'Avatar';
                     const debugPhysics = false;
-                    let debugMesh; 
-                    let rigidBody;
+                    let debugMesh, rigidBody; 
 
                     if (isAvatar) { // Avatar Physics
                         
@@ -680,17 +682,16 @@ export async function loadKhet(khetId, { sceneObjects, animationMixers, khetStat
                         const radius = size.y / 2;
                         
                         // Position body so bottom is at khet.position[1]
-                        const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
+                        let rigidBodyDesc = new RAPIER.RigidBodyDesc(RAPIER.RigidBodyType.Dynamic)
                             .setTranslation(khet.position[0], khet.position[1] + radius, khet.position[2]);
                         rigidBody = viewerState.world.createRigidBody(rigidBodyDesc);
-                        const colliderDesc = RAPIER.ColliderDesc.ball(radius)
-                            .setFriction(1.0)
-                            .setRestitution(0.0);
+                        let rigidBodyHandle = rigidBody.handle;
+
+                        const colliderDesc = new RAPIER.ColliderDesc(new RAPIER.Ball(radius))
+                            .setFriction(1.0);
                         const collider = viewerState.world.createCollider(colliderDesc, rigidBody); // Get collider handle
-                        rigidBody.userData = {
-                            type: 'avatar',
-                            colliderHandle: collider.handle // Store the handle
-                        };
+                        rigidBody.userData = { type: 'avatar', colliderHandle: collider.handle };
+
                         console.log(`Avatar collider handle set to: ${collider.handle}, type: ${typeof collider.handle}, raw: ${collider.handle.toString()}`);
                         rigidBody.lockRotations(true, true);
 
@@ -714,19 +715,16 @@ export async function loadKhet(khetId, { sceneObjects, animationMixers, khetStat
                         const halfExtents = new THREE.Vector3(size.x / 2, size.y / 2, size.z / 2);
                         
                         // Create a dynamic rigid body for the mobile object
-                        const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
+                        let rigidBodyDesc = new RAPIER.RigidBodyDesc(RAPIER.RigidBodyType.Dynamic)
                             .setTranslation(khet.position[0], khet.position[1] + halfExtents.y, khet.position[2]);
                         rigidBody = viewerState.world.createRigidBody(rigidBodyDesc);
+                        let rigidBodyHandle = rigidBody.handle;
                         
                         // Create a box collider
-                        const colliderDesc = RAPIER.ColliderDesc.cuboid(halfExtents.x, halfExtents.y, halfExtents.z)
-                            .setFriction(0.5)
-                            .setRestitution(0.3);
+                        const colliderDesc = new RAPIER.ColliderDesc(new RAPIER.Cuboid(halfExtents.x, halfExtents.y, halfExtents.z))
+                            .setFriction(0.5).setRestitution(0.3);
                         const collider = viewerState.world.createCollider(colliderDesc, rigidBody); // Get collider handle
-                        rigidBody.userData = {
-                            type: 'mobileObject',
-                            colliderHandle: collider.handle // Store handle if needed
-                        };
+                        rigidBody.userData = { type: 'mobileObject', colliderHandle: collider.handle };
                         
                         // Position the visual object to match the physics body
                         object.position.set(rigidBody.translation().x, rigidBody.translation().y - halfExtents.y, rigidBody.translation().z);
@@ -796,8 +794,8 @@ export async function loadKhet(khetId, { sceneObjects, animationMixers, khetStat
                     }
 
                     // Common physics properties
-                    rigidBody.setLinearDamping(0.9);
-                    rigidBody.setAngularDamping(0.9);
+                    //rigidBody.setLinearDamping(0.9);
+                    //rigidBody.setAngularDamping(0.9);
                     object.userData.body = rigidBody;
                     object.userData = { rigidBody, debugMesh };
                     object.userData.khetType = khet.khetType;

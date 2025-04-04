@@ -1,5 +1,5 @@
 // Import necessary components
-import { canvas, viewerState, sceneObjects, worldController, loadAvatarObject, animationMixers, khetState, loadScene } from './index.js';
+import { viewerState, sceneObjects, worldController, animationMixers, khetState } from './index.js';
 import { khetController, clearAllKhets } from './khet.js';
 import { nodeSettings, requestNewCanister, getAccessibleCanisters, getCardinalActor } from './nodeManager.js';
 import { initAuth, getIdentity, login, user } from './user.js';
@@ -16,16 +16,12 @@ const continueGuestBtn = document.getElementById('continue-guest-btn');
 const tabs = document.querySelectorAll('.tab');
 export let userIsInWorld = false;
 
-// ### Pointer Lock State Handling
 // Listen for changes in the pointer lock state to manage game menu visibility
 document.addEventListener('pointerlockchange', () => {
-    if (!document.pointerLockElement) {
-        leaveViewer();                   // Leave the viewer when pointer lock is released
-    } else {
-        enterViewer();                   // Enter the viewer when pointer lock is acquired
-    }
+    if (!document.pointerLockElement) { leaveViewer() } else { enterViewer() }
 });
 
+//
 function enterViewer() {
     userIsInWorld = true;
     document.getElementById('guiLayer').style.display = 'block'; // Hide the GUI layer when pointer lock is acquired
@@ -43,6 +39,8 @@ function enterViewer() {
     }
     animator.start();                // Start animation when pointer lock is acquired
 }
+
+//
 function leaveViewer() {
     const gameMenu = document.getElementById('game-menu');
     gameMenu.style.display = 'flex'; // Show the game menu when pointer lock is released
@@ -56,7 +54,6 @@ function leaveViewer() {
     }, 1250);
 }
 
-// ### Key Input Handling
 // Set to track currently pressed keys
 export const keys = new Set();
 
@@ -65,7 +62,7 @@ document.addEventListener('keydown', event => {
     const key = event.key.toLowerCase();
     keys.add(key); // Add pressed key to the set
 
-    console.log(`Key Press detected, Key >${key}<`);
+    //console.log(`Key Press detected, Key >${key}<`);
 
     // Handle ESC key seperatly
     if (key === 'escape') {
@@ -111,10 +108,7 @@ async function enterWorld() {
     const params = { sceneObjects, animationMixers, khetState };
 
     // Load Scene with params and nodeSettings
-    await loadScene(params, nodeSettings);
-
-    // Load Avatar with params
-    await loadAvatarObject(params);
+    await worldController.loadScene(params, nodeSettings);
 
     document.getElementById('main-menu').style.display = 'none';
     const isTouchDevice = 'ontouchstart' in window;
@@ -123,7 +117,7 @@ async function enterWorld() {
     } else {   
         enterViewer();        // Enter the viewer when pointer lock is acquired
     }
-    canvas.focus();           // Focus on the canvas for input
+    viewerState.canvas.focus();           // Focus on the canvas for input
 }
 
 // Update Khet Table
@@ -586,7 +580,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {   
             enterViewer();        // Enter the viewer when pointer lock is acquired
         }
-        canvas.focus();              // Focus on the canvas for input
+        viewerState.canvas.focus();              // Focus on the canvas for input
     });
 
     // **UI Toggle Checkboxes**

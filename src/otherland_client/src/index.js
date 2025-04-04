@@ -12,22 +12,21 @@ import { online } from './peermesh.js';
 import { nodeSettings } from './nodeManager.js';
 
 // Define Viewer State and init
-export const canvas = document.getElementById('canvas');
 export const viewerState = {
-    scene: null,
-    camera: null,
-    cameraController: null,
+    canvas: document.getElementById('canvas'),
     renderer: null,
+    scene: null,
     world: null,
+    camera: null,
     controls: null,
     eventQueue:null,
+    cameraController: null,
     characterController: null,
 
     // Initialize Physics World
     async init () {
 
-        // **Physics World Setup**
-        // Initialize Rapier physics world with standard gravity
+        // Initialize Rapier physics world
         await RAPIER.init();
         const gravity = new RAPIER.Vector3(0.0, -9.82, 0.0);
         this.world = new RAPIER.World(gravity);
@@ -35,7 +34,7 @@ export const viewerState = {
         // Check WebGPU support
         const isWebGPUSupported = !!navigator.gpu;
 
-        // Function to create renderer with fallback
+        // Create renderer with fallback
         function createRenderer(canvas) {
             if (isWebGPUSupported) {
                 try {
@@ -51,18 +50,15 @@ export const viewerState = {
             return renderer;
         }
 
-        // **Renderer Setup**
-        // Get the canvas element from the DOM and initialize the WebGPU / WebGL renderer
+        // Initialize the WebGPU / WebGL renderer
         this.renderer = createRenderer(canvas);
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-        // **Scene and Background**
         // Create scene and camera
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x87ceeb);
 
-        // **Camera and Controls**
         // Set up a perspective camera with a 75-degree FOV
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.camera.position.set(0, 1, -2.5); // Position camera slightly above and back from origin
@@ -72,7 +68,9 @@ export const viewerState = {
 
         // Setup character controller
         this.characterController = this.world.createCharacterController(0.01); // Small offset from ground
-        //this.characterController.setMaxSlopeAngle(Math.PI / 4); // Optional: max slope for grounding (45°)
+        this.characterController.setMaxSlopeClimbAngle(45 * Math.PI / 180); // Don’t allow climbing slopes larger than 45 degrees.
+        this.characterController.setMinSlopeSlideAngle(30 * Math.PI / 180); // Automatically slide down on slopes smaller than 30 degrees.
+        this.characterController.enableAutostep(0.5, 0.2, true);
 
         // Initialize pointer lock controls for first-person navigation
         this.controls = await new PointerLockControls(this.camera, this.renderer.domElement);
@@ -89,7 +87,6 @@ export const viewerState = {
             viewerState.camera.quaternion.setFromEuler(euler); // Apply rotation to camera
         };
 
-        // **Lighting**
         // Add ambient light to illuminate the entire scene
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
         this.scene.add(ambientLight);
@@ -101,27 +98,36 @@ export const viewerState = {
 
         // Instantiate the camera controller with no initial target
         this.cameraController = new CameraController(this.camera, null);
+
+        // Update camera and renderer when the window is resized
+        window.addEventListener('resize', () => {
+            viewerState.camera.aspect = window.innerWidth / window.innerHeight; // Update aspect ratio
+            viewerState.camera.updateProjectionMatrix(); // Recalculate projection
+            viewerState.renderer.setSize(window.innerWidth, window.innerHeight); // Resize renderer
+        });
+        
+        // Online: Detect Quick Connect
+        const onlineParams = new Proxy(new URLSearchParams(window.location.search), {
+            get: (searchParams, prop) => searchParams.get(prop),});
+        if (onlineParams.standalone) { 
+            document.getElementById("body").requestFullscreen();
+        };
+        console.log("Detecting quick connect ...");
+        if (onlineParams.peerId) {
+            online.remoteID = onlineParams.peerId;
+            console.log('Found, Remote ID:', online.remoteID);
+            online.quickConnect = true;
+            document.getElementById("quick-connect-invitation").style.display = "block";
+        };
     }
 }
 
-// **Mouse Movement Handling**
 // Define pitch constraints to prevent camera flipping
 const maxPitch = (85 * Math.PI) / 180; // Max upward angle (85 degrees)
 const minPitch = (-85 * Math.PI) / 180; // Max downward angle (-85 degrees)
 let pitch = 0; // Current vertical angle
 let yaw = 0; // Current horizontal angle
 
-// **Scene Objects and State**
-// Arrays and variables to manage scene objects and animations
-export const sceneObjects = []; // Store all scene objects
-export const animationMixers = []; // Store animation mixers for animated objects
-
-// State object to hold Khet executors (for custom behaviors)
-export const khetState = {
-    executors: []
-};
-
-// **Camera Controller Class**
 // Class to manage camera positioning relative to a target (e.g., avatar)
 export class CameraController {
     constructor(camera, targetMesh) {
@@ -200,7 +206,6 @@ export class CameraController {
             // Ensure camera stays outside avatar if no intersections
             finalPos = center.clone().add(rayDir.multiplyScalar(this.minDistance));
         }
-
         this.camera.position.copy(finalPos);
     }
 
@@ -229,29 +234,14 @@ export class CameraController {
     }
 }
 
-// **Window Resize Handling**
-// Update camera and renderer when the window is resized
-window.addEventListener('resize', () => {
-    viewerState.camera.aspect = window.innerWidth / window.innerHeight; // Update aspect ratio
-    viewerState.camera.updateProjectionMatrix(); // Recalculate projection
-    viewerState.renderer.setSize(window.innerWidth, window.innerHeight); // Resize renderer
-});
+// Arrays and variables to manage scene objects and animations
+export const sceneObjects = []; // Store all scene objects
+export const animationMixers = []; // Store animation mixers for animated objects
 
-// Online: Detect Quick Connect
-const onlineParams = new Proxy(new URLSearchParams(window.location.search), {
-    get: (searchParams, prop) => searchParams.get(prop),});
-if (onlineParams.standalone) { 
-    document.getElementById("body").requestFullscreen();
+// State object to hold Khet executors (for custom behaviors)
+export const khetState = {
+    executors: []
 };
-console.log("Detecting quick connect ...");
-if (onlineParams.peerId) {
-    online.remoteID = onlineParams.peerId;
-    console.log('Found, Remote ID:', online.remoteID);
-    online.quickConnect = true;
-    document.getElementById("quick-connect-invitation").style.display = "block";
-};
-
-
 // World Controller
 export const worldController = {
     loadedKhets: new Map(), // khetId => { mesh, body, isAvatar }
@@ -322,6 +312,32 @@ export const worldController = {
         }
     },
 
+    // Clear all loaded Khets (optional utility)
+    clearAllKhets(scene, world) {
+        for (const khet of this.loadedKhets.values()) {
+            scene.remove(khet.mesh);
+            world.removeBody(khet.body);
+        }
+        this.loadedKhets.clear();
+        avatarState.setSelectedAvatarId(null);
+    },
+
+    // Initialize the scene
+    async loadScene(params, nodeSettings) {
+        await worldController.syncWithNode(params);
+    
+        // If no scene objects are loaded, add a fallback ground
+        if (!Object.values(khetController.khets).some(khet => khet.khetType === 'SceneObject') && nodeSettings.groundPlane) {
+            await this.loadFallbackGround(nodeSettings);
+        }
+        
+        // Load Avatar with params
+        await this.loadAvatarObject(params);
+    
+        // Load remote avatars after scene is synced
+        await online.loadRemoteAvatars();
+    },
+
     // Set the active avatar, unloading the previous one if necessary
     async setAvatar(newAvatarId, params) { 
         const currentAvatarId = avatarState.getSelectedAvatarId();
@@ -339,78 +355,52 @@ export const worldController = {
             console.warn(`Khet ${newAvatarId} is not an avatar`); // Improve: Only unload if new khet is Avatar, bypass this case
         }
     },
-
-    // Clear all loaded Khets (optional utility)
-    clearAllKhets(scene, world) {
-        for (const khet of this.loadedKhets.values()) {
-            scene.remove(khet.mesh);
-            world.removeBody(khet.body);
-        }
-        this.loadedKhets.clear();
-        avatarState.setSelectedAvatarId(null);
-    }
-};
-
-// Load User Avatar
-export async function loadAvatarObject({ scene, sceneObjects, world, animationMixers, khetState }) {
-    const avatarId = avatarState.getSelectedAvatarId();
-    console.log("Avatar ID: " + avatarId);
-    if (avatarId) {
-        await worldController.setAvatar(avatarId, { scene, sceneObjects, world, animationMixers, khetState });
-    } else {
-        console.log("Avatar gets selected automatically");
-        const avatars = khetController.getAvatars();
-        if (avatars.length > 0) {
-            const avatarId = avatars[0].khetId;
-            avatarState.setSelectedAvatarId(avatarId);
-
-            if (online.connected) {
-                online.send("avatar", avatarId);
-            }
-
+    
+    async loadAvatarObject({ scene, sceneObjects, world, animationMixers, khetState }) {
+        const avatarId = avatarState.getSelectedAvatarId();
+        console.log("Avatar ID: " + avatarId);
+        if (avatarId) {
             await worldController.setAvatar(avatarId, { scene, sceneObjects, world, animationMixers, khetState });
         } else {
-            console.warn("No avatars available to select automatically.");
+            console.log("Avatar gets selected automatically");
+            const avatars = khetController.getAvatars();
+            if (avatars.length > 0) {
+                const avatarId = avatars[0].khetId;
+                avatarState.setSelectedAvatarId(avatarId);
+    
+                if (online.connected) {
+                    online.send("avatar", avatarId);
+                }
+    
+                await worldController.setAvatar(avatarId, { scene, sceneObjects, world, animationMixers, khetState });
+            } else {
+                console.warn("No avatars available to select automatically.");
+            }
         }
+    },
+
+    // Function to add a ground plane if no scene objects are loaded
+    async loadFallbackGround(nodeSettings) {
+        const size = nodeSettings.groundPlaneSize || 100;
+        const color = nodeSettings.groundPlaneColor || 0x888888;
+    
+        // Create a physics plane with no mass (static)
+        const rigidBodyDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(0, -0.1, 0);
+        const groundBody = viewerState.world.createRigidBody(rigidBodyDesc);
+        const colliderDesc = RAPIER.ColliderDesc.cuboid(size / 2, 0.1, size / 2)
+            .setFriction(0.3)
+            .setRestitution(0.0);
+        viewerState.world.createCollider(colliderDesc, groundBody);
+        groundBody.userData = { type: 'sceneObject' };
+    
+        // Create a visual plane mesh
+        const groundGeometry = new THREE.PlaneGeometry(size, size);
+        const groundMaterialVisual = new THREE.MeshLambertMaterial({ color: color });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterialVisual);
+        ground.position.y = 0; // Top of physics ground is at y=0
+        ground.userData = { body: groundBody };
+        viewerState.scene.add(ground);
+        sceneObjects.push(ground);
+        console.log('Loaded fallback ground plane');
     }
-}
-
-// **Fallback Ground Plane**
-// Function to add a ground plane if no scene objects are loaded
-async function loadFallbackGround(nodeSettings) {
-    const size = nodeSettings.groundPlaneSize || 100;
-    const color = nodeSettings.groundPlaneColor || 0x888888;
-
-    // Create a physics plane with no mass (static)
-    const rigidBodyDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(0, -0.1, 0);
-    const groundBody = viewerState.world.createRigidBody(rigidBodyDesc);
-    const colliderDesc = RAPIER.ColliderDesc.cuboid(size / 2, 0.1, size / 2)
-        .setFriction(0.3)
-        .setRestitution(0.0);
-    viewerState.world.createCollider(colliderDesc, groundBody);
-    groundBody.userData = { type: 'sceneObject' };
-
-    // Create a visual plane mesh
-    const groundGeometry = new THREE.PlaneGeometry(size, size);
-    const groundMaterialVisual = new THREE.MeshLambertMaterial({ color: color });
-    const ground = new THREE.Mesh(groundGeometry, groundMaterialVisual);
-    ground.position.y = 0; // Top of physics ground is at y=0
-    ground.userData = { body: groundBody };
-    viewerState.scene.add(ground);
-    sceneObjects.push(ground);
-    console.log('Loaded fallback ground plane');
-}
-
-// **Scene Initialization**
-// Import the animation function and initialize the scene
-export async function loadScene(params, nodeSettings) {
-    await worldController.syncWithNode(params);
-
-    // If no scene objects are loaded, add a fallback ground
-    if (!Object.values(khetController.khets).some(khet => khet.khetType === 'SceneObject') && nodeSettings.groundPlane) {
-        await loadFallbackGround(nodeSettings);
-    }
-
-    // Load remote avatars after scene is synced
-    await online.loadRemoteAvatars();
 }

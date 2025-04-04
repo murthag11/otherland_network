@@ -18,8 +18,8 @@ export const isTouchDevice = 'ontouchstart' in window;
 
 // Constants for movement and jumping
 const BASE_SPEED = 4.0;
+const AIR_ACCELERATION = 7.0; // m/s², controls how quickly the avatar adjusts direction in air
 const JUMP_FORCE = 7.0;
-const AIR_ADJUSTMENT_ACCELERATION = 1.5; // Small acceleration for slight in-air adjustments (m/s^2)
 const GROUND_RAY_LENGTH = 0.3; // How far below the avatar's origin to check for ground
 const GROUND_RAY_TOLERANCE = 0.1; // Extra tolerance distance
 
@@ -29,10 +29,7 @@ let pitch = 0;
 const maxPitch = (85 * Math.PI) / 180; // Limit pitch to ±85 degrees
 const minPitch = (-85 * Math.PI) / 180;
 
-let moveDirection = {
-    x: 0,
-    y: 0
-}; // Joystick
+let moveDirection = { x: 0, y: 0 }; // Joystick
 let isSprinting = false;
 let lastPosition = [null, null, null];
 
@@ -68,6 +65,7 @@ if (isTouchDevice) {
 
     document.addEventListener('touchstart', (event) => {
         for (let touch of event.changedTouches) {
+
             // Use touches outside the joystick zone for camera rotation
             if (!joystickZone.contains(touch.target)) {
                 cameraTouchId = touch.identifier;
@@ -144,7 +142,6 @@ if (isTouchDevice) {
 
 // Speed multiplier function
 function getSpeedMultiplier() {
-    console.log('Shift pressed:', keys.has('shift'))
     if (isTouchDevice) {
         return isSprinting ? 2 : 1;
     } else {
@@ -157,8 +154,8 @@ export const animator = {
 
     isAnimating: false,
 
+    // Start animation Loop
     start() {
-
         if (!RAPIER) {
             console.error('RAPIER not fully initialized. Delaying animation start.');
             setTimeout(animator.start, 100); // Retry after 100ms
@@ -170,76 +167,62 @@ export const animator = {
         }
     },
 
+    // Stop animation Loop
     stop() {
         this.isAnimating = false;
     },
 
+    // Animation Loop
     animate() {
-
         if (!animator.isAnimating) return;
 
+        // Step in Time
         requestAnimationFrame(animator.animate);
         const delta = clock.getDelta();
-
         viewerState.world.step(viewerState.eventQueue, delta);
 
         // Execute Khet Code
         khetState.executors.forEach(executor => executor());
 
+        // Sync all scene objects with their physics bodies, skipping picked-up objects
+        sceneObjects.forEach(obj => {
+            if (obj.userData && obj.userData.body) {
+                console.log(obj);
+                
+                const pos = obj.userData.body.translation();
+                obj.position.set(pos.x, pos.y, pos.z);
+                if (obj !== avatarState.avatarMesh) {
+                    const rot = obj.userData.body.rotation();
+                    obj.quaternion.set(rot.x, rot.y, rot.z, rot.w);
+                }
+            }
+        });
 
+        // Update individual Object Animations
+        animationMixers.forEach(mixer => mixer.update(delta));
+
+        // Own Interaction with World
         if (viewerState.controls.isLocked || isTouchDevice) {
             if (avatarState.avatarMesh && avatarState.avatarBody) {
-
-                // Interaction logic
-                let closestPoint = null;
-                let minDistance = Infinity;
-                document.getElementById("interactionHint").style.display = "none";
-
-                sceneObjects.forEach(obj => {
-                    if (obj.userData && obj.userData.interactionPoints) { // Updated condition
-                        obj.userData.interactionPoints.forEach(point => {
-                            const pointWorldPosition = new THREE.Vector3(
-                                point.position[0], point.position[1], point.position[2]
-                            ).applyMatrix4(obj.matrixWorld);
-
-                            const distance = avatarState.avatarMesh.position.distanceTo(pointWorldPosition);
-                            if (distance < 1.0 && distance < minDistance) {
-                                if (point.action == "pickupObject" && avatarState.hasObjectPickedUp) {
-                                    console.log("Can't pick up more than 1 Objects");
-                                } else {
-                                    document.getElementById("interactionHint").style.display = "block";
-                                    document.getElementById("interactionHint").innerHTML = point.action;
-                                    minDistance = distance;
-                                    closestPoint = {
-                                        point,
-                                        object: obj
-                                    };
-                                }
-                            }
-                        });
-                    }
-                });
-
-                // Handle interaction trigger
-                if (keys.has('f')) {
-                    if (avatarState.hasObjectPickedUp) {
-                        preApprovedFunctions.placeObject();
-                    } else {
-                        if (closestPoint) {
-                            triggerInteraction(closestPoint.point, closestPoint.object);
-                        }
-                    }
-                    keys.delete('f'); // Prevent repeated triggers
-                }
-
-                // Ground check using character controller
+                
                 const collider = avatarState.avatarBody.collider(0);
+                
+                // Verify collider handle (for debugging the 1e-323 issue)
+
+                // Ground detection using character controller
                 const smallDownwardMovement = new RAPIER.Vector3(0, -0.01, 0);
                 viewerState.characterController.computeColliderMovement(collider, smallDownwardMovement);
-                const groundCollision = viewerState.characterController.computedGroundCollision();
-                avatarState.isGrounded = groundCollision !== null;
+                let isGrounded = false;
+                for (let i = 0; i < viewerState.characterController.numComputedCollisions(); i++) {
+                    const collision = viewerState.characterController.computedCollision(i);
+                    if (collision) { // Normal mostly upward indicates ground
+                        isGrounded = true;
+                        break;
+                    }
+                }
+                avatarState.isGrounded = isGrounded;
 
-                // Avatar movement code
+                // Movement logic
                 const camDirection = new THREE.Vector3();
                 viewerState.camera.getWorldDirection(camDirection);
                 camDirection.y = 0;
@@ -274,11 +257,12 @@ export const animator = {
                 const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), euler.y);
                 const movementDirection = localDirection.applyQuaternion(yawQuaternion);
 
+                const speedMultiplier = getSpeedMultiplier();
+
                 // Avatar  Movement
                 if (avatarState.isGrounded) {
 
                     // Grounded movement: set velocity directly
-                    const speedMultiplier = getSpeedMultiplier();
                     const walkSpeed = BASE_SPEED * speedMultiplier;
                     const targetSpeed = walkSpeed * (isTouchDevice ? inputMagnitude : 1);
                     const targetVelocity = movementDirection.clone().multiplyScalar(targetSpeed);
@@ -288,10 +272,24 @@ export const animator = {
 
                 } else { // In-Air Movement
                     if (inputMagnitude > 0) {
-                        const adjustmentMagnitude = AIR_ADJUSTMENT_ACCELERATION * (isTouchDevice ? inputMagnitude : 1);
-                        const adjustment = movementDirection.clone().multiplyScalar(adjustmentMagnitude * delta);
+                        const accelerationMagnitude = AIR_ACCELERATION * (isTouchDevice ? inputMagnitude : 1) * speedMultiplier;
+                        const acceleration = movementDirection.clone().multiplyScalar(accelerationMagnitude);
+                        const deltaV = acceleration.multiplyScalar(delta);
+                        
                         const currentVel = avatarState.avatarBody.linvel();
-                        avatarState.avatarBody.addForce(new RAPIER.Vector3(adjustment.x, 0, adjustment.z), true);
+                        const currentVelVec3 = new THREE.Vector3(currentVel.x, currentVel.y, currentVel.z);
+                        
+                        let newVelVec3 = currentVelVec3.add(deltaV);
+                        
+                        // Calculate and clamp horizontal speed
+                        const horizontalVel = new THREE.Vector3(newVelVec3.x, 0, newVelVec3.z);
+                        const horizontalSpeed = horizontalVel.length();
+                        
+                        if (horizontalSpeed > ( speedMultiplier == 1 ? BASE_SPEED : BASE_SPEED * 2)) {
+                            newVelVec3 = currentVelVec3.sub(deltaV);
+                        }
+                        
+                        avatarState.avatarBody.setLinvel(new RAPIER.Vector3(newVelVec3.x, newVelVec3.y, newVelVec3.z), true);
                     }
                 }
 
@@ -350,6 +348,48 @@ export const animator = {
                     z: 0,
                     w: currentRotation.w
                 }, true);
+                
+                // Interaction logic
+                let closestPoint = null;
+                let minDistance = Infinity;
+                document.getElementById("interactionHint").style.display = "none";
+
+                sceneObjects.forEach(obj => {
+                    if (obj.userData && obj.userData.interactionPoints) { // Updated condition
+                        obj.userData.interactionPoints.forEach(point => {
+                            const pointWorldPosition = new THREE.Vector3(
+                                point.position[0], point.position[1], point.position[2]
+                            ).applyMatrix4(obj.matrixWorld);
+
+                            const distance = avatarState.avatarMesh.position.distanceTo(pointWorldPosition);
+                            if (distance < 1.0 && distance < minDistance) {
+                                if (point.action == "pickupObject" && avatarState.hasObjectPickedUp) {
+                                    console.log("Can't pick up more than 1 Objects");
+                                } else {
+                                    document.getElementById("interactionHint").style.display = "block";
+                                    document.getElementById("interactionHint").innerHTML = point.action;
+                                    minDistance = distance;
+                                    closestPoint = {
+                                        point,
+                                        object: obj
+                                    };
+                                }
+                            }
+                        });
+                    }
+                });
+
+                // Handle interaction trigger
+                if (keys.has('f')) {
+                    if (avatarState.hasObjectPickedUp) {
+                        preApprovedFunctions.placeObject();
+                    } else {
+                        if (closestPoint) {
+                            triggerInteraction(closestPoint.point, closestPoint.object);
+                        }
+                    }
+                    keys.delete('f'); // Prevent repeated triggers
+                }
 
                 // Update picked-up object position to follow avatar
                 if (avatarState.hasObjectPickedUp && preApprovedFunctions.pickedUpObject) {
@@ -408,21 +448,6 @@ export const animator = {
                 }
             }
         }
-
-        // Sync all scene objects with their physics bodies, skipping picked-up objects
-        sceneObjects.forEach(obj => {
-            if (obj.userData && obj.userData.body && !obj.userData.isPickedUp /* && obj.userData.body.isDynamic() */ ) {
-                const pos = obj.userData.body.translation();
-                obj.position.set(pos.x, pos.y, pos.z);
-                if (obj !== avatarState.avatarMesh) {
-                    const rot = obj.userData.body.rotation();
-                    obj.quaternion.set(rot.x, rot.y, rot.z, rot.w);
-                }
-            }
-        });
-
-        // Update individual Object Animations
-        animationMixers.forEach(mixer => mixer.update(delta));
 
         // Render the Frame
         viewerState.renderer.renderAsync(viewerState.scene, viewerState.camera);
