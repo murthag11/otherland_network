@@ -18,7 +18,7 @@ export const isTouchDevice = 'ontouchstart' in window;
 
 // Constants for movement and jumping
 const BASE_SPEED = 4.0;
-const AIR_ACCELERATION = 7.0; // m/s², controls how quickly the avatar adjusts direction in air
+const AIR_ACCELERATION = 15.0; // m/s², controls how quickly the avatar adjusts direction in air
 const JUMP_FORCE = 7.0;
 const GROUND_RAY_LENGTH = 0.3; // How far below the avatar's origin to check for ground
 const GROUND_RAY_TOLERANCE = 0.1; // Extra tolerance distance
@@ -184,30 +184,11 @@ export const animator = {
         // Execute Khet Code
         khetState.executors.forEach(executor => executor());
 
-        // Sync all scene objects with their physics bodies, skipping picked-up objects
-        sceneObjects.forEach(obj => {
-            if (obj.userData && obj.userData.body) {
-                console.log(obj);
-                
-                const pos = obj.userData.body.translation();
-                obj.position.set(pos.x, pos.y, pos.z);
-                if (obj !== avatarState.avatarMesh) {
-                    const rot = obj.userData.body.rotation();
-                    obj.quaternion.set(rot.x, rot.y, rot.z, rot.w);
-                }
-            }
-        });
-
-        // Update individual Object Animations
-        animationMixers.forEach(mixer => mixer.update(delta));
-
         // Own Interaction with World
         if (viewerState.controls.isLocked || isTouchDevice) {
             if (avatarState.avatarMesh && avatarState.avatarBody) {
                 
                 const collider = avatarState.avatarBody.collider(0);
-                
-                // Verify collider handle (for debugging the 1e-323 issue)
 
                 // Ground detection using character controller
                 const smallDownwardMovement = new RAPIER.Vector3(0, -0.01, 0);
@@ -272,7 +253,7 @@ export const animator = {
 
                 } else { // In-Air Movement
                     if (inputMagnitude > 0) {
-                        const accelerationMagnitude = AIR_ACCELERATION * (isTouchDevice ? inputMagnitude : 1) * speedMultiplier;
+                        const accelerationMagnitude = AIR_ACCELERATION * (isTouchDevice ? inputMagnitude : 1);
                         const acceleration = movementDirection.clone().multiplyScalar(accelerationMagnitude);
                         const deltaV = acceleration.multiplyScalar(delta);
                         
@@ -448,6 +429,39 @@ export const animator = {
                 }
             }
         }
+
+        // Sync all scene objects with their physics bodies, skipping picked-up objects
+        sceneObjects.forEach(obj => {
+            if (obj.userData && obj.userData.body && !obj.userData.isAvatar /* && obj.khet.khetType!=="SceneObject"*/) {
+                
+                if (obj.userData.isPickedUp) {
+                    
+                // Calculate the offset in world space based on avatar's position and orientation
+                const offset = new THREE.Vector3(0, 1, 1); // y=1 (above), z=-0.3 (in front)
+                offset.applyQuaternion(avatarState.avatarMesh.quaternion); // Align with avatar's rotation
+                obj.position.copy(avatarState.avatarMesh.position).add(offset); // Set position in world space
+
+                // Sync mesh with body
+                const pos = obj.userData.body.translation();
+                obj.position.set(pos.x, pos.y, pos.z);
+
+                } else {
+
+                    // Posiotion
+                    const pos = obj.userData.body.translation();
+                    obj.position.set(pos.x, pos.y, pos.z);
+
+                    // Rotation
+                    if (obj !== avatarState.avatarMesh) {
+                        const rot = obj.userData.body.rotation();
+                        obj.quaternion.set(rot.x, rot.y, rot.z, rot.w);
+                    }
+                }
+            }
+        });
+
+        // Update individual Object Animations
+        animationMixers.forEach(mixer => mixer.update(delta));
 
         // Render the Frame
         viewerState.renderer.renderAsync(viewerState.scene, viewerState.camera);

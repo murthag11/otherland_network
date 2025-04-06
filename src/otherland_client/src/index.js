@@ -397,6 +397,7 @@ export const worldController = {
         const groundGeometry = new THREE.PlaneGeometry(size, size);
         const groundMaterialVisual = new THREE.MeshLambertMaterial({ color: color });
         const ground = new THREE.Mesh(groundGeometry, groundMaterialVisual);
+        ground.rotation.x = -Math.PI / 2;
         ground.position.y = 0; // Top of physics ground is at y=0
         ground.userData = { body: groundBody };
         viewerState.scene.add(ground);
