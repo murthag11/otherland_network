@@ -57,4 +57,4 @@ https://internetcomputer.org/docs/building-apps/getting-started/install
 
 `Participate`
 
-If you are working on something similar or find this idea interesting, don't heitate to make contact.
+If you are working on something similar or find this idea interesting, don't hesitate to make contact.
