@@ -9,6 +9,7 @@ export const avatarState = {
     // Properties
     isGrounded: false,
     wasGrounded: false,
+    lastGroundedY: 0,
     canJump: true,
     lastLandingTime: 0, // Initialize landing time
 

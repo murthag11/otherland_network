@@ -597,6 +597,13 @@ canvas {
       right: 20px;
       width: 250px;
       height: 250px;
+
+      #mini-map-canvas {
+          width: 200px;
+          height: 200px;
+          border: 2px solid black;
+          background-color: #333;
+      }
     }
   }
 }

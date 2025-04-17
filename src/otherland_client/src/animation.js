@@ -329,6 +329,23 @@ export const animator = {
                     z: 0,
                     w: currentRotation.w
                 }, true);
+
+                // Update mini-map camera and player indicator
+                if (avatarState.avatarMesh) {
+                    const playerPos = avatarState.avatarMesh.position;
+                    if (avatarState.isGrounded) {
+                        avatarState.lastGroundedY = playerPos.y;
+                    }
+                    const playerBaseY = avatarState.lastGroundedY; // Avatar's base height
+
+                    // Position mini-map camera 2.5 units above avatar's base
+                    viewerState.miniMapCamera.position.set(playerPos.x, playerBaseY + 2.5, playerPos.z);
+                    viewerState.miniMapCamera.lookAt(playerPos.x, playerBaseY, playerPos.z);
+
+                    // Update player indicator position
+                    viewerState.playerIndicator.position.copy(playerPos);
+                    viewerState.playerIndicator.position.y += 0.1; // Slight offset to avoid clipping
+                }
                 
                 // Interaction logic
                 let closestPoint = null;
@@ -463,7 +480,10 @@ export const animator = {
         // Update individual Object Animations
         animationMixers.forEach(mixer => mixer.update(delta));
 
-        // Render the Frame
+        // Render main scene
         viewerState.renderer.renderAsync(viewerState.scene, viewerState.camera);
+
+        // Render mini-map
+        viewerState.miniMapRenderer.render(viewerState.scene, viewerState.miniMapCamera);
     }
 }

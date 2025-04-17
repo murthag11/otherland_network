@@ -22,6 +22,9 @@ export const viewerState = {
     eventQueue:null,
     cameraController: null,
     characterController: null,
+    miniMapCamera: null,      // Add mini-map camera
+    miniMapRenderer: null,    // Add mini-map renderer
+    playerIndicator: null,    // Add player indicator
 
     // Initialize Physics World
     async init () {
@@ -105,6 +108,28 @@ export const viewerState = {
             viewerState.camera.updateProjectionMatrix(); // Recalculate projection
             viewerState.renderer.setSize(window.innerWidth, window.innerHeight); // Resize renderer
         });
+
+        // Mini-Map Setup
+        const miniMapCanvas = document.getElementById('mini-map-canvas');
+        this.miniMapRenderer = new THREE.WebGLRenderer({ canvas: miniMapCanvas, antialias: true });
+        this.miniMapRenderer.setSize(250, 250); // Match CSS size
+
+        const zoom = 25; // Half-width of the view area (50x50 units total)
+        this.miniMapCamera = new THREE.OrthographicCamera(-zoom, zoom, zoom, -zoom, 0.1, 200);
+        this.miniMapCamera.position.set(0, 2.5, 0); // Initial position above origin
+        this.miniMapCamera.lookAt(0, 0, 0);
+
+        // Player Indicator
+        const indicatorGeometry = new THREE.SphereGeometry(0.5, 8, 8);
+        const indicatorMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        this.playerIndicator = new THREE.Mesh(indicatorGeometry, indicatorMaterial);
+        this.playerIndicator.layers.set(1); // Assign to layer 1
+        this.scene.add(this.playerIndicator);
+
+        // Configure camera layers
+        this.camera.layers.set(0); // Main camera sees only layer 0
+        this.miniMapCamera.layers.enable(0); // Mini-map sees layer 0 (scene)
+        this.miniMapCamera.layers.enable(1); // Mini-map also sees layer 1 (indicator)
         
         // Online: Detect Quick Connect
         const onlineParams = new Proxy(new URLSearchParams(window.location.search), {
