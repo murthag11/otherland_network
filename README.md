@@ -12,7 +12,7 @@ https://www.youtube.com/@Otherland_Network
 `Tech Stack`
 
 - Dfinity ICP Application
-- written in motoko and html5/css/js
+- written in Motoko and HTML5 / CSS / JS
 - using three.js for 3D Rendering
 - using Rapier as Physics Engine
 - using peer.js for P2P communication
@@ -26,7 +26,7 @@ Caches data of nodes with hash, loads data from cache if hash stayed the same \
 Subscribes to other entities via WebRTC to stream their position, movement, etc. \
 Broadcasts own location, movement, etc. at WebRTC address deposited in the node \
 Renders the view of the environment and entities, animated with program code \
-Reacts to basic gestures from the user provides menu options Basic User Interface \
+Reacts to basic gestures from the user provides menu options Basic User Interface
 
 `Future Roadmap`
 
@@ -35,7 +35,7 @@ Implementing functionality to placeholdes UI areas:
 - Friends list
 - Mini Map
 - Inventory
-- Interaction Points
+- Interaction Points \
 Keeping a contact list with direct calling, messaging and data sharing \
 Reduce own visibility further, no presence marker, only register in the node \
 Automate user movement & gestures with pre recorded macros \
