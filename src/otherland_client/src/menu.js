@@ -3,6 +3,7 @@ import { viewerState, sceneObjects, worldController, animationMixers, khetState 
 import { khetController, clearAllKhets } from './khet.js';
 import { nodeSettings, requestNewCanister, getAccessibleCanisters, getCardinalActor } from './nodeManager.js';
 import { initAuth, getIdentity, login, user } from './user.js';
+import { chat } from './chat.js';
 import { online } from './peermesh.js'
 import { avatarState } from './avatar.js'
 import { animator, isTouchDevice } from './animation.js'
@@ -708,4 +709,49 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
         reader.readAsArrayBuffer(file);
     });
+
+    // Chat Initialization
+    const chatMessages = document.getElementById('chat-messages');
+    const chatInput = document.getElementById('chat-input');
+    const sendChatBtn = document.getElementById('send-chat-btn');
+
+    // Display incoming messages
+    chat.onMessage((message) => {
+        const msgDiv = document.createElement('div');
+        msgDiv.textContent = `[${new Date(message.timestamp).toLocaleTimeString()}] ${message.sender}: ${message.text}`;
+        chatMessages.appendChild(msgDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll to latest message
+    });
+
+    // Send message on button click
+    sendChatBtn.addEventListener('click', async () => {
+        const text = chatInput.value.trim();
+        if (text) {
+            await chat.sendMessage(text);
+            chatInput.value = ''; // Clear input
+        }
+    });
+
+    // Send message on Enter key press
+    chatInput.addEventListener('keypress', async (e) => {
+        if (e.key === 'Enter') {
+            const text = chatInput.value.trim();
+            if (text) {
+                await chat.sendMessage(text);
+                chatInput.value = '';
+            }
+        }
+    });
+
+    // Fetch message history if in canister mode
+    if (nodeSettings.nodeType === 2 || nodeSettings.nodeType === 3) {
+        chat.getMessageHistory().then(history => {
+            history.forEach(message => {
+                const msgDiv = document.createElement('div');
+                msgDiv.textContent = `[${new Date(message.timestamp).toLocaleTimeString()}] ${message.sender}: ${message.text}`;
+                chatMessages.appendChild(msgDiv);
+            });
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        });
+    }
 });

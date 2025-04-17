@@ -18,6 +18,8 @@ actor UserNode {
     stable var hashToBlobIdStore : [(Text, (Text, Bool))] = [];
     stable var blobStoreStable : [(Text, [(Nat, Blob)])] = [];
     stable var blobMetaStoreStable : [(Text, Nat)] = [];
+    stable var messages : [Message] = [];
+    let MAX_MESSAGES = 100;
 
     // **In-Memory HashMaps**
     var allowedReaders = HashMap.fromIter<Principal, ()>(allowedReadersEntries.vals(), 10, Principal.equal, Principal.hash);
@@ -31,6 +33,12 @@ actor UserNode {
     public type Position = (Float, Float, Float);
     public type Size = (Float, Float, Float);
     public type Scale = (Float, Float, Float);
+
+    type Message = {
+        sender: Text;
+        text: Text;
+        timestamp: Int;
+    };
 
     public type KhetMetadata = {
         khetId : Text;
@@ -311,5 +319,16 @@ actor UserNode {
     public func clearBlobs() : async () {
         blobStore := HashMap.HashMap<Text, [(Nat, Blob)]>(10, Text.equal, Text.hash); // Reset chunk storage
         blobMetaStore := HashMap.HashMap<Text, Nat>(10, Text.equal, Text.hash); // Reset metadata storage
+    };
+
+    public func sendChatMessage(message: Message) : async () {
+        messages := Array.append([message], messages);
+        if (messages.size() > MAX_MESSAGES) {
+            messages := Array.subArray(messages, 0, MAX_MESSAGES);
+        };
+    };
+
+    public query func getChatHistory() : async [Message] {
+        messages;
     };
 };

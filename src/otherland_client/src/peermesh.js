@@ -410,6 +410,15 @@ export const online = {
                     }
                     break;
 
+                case "chat":
+                    if (this.isHosting) {
+                        for (const conn of this.connectedPeers.values()) {
+                            if (conn.peer !== peerId) conn.send({ type: "chat", value: data.value });
+                        }
+                    }
+                    this.receive("chat", data.value);
+                    break;
+
                 default:
                     console.log(`Unknown data type from ${peerId}:`, data);
             }

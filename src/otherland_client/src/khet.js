@@ -23,7 +23,7 @@ let agentInstance = null;
 let userNodeActor = null;
 
 // Initialize cardinal agent actor with user identity
-async function getUserNodeActor() {
+export async function getUserNodeActor() {
 
     // Create HTTP Agent with Internet Identity
     if (!agentInstance) {
