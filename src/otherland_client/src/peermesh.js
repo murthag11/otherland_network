@@ -4,6 +4,7 @@ import { Principal } from '@dfinity/principal';
 import { viewerState } from './index.js';
 import { avatarState } from './avatar.js';
 import { userIsInWorld } from './menu.js';
+import { chat } from './chat.js';
 import { khetController, loadKhetMeshOnly, saveToCache, getFromCache } from './khet.js';
 
 function prepareForSending(khet) {
@@ -416,7 +417,7 @@ export const online = {
                             if (conn.peer !== peerId) conn.send({ type: "chat", value: data.value });
                         }
                     }
-                    this.receive("chat", data.value);
+                    chat.receiveMessage(data.value);
                     break;
 
                 default:

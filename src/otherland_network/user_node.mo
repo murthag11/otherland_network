@@ -19,7 +19,6 @@ actor UserNode {
     stable var blobStoreStable : [(Text, [(Nat, Blob)])] = [];
     stable var blobMetaStoreStable : [(Text, Nat)] = [];
     stable var messages : [Message] = [];
-    let MAX_MESSAGES = 100;
 
     // **In-Memory HashMaps**
     var allowedReaders = HashMap.fromIter<Principal, ()>(allowedReadersEntries.vals(), 10, Principal.equal, Principal.hash);
@@ -34,6 +33,7 @@ actor UserNode {
     public type Size = (Float, Float, Float);
     public type Scale = (Float, Float, Float);
 
+    let MAX_MESSAGES = 100;
     type Message = {
         sender: Text;
         text: Text;
@@ -321,6 +321,7 @@ actor UserNode {
         blobMetaStore := HashMap.HashMap<Text, Nat>(10, Text.equal, Text.hash); // Reset metadata storage
     };
 
+    // Store new Chat message into Array
     public func sendChatMessage(message: Message) : async () {
         messages := Array.append([message], messages);
         if (messages.size() > MAX_MESSAGES) {
@@ -328,6 +329,7 @@ actor UserNode {
         };
     };
 
+    // Query function to get the last 100 chat messages
     public query func getChatHistory() : async [Message] {
         messages;
     };

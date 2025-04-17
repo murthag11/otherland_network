@@ -51,7 +51,3 @@ export const chat = {
         return [];
     }
 };
-
-online.on('chat', (data) => {
-    chat.receiveMessage(data);
-});
