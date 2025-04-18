@@ -69,7 +69,10 @@ export async function login() {
                 identity = await authClient.getIdentity();
                 user.setUserPrincipal(identity.getPrincipal().toText());
                 console.log("Logged in with principal:", user.getUserPrincipal());
-                location.reload();
+                await setupUsername();
+                await updateFriendsList();
+                handleInvitation();
+                //location.reload();
             },
             onError: (error) => {
                 console.error("Login failed:", error);
@@ -89,5 +92,83 @@ export async function logout() {
         console.log("Logged out, reverted to anonymous identity");
     } catch (error) {
         console.error("Error during logout:", error);
+    }
+}
+
+async function setupUsername() {
+    const actor = await getUserNodeActor();
+    const currentUsername = await actor.getUsername();
+    if (!currentUsername[0]) {
+        const username = prompt('Please enter your username:');
+        if (username) {
+            await actor.setUsername(username);
+            localStorage.setItem('username', username);
+        }
+    } else {
+        localStorage.setItem('username', currentUsername[0]);
+    }
+}
+
+async function updateFriendsList() {
+    const actor = await getUserNodeActor();
+    const friends = await actor.getFriends();
+    const friendsList = document.getElementById('friends-list');
+    friendsList.innerHTML = '';
+    friends.forEach(friend => {
+        const li = document.createElement('li');
+        li.textContent = `${friend.username} (${friend.principal.toText()})`;
+        friendsList.appendChild(li);
+    });
+}
+
+export async function generateInvitation() {
+    const actor = await getUserNodeActor();
+    const friendPrincipalText = document.getElementById('friend-principal').value;
+    if (!friendPrincipalText) {
+        alert('Please enter a Principal');
+        return;
+    }
+    try {
+        const friendPrincipal = Principal.fromText(friendPrincipalText);
+        const result = await actor.generateFriendInvitation(friendPrincipal);
+        if ('ok' in result) {
+            const token = result.ok;
+            const invitationLink = `${window.location.origin}/?canisterId=${canisterId}&token=${token}`;
+            document.getElementById('invitation-link').innerText = invitationLink;
+        } else {
+            alert('Error generating invitation: ' + result.err);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Invalid Principal or error generating invitation');
+    }
+}
+
+async function handleInvitation() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const inviterCanisterId = urlParams.get('canisterId');
+    if (token && inviterCanisterId) {
+        const username = localStorage.getItem('username');
+        if (!username) {
+            alert('Please set your username first');
+            return;
+        }
+        const confirmAccept = confirm('Accept friend request?');
+        if (confirmAccept) {
+            const inviterAgent = new HttpAgent({ identity });
+            if (location.hostname === "localhost") await inviterAgent.fetchRootKey();
+            const inviterActor = Actor.createActor(userNodeIdlFactory, { agent: inviterAgent, canisterId: inviterCanisterId });
+            const result = await inviterActor.acceptFriendInvitation(token, username);
+            if ('ok' in result) {
+                const { principal: inviterPrincipal, username: inviterUsername } = result.ok;
+                await actor.addFriend(inviterPrincipal, inviterUsername);
+                alert('Friend request accepted');
+                await updateFriendsList();
+                window.history.pushState({}, document.title, "/");
+            } else {
+                alert('Error accepting invitation: ' + result.err);
+            }
+        }
     }
 }

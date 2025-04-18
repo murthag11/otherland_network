@@ -6,6 +6,8 @@ import RAPIER from '@dimforge/rapier3d-compat';
 // Import Internal Modules
 import { viewerState, sceneObjects, khetState } from './index.js';
 import { avatarState } from './avatar.js';
+import { nodeSettings } from './nodeManager.js';
+import { getUserNodeActor } from './khet.js';
 import { keys, escButtonPress } from './menu.js';
 import { triggerInteraction, preApprovedFunctions } from './interaction.js';
 import { online } from './peermesh.js';
@@ -149,6 +151,42 @@ function getSpeedMultiplier() {
     }
 }
 
+let lastPositionUpdate = 0;
+const POSITION_UPDATE_INTERVAL = 1000; // 1 second
+let lastPlayerQuery = 0;
+const PLAYER_QUERY_INTERVAL = 5000; // 5 seconds
+
+// Send position to canister every 1s
+async function sendPositionUpdate() {
+    if (nodeSettings.nodeType === 2 && avatarState.avatarMesh) { // Adjust conditions as needed
+        try {
+            const actor = await getUserNodeActor();
+            const pos = avatarState.avatarMesh.position;
+            await actor.updatePosition([pos.x, pos.y, pos.z]);
+        } catch (error) {
+            console.error("Failed to update position:", error);
+        }
+    }
+}
+
+// Check nearby players every 5s
+async function queryPlayerPositions() {
+    if (nodeSettings.nodeType === 2) {
+
+        await online.connectToNearbyPeers();
+    
+        online.handleSignaling();
+
+        const actor = await getUserNodeActor();
+        const allPositions = await actor.getAllPlayerPositions(); // Returns [principal, [x, y, z]] pairs
+        allPositions.forEach(([principal, [x, y, z]]) => {
+            if (principal.toText() !== online.ownID) { // Exclude yourself
+                online.latestPositions.set(principal.toText(), { position: { x, y, z }, quaternion: { x: 0, y: 0, z: 0, w: 1 } });
+            }
+        });
+    }
+}
+
 // Animation Handler
 export const animator = {
 
@@ -163,6 +201,23 @@ export const animator = {
         }
         if (!this.isAnimating) {
             this.isAnimating = true;
+
+            const positionInterval = setInterval(() => {
+                const currentTime = performance.now();
+                if (currentTime - lastPositionUpdate >= POSITION_UPDATE_INTERVAL) {
+                    sendPositionUpdate(); // Runs async, doesn’t block
+                    lastPositionUpdate = currentTime;
+                }
+            }, 1000);
+
+            const queryInterval = setInterval(() => {
+                const currentTime = performance.now();
+                if (currentTime - lastPlayerQuery >= PLAYER_QUERY_INTERVAL) {
+                    queryPlayerPositions();
+                    lastPlayerQuery = currentTime;
+                }
+            }, 5000);
+
             this.animate();
         }
     },
@@ -170,6 +225,8 @@ export const animator = {
     // Stop animation Loop
     stop() {
         this.isAnimating = false;
+        clearInterval(positionInterval);
+        clearInterval(queryInterval);
     },
 
     // Animation Loop
@@ -399,33 +456,32 @@ export const animator = {
                     object.quaternion.copy(avatarState.avatarMesh.quaternion);
                 }
 
+                const currentTime = performance.now();
+
                 // Send avatar position to other players
-                if (online.connectedPeers.size > 0 && avatarState.avatarMesh && avatarState.selectedAvatarId) {
-                    const currentTime = performance.now();
-                    if (currentTime - online.lastSendTime > 50) {
-                        const position = avatarState.avatarMesh.position;
-                        const quaternion = avatarState.avatarMesh.quaternion;
+                if (online.connectedPeers.size > 0 && currentTime - online.lastSendTime > 50) {
+                    const position = avatarState.avatarMesh.position;
+                    const quaternion = avatarState.avatarMesh.quaternion;
 
-                        online.send("position", {
-                            position: {
-                                x: position.x,
-                                y: position.y,
-                                z: position.z
-                            },
-                            quaternion: {
-                                x: quaternion.x,
-                                y: quaternion.y,
-                                z: quaternion.z,
-                                w: quaternion.w
-                            }
-                        });
-                        online.lastSendTime = currentTime;
-
-                        /* if (position[0] !== lastPosition[0] || position[2] !== lastPosition[2]) {
-                            
+                    online.send("position", {
+                        position: {
+                            x: position.x,
+                            y: position.y,
+                            z: position.z
+                        },
+                        quaternion: {
+                            x: quaternion.x,
+                            y: quaternion.y,
+                            z: quaternion.z,
+                            w: quaternion.w
                         }
-                        lastPosition = position; */
+                    });
+                    online.lastSendTime = currentTime;
+
+                    /* if (position[0] !== lastPosition[0] || position[2] !== lastPosition[2]) {
+                        
                     }
+                    lastPosition = position; */
                 }
             } else {
 

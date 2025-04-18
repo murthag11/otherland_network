@@ -2,7 +2,7 @@
 import { viewerState, sceneObjects, worldController, animationMixers, khetState } from './index.js';
 import { khetController, clearAllKhets } from './khet.js';
 import { nodeSettings, requestNewCanister, getAccessibleCanisters, getCardinalActor } from './nodeManager.js';
-import { initAuth, getIdentity, login, user } from './user.js';
+import { initAuth, getIdentity, login, user, generateInvitation } from './user.js';
 import { chat } from './chat.js';
 import { online } from './peermesh.js'
 import { avatarState } from './avatar.js'
@@ -371,6 +371,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             showTab("assets-tab")
         };
     });
+
+    // Generate Invitation Button
+    const invitationLinkBtn = document.getElementById("invitationLinkBtn");
+    invitationLinkBtn.addEventListener('click', async () => {
+        generateInvitation()
+    })
 
     // **TreeHouse Tab**
     // Enter TreeHouse

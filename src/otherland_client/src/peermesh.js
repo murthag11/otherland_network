@@ -5,7 +5,7 @@ import { viewerState } from './index.js';
 import { avatarState } from './avatar.js';
 import { userIsInWorld } from './menu.js';
 import { chat } from './chat.js';
-import { khetController, loadKhetMeshOnly, saveToCache, getFromCache } from './khet.js';
+import { khetController, loadKhetMeshOnly, saveToCache, getFromCache, getUserNodeActor } from './khet.js';
 
 function prepareForSending(khet) {
     const prepared = { ...khet };
@@ -89,6 +89,41 @@ export const online = {
     latestPositions: new Map(), // peerId => { position, quaternion }
     khetQueue: [],
     currentKhetId: null,
+    networkMode: false,
+    nearbyPeers: new Set(),
+    
+    async openPeerForNetwork() {
+        this.networkMode = true;
+        if (!this.peer) this.openPeer(); // Reuse existing PeerJS setup
+    },
+
+    async connectToNearbyPeers() {
+        const actor = await getUserNodeActor();
+        const nearby = await actor.getNearbyPlayers(5);
+        for (const principal of nearby) {
+            if (!this.connectedPeers.has(principal.toText()) && principal.toText() !== this.ownID) {
+                const conn = this.peer.connect(principal.toText());
+                conn.on('open', () => this.addConnection(conn));
+            }
+        }
+        this.nearbyPeers = new Set(nearby.map(p => p.toText()));
+    },
+
+    async handleSignaling() {
+        const actor = await getUserNodeActor();
+        const messages = await actor.getSignalingMessages();
+        for (const [from, msg] of messages) {
+            const parsed = JSON.parse(msg);
+            if (parsed.type === 'offer') {
+                const conn = this.connectedPeers.get(from.toText()) || this.peer.connect(from.toText());
+                conn.on('open', () => {
+                    conn.send({ type: 'answer', value: 'answer-data' }); // Simplified
+                    this.addConnection(conn);
+                });
+            }
+            // Handle answer, ICE candidates similarly
+        }
+    },
 
     openPeer: function () {
         if (this.ownID === "") {

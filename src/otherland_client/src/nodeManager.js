@@ -1,32 +1,32 @@
 import { Actor, HttpAgent } from '@dfinity/agent';
 import { idlFactory as cardinalIdlFactory } from '../../declarations/cardinal'; // Adjust path based on your project structure
 import { user, authReady, getIdentity } from './user.js';
-import { khetController } from './khet.js';
+import { khetController, getUserNodeActor } from './khet.js';
 import { updateKhetTable } from './menu.js';
 import { online } from './peermesh.js'
 
 // Cardinal canister ID
 const CARDINAL_CANISTER_ID = 'bkyz2-fmaaa-aaaaa-qaaaq-cai';
 
-let agentInstance = null;
+let cardinalAgentInstance = null;
 let cardinalActor = null;
 
 // Initialize cardinal agent actor with user identity
 export async function getCardinalActor() {
 
     // Create HTTP Agent with Internet Identity
-    if (!agentInstance) {
+    if (!cardinalAgentInstance) {
 
         await authReady;
 
-        agentInstance = new HttpAgent({ 
+        cardinalAgentInstance = new HttpAgent({ 
             host: process.env.DFX_NETWORK === 'local' ? 'http://localhost:4943' : window.location.origin, 
             identity: getIdentity() 
         });
 
         if (process.env.DFX_NETWORK === 'local') {
             try {
-                await agentInstance.fetchRootKey();
+                await cardinalAgentInstance.fetchRootKey();
                 console.log('Root key fetched successfully');
             } catch (err) {
                 console.error('Unable to fetch root key:', err);
@@ -38,7 +38,7 @@ export async function getCardinalActor() {
     // Create actor for the cardinal canister
     if (!cardinalActor) {
         cardinalActor = Actor.createActor(cardinalIdlFactory, { 
-            agent: agentInstance, 
+            agent: cardinalAgentInstance, 
             canisterId: CARDINAL_CANISTER_ID 
         });
     }
@@ -119,6 +119,21 @@ export async function getUserCanisterId() {
     } else {
         return canisterId;
     };
+}
+
+// Join Node
+export async function joinNetworkSession() {
+    const actor = await getUserNodeActor();
+    const principal = await actor.joinSession();
+    console.log(`Joined Network session with principal: ${principal}`);
+    return principal;
+}
+
+// Leave Node
+export async function leaveNetworkSession() {
+    const actor = await getUserNodeActor();
+    await actor.leaveSession();
+    console.log("Left Network session");
 }
 
 // Create the nodeSettings object
