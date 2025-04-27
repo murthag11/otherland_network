@@ -1,4 +1,5 @@
 // Import necessary components
+import { Principal } from '@dfinity/principal';
 import { viewerState, sceneObjects, worldController, animationMixers, khetState } from './index.js';
 import { khetController, clearAllKhets } from './khet.js';
 import { nodeSettings, requestNewCanister, getAccessibleCanisters, getCardinalActor } from './nodeManager.js';
@@ -101,7 +102,113 @@ document.addEventListener('contextmenu', function(e){
     e.preventDefault();
 }, false);
 
+// Generate Invitation Button
+const invitationLinkBtn = document.getElementById("invitationLinkBtn");
+invitationLinkBtn.addEventListener('click', async () => {
+    const actor = await getCardinalActor();
+    const token = await actor.generateFriendInvitation();
+    const invitationLink = `${window.location.origin}/?invite=${token}`;
+    document.getElementById('invitation-link').innerText = invitationLink;
+});
 
+// Handle Invitation Acceptance on Page Load
+export async function handleInvitation() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const inviteToken = urlParams.get('invite');
+    if (inviteToken) {
+        const confirmAccept = confirm('Accept friend request?');
+        if (confirmAccept) {
+            const actor = await getCardinalActor();
+            const result = await actor.acceptFriendInvitation(token);
+            if ('ok' in result) {
+                alert('Friend request accepted');
+                window.history.replaceState({}, document.title, window.location.pathname);
+                await updateFriendsList(); // Refresh list after accepting invitation
+            } else {
+                alert('Error accepting invitation: ' + result.err);
+            }
+        }
+    }
+}
+
+// Function to update and display the friends list
+export async function updateFriendsList() {
+    const actor = await getCardinalActor();
+    if (!actor) {
+        console.error("Not connected to Cardinal canister");
+        return;
+    }
+    const friends = await actor.getFriends();
+    const friendsList = document.getElementById('friends-list');
+    friendsList.innerHTML = ''; // Clear existing content
+
+    // Create table for friends list
+    const table = document.createElement('table');
+    table.style.border = '1px solid black'; // Basic styling
+    const headerRow = document.createElement('tr');
+    
+    const headerPrincipal = document.createElement('th');
+    headerPrincipal.textContent = 'Friend Principal';
+    headerPrincipal.style.border = '1px solid black';
+    
+    const headerActions = document.createElement('th');
+    headerActions.textContent = 'Actions';
+    headerActions.style.border = '1px solid black';
+    
+    headerRow.appendChild(headerPrincipal);
+    headerRow.appendChild(headerActions);
+    table.appendChild(headerRow);
+
+    friends.forEach(principal => {
+        const row = document.createElement('tr');
+        
+        const cellPrincipal = document.createElement('td');
+        cellPrincipal.textContent = principal.toText(); // Assuming principal has a toText() method
+        cellPrincipal.style.border = '1px solid black';
+        
+        const cellActions = document.createElement('td');
+        cellActions.style.border = '1px solid black';
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.textContent = 'Remove';
+        removeBtn.style.margin = '5px';
+        removeBtn.addEventListener('click', async () => {
+            await actor.removeFriend(principal);
+            await updateFriendsList(); // Refresh the list after removal
+        });
+        
+        cellActions.appendChild(removeBtn);
+        row.appendChild(cellPrincipal);
+        row.appendChild(cellActions);
+        table.appendChild(row);
+    });
+    friendsList.appendChild(table);
+
+    const friendsDropdown = document.getElementById('friends-dropdown');
+    friendsDropdown.innerHTML = '<option value="">Select a friend</option>';
+    friends.forEach(principal => {
+        const option = document.createElement('option');
+        option.value = principal.toText();
+        option.textContent = principal.toText();
+        friendsDropdown.appendChild(option);
+    });
+}
+
+// Add Friend to Allowed Users
+document.getElementById('add-friend-access-btn').addEventListener('click', async () => {
+    const friendPrincipalText = document.getElementById('friends-dropdown').value;
+    if (friendPrincipalText) {
+        const actor = await getCardinalActor();
+        const friendPrincipal = Principal.fromText(friendPrincipalText);
+        const result = await actor.addAllowedUser(Principal.fromText(nodeSettings.nodeId), friendPrincipal);
+        if ('ok' in result) {
+            console.log('Friend added to allowed users');
+            updateNodeSettings();
+        } else {
+            alert('Error adding friend to allowed users: ' + result.err);
+        }
+    }
+});
 
 // Function to enter the 3d World
 async function enterWorld() {
@@ -254,7 +361,7 @@ export async function updateNodeList() {
             
             // Owner column
             const tdOwner = document.createElement('td');
-            tdOwner.textContent = node.owner;
+            tdOwner.textContent = node.owner + (node.isPublic ? " (Public)" : " (Private)");
             tr.appendChild(tdOwner);
             
             // Connect column
@@ -335,7 +442,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         nodeSettings.availableNodes = await getAccessibleCanisters()
         
         console.log(nodeSettings.availableNodes);
-        updateNodeList();
+        await updateNodeList();
+        await updateFriendsList();
         document.getElementById("node-list").style.display = "block";
         cardinalConnectBtn.innerHTML = "Refresh Node List";
     });
@@ -355,7 +463,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const userNodeId = await requestNewCanister();
         nodeSettings.userOwnedNodes.push(userNodeId);
         nodeSettings.availableNodes.push(userNodeId);
-        updateNodeList();
+        await updateNodeList();
     });
 
     // Edit Node Button
@@ -539,6 +647,63 @@ document.addEventListener('DOMContentLoaded', async () => {
     drawCloseButton.addEventListener('click', async () => {
         changekhetEditorDrawer('close');
     })
+
+    // Node Settings Button
+    const nodeSettingsBtn = document.getElementById('node-settings-btn');
+    nodeSettingsBtn.addEventListener('click', async () => {
+        if (nodeSettings.nodeType == 2) {
+            showTab("node-settings-tab");
+            const actor = await getCardinalActor();
+            const visibility = await actor.getNodeVisibility();
+            const isPublic = visibility.length > 0 ? visibility[0] : false;
+            document.getElementById('public-toggle').checked = isPublic;
+            const allowedUsers = await actor.getAllowedUsers();
+            const allowedList = document.getElementById('allowed-users-list');
+            allowedList.innerHTML = '';
+            allowedUsers.forEach(principal => {
+                if (principal.toText() !== user.getUserPrincipal()) {
+                    const li = document.createElement('li');
+                    li.textContent = principal.toText();
+                    const removeBtn = document.createElement('button');
+                    removeBtn.textContent = 'Remove';
+                    removeBtn.addEventListener('click', async () => {
+                        await actor.removeAllowed(principal);
+                        updateNodeSettings();
+                    });
+                    li.appendChild(removeBtn);
+                    allowedList.appendChild(li);
+                }
+            });
+            const friends = await actor.getFriends();
+            const friendsDropdown = document.getElementById('friends-dropdown');
+            friendsDropdown.innerHTML = '<option value="">Select a friend</option>';
+            friends.forEach(friend => {
+                const option = document.createElement('option');
+                option.value = friend.toText();
+                option.textContent = friend.toText();
+                friendsDropdown.appendChild(option);
+            });
+        }
+    });
+
+    document.getElementById('public-toggle').addEventListener('change', async (e) => {
+        const actor = await getCardinalActor();
+        await actor.setNodeVisibility(e.target.checked);
+    });
+
+    document.getElementById('add-friend-access-btn').addEventListener('click', async () => {
+        const friendPrincipalText = document.getElementById('friends-dropdown').value;
+        if (friendPrincipalText) {
+            const actor = await getCardinalActor();
+            const friendPrincipal = Principal.fromText(friendPrincipalText);
+            await actor.addAllowed(friendPrincipal);
+            updateNodeSettings();
+        }
+    });
+
+    async function updateNodeSettings() {
+        nodeSettingsBtn.click();
+    }
 
     // **Home Button**
     // Return to the start overlay and unlock controls

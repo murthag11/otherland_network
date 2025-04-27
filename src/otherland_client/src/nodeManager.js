@@ -68,9 +68,10 @@ export async function getAccessibleCanisters() {
         }
         
         // Convert the tuple array to an array of objects for easier use
-        const accessibleList = accessibleCanisters.map(([canisterId, owner]) => ({
+        const accessibleList = accessibleCanisters.map(([canisterId, owner, isPublic]) => ({
             canisterId: canisterId.toText(),
-            owner: owner.toText()
+            owner: owner.toText(),
+            isPublic
         }));
         
         // Update UI: Show/hide the "request-new-canister" button
@@ -210,7 +211,6 @@ export const nodeSettings = {
         this.standardAccessMode = data.standardAccessMode;
 
         this.displayNodeConfig();
-        return;
     },
 
     // Turn P2P on / off
@@ -226,7 +226,6 @@ export const nodeSettings = {
             khetController.loadAllKhets();
             online.openPeer();                                       // Evtl if not already exists from other source check
         }
-        return;
     },
 
     // Update Info Box with new Node Configuration
@@ -254,7 +253,6 @@ export const nodeSettings = {
         default:
         }
         document.getElementById("conn-info").innerHTML = this.nodeId;
-        return;
     }
 };
 // Initialize localKhets when the app starts

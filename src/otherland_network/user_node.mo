@@ -26,9 +26,6 @@ actor UserNode {
     stable var messages : [Message] = [];
     stable var playerStore : [(Principal, PlayerData)] = [];
     stable var username: ?Text = null;
-    stable var friendsEntries: [(Principal, Text)] = [];
-    stable var invitationsEntries: [(Text, Invitation)] = [];
-    stable var invitationCounter: Nat = 0;
 
     // **In-Memory HashMaps**
     var allowedReaders = HashMap.fromIter<Principal, ()>(allowedReadersEntries.vals(), 10, Principal.equal, Principal.hash);
@@ -38,8 +35,6 @@ actor UserNode {
     var blobStore = HashMap.HashMap<Text, [(Nat, Blob)]>(10, Text.equal, Text.hash);
     var blobMetaStore = HashMap.HashMap<Text, Nat>(10, Text.equal, Text.hash);
     var players = HashMap.fromIter<Principal, PlayerData>(playerStore.vals(), 10, Principal.equal, Principal.hash);
-    var friends = HashMap.HashMap<Principal, Text>(10, Principal.equal, Principal.hash);
-    var invitations = HashMap.HashMap<Text, Invitation>(10, Text.equal, Text.hash);
 
     // **Type Definitions**
     public type Position = (Float, Float, Float);
@@ -93,8 +88,6 @@ actor UserNode {
         hashToBlobIdStore := Iter.toArray(hashToBlobId.entries());
         blobStoreStable := Iter.toArray(blobStore.entries()); // Save blob chunks
         blobMetaStoreStable := Iter.toArray(blobMetaStore.entries()); // Save blob metadata
-        friendsEntries := Iter.toArray(friends.entries());
-    invitationsEntries := Iter.toArray(invitations.entries());
     };
 
     system func postupgrade() {
@@ -104,8 +97,6 @@ actor UserNode {
         hashToBlobId := HashMap.fromIter<Text, (Text, Bool)>(hashToBlobIdStore.vals(), 10, Text.equal, Text.hash);
         blobStore := HashMap.fromIter<Text, [(Nat, Blob)]>(blobStoreStable.vals(), 10, Text.equal, Text.hash); // Restore chunks
         blobMetaStore := HashMap.fromIter<Text, Nat>(blobMetaStoreStable.vals(), 10, Text.equal, Text.hash); // Restore metadata
-        friends := HashMap.fromIter<Principal, Text>(friendsEntries.vals(), 10, Principal.equal, Principal.hash);
-        invitations := HashMap.fromIter<Text, Invitation>(invitationsEntries.vals(), 10, Text.equal, Text.hash);
     };
 
     // **Initialization by Cardinal**
@@ -251,14 +242,18 @@ actor UserNode {
     };
 
     // **Management Functions**
-    public shared ({ caller }) func addReader(reader : Principal) : async () {
+    let cardinalPrincipal = Principal.fromText("bkyz2-fmaaa-aaaaa-qaaaq-cai");
+    public shared({ caller }) func addReader(reader: Principal) : async () {
         switch (owner) {
             case (?own) {
-                assert (caller == own);
-                allowedReaders.put(reader, ());
+                if (caller == own or caller == cardinalPrincipal) {
+                    allowedReaders.put(reader, ());
+                } else {
+                    assert (false); // Unauthorized
+                };
             };
             case null {
-                assert (false);
+                assert (false); // Owner not set
             };
         };
     };
@@ -470,85 +465,6 @@ actor UserNode {
                 return null;
             };
             case null { return null };
-        };
-    };
-
-    // Generate friend invitation
-    public shared ({ caller }) func generateFriendInvitation(targetPrincipal: Principal) : async Result.Result<Text, Text> {
-        switch (owner, username) {
-            case (?own, ?userName) {
-                assert (caller == own);
-                let nowNat = Int.abs(Time.now());
-                let token = Nat.toText(invitationCounter) # "-" # Nat.toText(nowNat);
-                invitationCounter += 1;
-                let expiration = Time.now() + 24 * 3600 * 1_000_000_000; // 24 hours
-                let invitation = {
-                    targetPrincipal = targetPrincipal;
-                    inviterUsername = userName;
-                    expiration = expiration;
-                };
-                invitations.put(token, invitation);
-                return #ok(token);
-            };
-            case _ {
-                return #err("Owner or username not set");
-            };
-        };
-    };
-
-    // Accept friend invitation
-    public shared ({ caller }) func acceptFriendInvitation(token: Text, inviteeUsername: Text) : async Result.Result<{ principal: Principal; username: Text }, Text> {
-        switch (invitations.get(token)) {
-            case (null) {
-                return #err("Invalid token");
-            };
-            case (?invitation) {
-                if (Time.now() > invitation.expiration) {
-                    invitations.delete(token);
-                    return #err("Invitation expired");
-                };
-                if (caller != invitation.targetPrincipal) {
-                    return #err("Principal does not match invitation");
-                };
-                switch (owner) {
-                    case (?own) {
-                        friends.put(caller, inviteeUsername);
-                        allowedReaders.put(caller, ()); // Grant access
-                        invitations.delete(token);
-                        return #ok({ principal = own; username = invitation.inviterUsername });
-                    };
-                    case null {
-                        return #err("Owner not set");
-                    };
-                };
-            };
-        };
-    };
-
-    // Add friend manually
-    public shared ({ caller }) func addFriend(friendPrincipal: Principal, friendUsername: Text) : async () {
-        switch (owner) {
-            case (?own) {
-                assert (caller == own);
-                friends.put(friendPrincipal, friendUsername);
-                allowedReaders.put(friendPrincipal, ()); // Grant access
-            };
-            case null {
-                assert (false);
-            };
-        };
-    };
-
-    // Get friends list (query)
-    public query ({ caller }) func getFriends() : async [Friend] {
-        switch (owner) {
-            case (?own) {
-                if (caller == own) {
-                    return Iter.toArray(Iter.map(friends.entries(), func ((p, u): (Principal, Text)) : Friend { { principal = p; username = u } }));
-                };
-                return [];
-            };
-            case null { return [] };
         };
     };
 

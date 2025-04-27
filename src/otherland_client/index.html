@@ -54,11 +54,10 @@
                 <!-- Friends List -->
                 <div class="flex-row">
                     <h2>Friend List</h2>
+                    <button id="invitationLinkBtn">Add Friend</button>
                 </div>
                 <div id="friends-info">
                     <ul id="friends-list"></ul>
-                    <input type="text" id="friend-principal" placeholder="Friend's Principal">
-                    <button id="invitationLinkBtn">Generate Invitation Link</button>
                     <p id="invitation-link"></p>
                 </div>
             </div>
@@ -155,6 +154,22 @@
                             <input type="number" id="scale-z" placeholder="Z" step="0.1" value="1">
                         </div>
                     </div> 
+                </div>
+            </div>
+
+            <!-- Node Settings Tab -->
+            <div id="node-settings-tab" class="tab">
+                <h1>Node Settings</h1>
+                <div id="visibility-control">
+                    <label>Node Visibility:</label>
+                    <input type="checkbox" id="public-toggle"> Public
+                </div>
+                <div id="access-control">
+                    <h3>Allowed Users</h3>
+                    <ul id="allowed-users-list"></ul>
+                    <h3>Add Friend to Allowed List</h3>
+                    <select id="friends-dropdown"></select>
+                    <button id="add-friend-access-btn">Add</button>
                 </div>
             </div>
 
