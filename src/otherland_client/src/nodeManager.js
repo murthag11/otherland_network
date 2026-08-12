@@ -366,10 +366,14 @@ export const nodeSettings = {
     // Export Node Configuration
     exportNodeConfig () {
 
-        // Calculate total size of all khets
+        // Calculate total size of all khets (metadata-only entries may omit gltfData)
         let totalSize = 0;
         for (const khet of Object.values(khetController.khets)) {
-            totalSize += khet.gltfData.byteLength;
+            if (khet?.gltfData?.byteLength) {
+                totalSize += khet.gltfData.byteLength;
+            } else if (typeof khet?.gltfDataSize === 'number') {
+                totalSize += khet.gltfDataSize;
+            }
         }
 
         // Export own TreeHouse

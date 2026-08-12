@@ -49,8 +49,11 @@ https://internetcomputer.org/docs/building-apps/getting-started/install
 - Install VS Code (start in WSL mode!)
 - Install nvm, node.js, npm, mops, dfx
 - Clone Git Repo
-- 'dfx start --background --clean'
-- 'dfx deploy'
+- `npm install`
+- `mops install && mops toolchain init && mops toolchain use moc 1.14.0`
+- Copy `.env.example` to `.env` (dfx will fill canister IDs on deploy)
+- `dfx start --background --clean`
+- `dfx deploy`
 
 `Reset Network`
 

@@ -19,7 +19,11 @@ export function initAdminWasm() {
 
             try {
                 const actor = await getCardinalActor();
-                await actor.uploadWasmModule(wasmBlob);
+                const result = await actor.uploadWasmModule(wasmBlob);
+                if (result && 'err' in result) {
+                    console.error('WASM upload rejected:', result.err);
+                    return;
+                }
                 console.log('WASM module uploaded successfully');
             } catch (error) {
                 console.error('Error uploading WASM module:', error);

@@ -22,15 +22,21 @@ jobs:
 
       - uses: dfinity/setup-mops@main
 
-      - name: install mops packages
-        run: mops install
+      - name: install mops packages and toolchain
+        run: |
+          mops install
+          mops toolchain init
+          mops toolchain use moc 1.14.0
 
       - name: install client dependencies
         run: npm install
-        working-directory: src/otherland_client
 
       - name: Download binaries
+        env:
+          DFX_MOC_PATH: moc-wrapper
         run: dfx build --check
 
       - name: run tests
+        env:
+          DFX_MOC_PATH: moc-wrapper
         run: dfx cache show && mops test

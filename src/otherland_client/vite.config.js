@@ -11,10 +11,13 @@ export default defineConfig({
     emptyOutDir: true,
   },
   optimizeDeps: {
+    // Keep three/webgpu prebundled when experimenting with WebGPU; define globals via rolldown.
     include: ['three/webgpu'],
-    esbuildOptions: {
-      define: {
-        global: "globalThis",
+    rolldownOptions: {
+      transform: {
+        define: {
+          global: 'globalThis',
+        },
       },
     },
   },
