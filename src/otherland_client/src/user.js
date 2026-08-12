@@ -1,6 +1,6 @@
 import { AuthClient } from "@icp-sdk/auth/client";
 import { AnonymousIdentity } from "@icp-sdk/core/agent";
-import { getUserNodeActor } from './nodeManager.js';
+import { getUserNodeActor, invalidateActors } from './nodeManager.js';
 import { CANISTER_IDS } from './canisterIds.js';
 import { updateFriendsList, handleInvitation } from './friends.js';
 import { showLoggedInUI } from './menu.js';
@@ -75,6 +75,7 @@ export async function login() {
             onSuccess: async () => {
                 identity = await authClient.getIdentity();
                 user.setUserPrincipal(identity.getPrincipal().toText());
+                invalidateActors();
                 console.log("Logged in with principal:", user.getUserPrincipal());
 
                 try {
@@ -113,6 +114,7 @@ export async function logout() {
         await authClient.logout();
         identity = new AnonymousIdentity();
         user.setUserPrincipal("");
+        invalidateActors();
         console.log("Logged out, reverted to anonymous identity");
     } catch (error) {
         console.error("Error during logout:", error);
@@ -166,6 +168,7 @@ export async function abortUsernameSetup() {
         user.setUserPrincipal("");
         user.setUserName("");
         localStorage.removeItem('username');
+        invalidateActors();
         console.log("Username setup aborted - session cleared, returning to start screen");
 
         // Force UI back to start screen
@@ -207,7 +210,9 @@ export function updateAccountSwitcher(isGuest = false) {
             : 'Anonymous';
 
         const status = document.createElement('button');
-        status.innerHTML = `<strong>${username}</strong>`;
+        const nameEl = document.createElement('strong');
+        nameEl.textContent = username;
+        status.appendChild(nameEl);
         status.style.cursor = 'default';
         container.appendChild(status);
 

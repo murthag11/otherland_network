@@ -5,7 +5,6 @@ document.getElementById('username-screen').style.display = 'none';
 // Import External Dependencies
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
-import { WebGPURenderer } from 'three/webgpu';
 import RAPIER, { init } from '@dimforge/rapier3d-compat';
 
 // Import Internal Modules
@@ -154,7 +153,7 @@ export const viewerState = {
         const onlineParams = new Proxy(new URLSearchParams(window.location.search), {
             get: (searchParams, prop) => searchParams.get(prop),});
         if (onlineParams.standalone) { 
-            document.getElementById("body").requestFullscreen();
+            document.body.requestFullscreen();
         };
         console.log("Detecting quick connect ...");
         if (onlineParams.peerId) {

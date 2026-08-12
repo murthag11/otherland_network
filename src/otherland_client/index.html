@@ -122,7 +122,8 @@
                 <!-- Friends List -->
                 <div class="flex-row">
                     <h2>Friend List</h2>
-                    <button id="invitationLinkBtn" class="hidden">Generate Invite Link</button>
+                    <button id="add-friend-btn">Add Friend</button>
+                    <button id="invitationLinkBtn">Generate Invite Link</button>
                     <button id="generateInviteBtn">Invite Link</button>
                 </div>
                 <div id="add-friend-row" class="hidden">
@@ -266,7 +267,6 @@
             <!-- Settings -->
             <div id="settings-tab" class="tab future-update">
                 <h1>Settings</h1>
-                <input id="wasm-pw" type="password" placeholder="Password">
                 <input type="file" id="wasm-file-input" accept=".wasm" />
             </div>
         </div>
@@ -324,7 +324,7 @@
             <div id="crosshairs"></div>
         </div>
         <div id="guiTop">
-            <div id="friends-list">Friends List</div>
+            <div id="friends-list-hud">Friends List</div>
         </div>
         <div id="guiBottom">
             <div id="chat">
