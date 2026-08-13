@@ -9,7 +9,11 @@
     "prebuild": "npm run prebuild --workspaces --if-present",
     "pretest": "npm run prebuild --workspaces --if-present",
     "start": "npm start --workspaces --if-present",
-    "test": "npm test --workspaces --if-present"
+    "test": "npm test --workspaces --if-present",
+    "mops:setup": "mops install && mops toolchain init && mops toolchain use moc",
+    "dfx": "bash scripts/dfx.sh",
+    "deploy": "bash scripts/dfx.sh deploy",
+    "deploy:clean": "bash scripts/dfx.sh deploy --clean"
   },
   "type": "module",
   "workspaces": [
