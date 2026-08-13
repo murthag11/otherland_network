@@ -768,7 +768,7 @@ canvas {
 
   display: none;
 
-  #chat, #friends-list, #map, #interactionHint {
+  #chat, #friends-list-hud, #map, #interactionHint {
     position: fixed;
     background: $background-dark;
     color: $secondary-color;
@@ -791,7 +791,7 @@ canvas {
   // GUI Top
   #guiTop {
 
-    #friends-list {
+    #friends-list-hud {
       top: 20px;
       left: 20px;
       width: 250px;
@@ -982,12 +982,12 @@ canvas {
     max-height: 25vh;
   }
 
-  #friends-list, #chat, #map {
+  #friends-list-hud, #chat, #map {
     display: none;
     width: 45%;
   }
 
-  #friends-list {
+  #friends-list-hud {
     top: 5px;
     left: 5px;
     height: 150px;

@@ -9,6 +9,7 @@ import { nodeSettings } from './nodeManager.js';
 import { getUserNodeActor } from './nodeManager.js';
 import { online } from './peermesh.js';
 import { applyPlayerMovement } from './movement.js';
+import { user } from './user.js';
 
 // Sync Variables
 let lastPositionUpdate = 0;
@@ -42,9 +43,12 @@ async function queryPlayerPositions() {
 
         const actor = await getUserNodeActor();
         const allPositions = await actor.getAllPlayerPositions(); // Returns [principal, [x, y, z]] pairs
+        const selfPrincipal = user.getUserPrincipal();
         allPositions.forEach(([principal, [x, y, z]]) => {
-            if (principal.toText() !== online.ownID) { // Exclude yourself
-                online.latestPositions.set(principal.toText(), { position: { x, y, z }, quaternion: { x: 0, y: 0, z: 0, w: 1 } });
+            const principalText = principal.toText();
+            // Exclude yourself (compare IC principals, not PeerJS IDs)
+            if (principalText !== selfPrincipal) {
+                online.latestPositions.set(principalText, { position: { x, y, z }, quaternion: { x: 0, y: 0, z: 0, w: 1 } });
             }
         });
     }

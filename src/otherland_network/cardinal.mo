@@ -13,9 +13,10 @@ import Nat "mo:core/Nat";
 import Int "mo:core/Int";
 import Time "mo:core/Time";
 import Debug "mo:core/Debug";
-import Order "mo:core/Order";
 
 import Types "types";
+import Compare "compare";
+import IcManagement "ic_management";
 
 persistent actor Cardinal {
 
@@ -32,10 +33,7 @@ persistent actor Cardinal {
   type AuditLogEntry   = Types.AuditLogEntry;
   type CanisterDetails = Types.CanisterDetails;
 
-  // Compare functions for Map
-  func principalCompare(a : Principal, b : Principal) : Order.Order {
-    Text.compare(Principal.toText(a), Principal.toText(b))
-  };
+  transient let principalCompare = Compare.principalCompare;
 
 
   // Stable variables for raw data
@@ -447,7 +445,7 @@ persistent actor Cardinal {
     if (auditLog.size() > 50) {
       let oldLog2 = auditLog;
       let excess = Nat.sub(oldLog2.size(), 50);
-      auditLog := Iter.toArray(Iter.take(Iter.drop(Iter.fromArray(oldLog2), excess), 50));
+      auditLog := Iter.toArray(Iter.take(Iter.drop(oldLog2.values(), excess), 50));
     };
   };
 
@@ -556,6 +554,12 @@ persistent actor Cardinal {
 
   // Request a new canister
   public shared({ caller }) func requestCanister() : async Result.Result<Principal, Text> {
+    if (Principal.isAnonymous(caller)) {
+      return #err("Anonymous principals cannot request a canister.");
+    };
+    if (Option.isSome(blockedUsers.get(principalCompare, caller))) {
+      return #err("User is blocked.");
+    };
     if (not isWasmReady) {
       return #err("WASM module is not ready or is being updated. Please try again later.");
     };
@@ -574,11 +578,7 @@ persistent actor Cardinal {
 
         Debug.print("=== requestCanister start - balance: " # Nat.toText(Cycles.balance()));
 
-        // Create a new canister with initial cycle funding
-        let ic = actor("aaaaa-aa") : actor {                                                               // Placeholder admin principal
-          create_canister : <system> () -> async { canister_id : Principal };
-          install_code : <system>({ canister_id : Principal; wasm_module : Blob; arg : Blob; mode : { #install } }) -> async ();
-        };
+        let ic = IcManagement.management();
 
         // 2.5x margin applied to measured usage
         let { canister_id } = await (with cycles = 1_200_000_000_000) ic.create_canister();
@@ -592,7 +592,7 @@ persistent actor Cardinal {
             await (with cycles = 100_000_000) ic.install_code({
               canister_id;
               wasm_module = wasmModuleBlob;
-              arg = Blob.fromArray([]); // Empty args
+              arg = Array.toBlob([]); // Empty args
               mode = #install;
             });
             Debug.print("install_code done - balance now: " # Nat.toText(Cycles.balance()));
@@ -670,9 +670,20 @@ persistent actor Cardinal {
 
   // Remove an allowed principal (only callable by the owner)
   public shared({ caller }) func removeAllowed(allowed : Principal) : async Result.Result<(), Text> {
-    switch (accessControl.get(principalCompare, caller)) {
-      case (?allowedMap) {
-        allowedMap.remove(principalCompare, allowed);
+    switch (registry.get(principalCompare, caller)) {
+      case (?nodeId) {
+        switch (accessControl.get(principalCompare, caller)) {
+          case (?allowedMap) {
+            allowedMap.remove(principalCompare, allowed);
+          };
+          case null {
+            return #err("No access control entry for this user.");
+          };
+        };
+        let userNodeActor = actor (Principal.toText(nodeId)) : actor {
+          removeReader : (Principal) -> async ();
+        };
+        await userNodeActor.removeReader(allowed);
         return #ok(());
       };
       case null {
@@ -681,13 +692,19 @@ persistent actor Cardinal {
     };
   };
 
-  // Upload WASM module (restricted to an admin principal for simplicity)
-  public shared({ caller = _ }) func uploadWasmModule(wasmModuleBlob : Blob) : async () {
-    // Replace with your admin principal in production
-    //assert(caller == adminPrincipal);  // Placeholder admin principal
+  // Upload WASM module (admin only)
+  public shared({ caller }) func uploadWasmModule(wasmModuleBlob : Blob) : async Result.Result<(), Text> {
+    if (caller != _adminPrincipal) {
+      return #err("Unauthorized");
+    };
+    if (wasmModuleBlob.size() == 0) {
+      return #err("Empty WASM module");
+    };
     isWasmReady := false; // Mark as not ready during upload
     wasmModule := ?wasmModuleBlob;
     isWasmReady := true; // Mark as ready after upload completes
+    _logAudit(caller, "uploadWasmModule", "WASM module updated (" # Nat.toText(wasmModuleBlob.size()) # " bytes)");
+    #ok(())
   };
 
   // Upgrade the user's canister with the current WASM module
@@ -696,13 +713,11 @@ persistent actor Cardinal {
       case (?canisterId) {
         switch (wasmModule) {
           case (?wasmModuleBlob) {
-            let ic = actor("aaaaa-aa") : actor {
-              install_code : <system>({ canister_id : Principal; wasm_module : Blob; arg : Blob; mode : { #upgrade } }) -> async ();
-            };
+            let ic = IcManagement.management();
             await ic.install_code({
               canister_id = canisterId;
               wasm_module = wasmModuleBlob;
-              arg = Blob.fromArray([]); // Empty args
+              arg = Array.toBlob([]); // Empty args
               mode = #upgrade;
             });
             return #ok(());
@@ -723,7 +738,18 @@ persistent actor Cardinal {
     Option.isSome(usernames.get(Text.compare, name))
   };
 
-  public shared({ caller = _ }) func registerUsername(name: Text, user: Principal) : async Result.Result<(), Text> {
+  public shared({ caller }) func registerUsername(name: Text, user: Principal) : async Result.Result<(), Text> {
+    // Only the user themselves, an admin, or a registered user-node for that user may register.
+    let callerIsUserNode = switch (registry.get(principalCompare, user)) {
+      case (?nodeId) { caller == nodeId };
+      case null { false };
+    };
+    if (caller != user and caller != _adminPrincipal and not callerIsUserNode) {
+      return #err("Unauthorized");
+    };
+    if (Text.size(name) < 3 or Text.size(name) > 32) {
+      return #err("Username must be 3-32 characters");
+    };
     if (Option.isSome(usernames.get(Text.compare, name))) {
       return #err("Username already taken");
     };

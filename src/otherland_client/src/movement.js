@@ -347,7 +347,7 @@ export function applyPlayerMovement(delta) {
                                 console.log("Can't pick up more than 1 Objects");
                             } else {
                                 document.getElementById("interactionHint").style.display = "block";
-                                document.getElementById("interactionHint").innerHTML = point.action;
+                                document.getElementById("interactionHint").textContent = point.action;
                                 minDistance = distance;
                                 closestPoint = {
                                     point,

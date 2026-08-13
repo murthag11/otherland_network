@@ -4,6 +4,7 @@ import { Principal } from '@icp-sdk/core/principal';
 import { viewerState } from './index.js';
 import { avatarState } from './avatar.js';
 import { userIsInWorld } from './menu.js';
+import { user } from './user.js';
 import { chat } from './chat.js';
 import { khetController, loadKhetMeshOnly, saveToCache, getFromCache } from './khet.js';
 
@@ -98,30 +99,47 @@ export const online = {
     },
 
     async connectToNearbyPeers() {
+        // Nearby players are IC principals, not PeerJS IDs. Announce our PeerJS ID
+        // via canister signaling so peers can dial the broker ID correctly.
         const actor = await getUserNodeActor();
+        if (!actor || !this.ownID) return;
+
         const nearby = await actor.getNearbyPlayers(5);
+        this.nearbyPeers = new Set(nearby.map(p => p.toText()));
+
         for (const principal of nearby) {
-            if (!this.connectedPeers.has(principal.toText()) && principal.toText() !== this.ownID) {
-                const conn = this.peer.connect(principal.toText());
-                conn.on('open', () => this.addConnection(conn));
+            const principalText = principal.toText();
+            if (principalText === user.getUserPrincipal()) continue;
+            try {
+                await actor.sendSignalingMessage(
+                    principal,
+                    JSON.stringify({ type: 'peer-announce', peerId: this.ownID })
+                );
+            } catch (err) {
+                console.warn('Failed to announce peer ID to', principalText, err);
             }
         }
-        this.nearbyPeers = new Set(nearby.map(p => p.toText()));
     },
 
     async handleSignaling() {
         const actor = await getUserNodeActor();
+        if (!actor || !this.peer) return;
+
         const messages = await actor.getSignalingMessages();
         for (const [from, msg] of messages) {
-            const parsed = JSON.parse(msg);
-            if (parsed.type === 'offer') {
-                const conn = this.connectedPeers.get(from.toText()) || this.peer.connect(from.toText());
-                conn.on('open', () => {
-                    conn.send({ type: 'answer', value: 'answer-data' }); // Simplified
-                    this.addConnection(conn);
-                });
+            let parsed;
+            try {
+                parsed = JSON.parse(msg);
+            } catch {
+                continue;
             }
-            // Handle answer, ICE candidates similarly
+            // Accept PeerJS IDs advertised over the canister signaling channel.
+            if (parsed.type === 'peer-announce' && typeof parsed.peerId === 'string') {
+                const peerId = parsed.peerId;
+                if (peerId === this.ownID || this.connectedPeers.has(peerId)) continue;
+                const conn = this.peer.connect(peerId);
+                conn.on('open', () => this.addConnection(conn));
+            }
         }
     },
 

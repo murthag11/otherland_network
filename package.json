@@ -1,7 +1,7 @@
 {
   "engines": {
-    "node": ">=16.0.0",
-    "npm": ">=7.0.0"
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   },
   "name": "otherland",
   "scripts": {
@@ -9,25 +9,20 @@
     "prebuild": "npm run prebuild --workspaces --if-present",
     "pretest": "npm run prebuild --workspaces --if-present",
     "start": "npm start --workspaces --if-present",
-    "test": "npm test --workspaces --if-present"
+    "test": "npm test --workspaces --if-present",
+    "mops:setup": "mops install && mops toolchain init && mops toolchain use moc",
+    "dfx": "bash scripts/dfx.sh",
+    "deploy": "bash scripts/dfx.sh deploy",
+    "deploy:clean": "bash scripts/dfx.sh deploy --clean"
   },
   "type": "module",
   "workspaces": [
     "src/otherland_client"
   ],
   "devDependencies": {
-    "vite": "^8.0.5",
     "esprima": "^4.0.1",
-    "npm-check-updates": "^20.0.0"
+    "npm-check-updates": "^17.1.18",
+    "vite": "^8.2.1"
   },
-  "dependencies": {
-    "@dfinity/agent": "^3.4.3",
-    "@dfinity/auth-client": "^3.4.3",
-    "@dfinity/principal": "^3.4.3",
-    "@dimforge/rapier3d-compat": "^0.19.3",
-    "@icp-sdk/core": "^5.2.0",
-    "nipplejs": "^1.0.1",
-    "peerjs": "^1.5.5",
-    "three": "^0.183.2"
-  }
+  "dependencies": {}
 }

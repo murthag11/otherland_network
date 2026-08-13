@@ -9,11 +9,18 @@
     },
     "user_node": {
       "main": "src/otherland_network/user_node.mo",
-      "type": "motoko"
+      "type": "motoko",
+      "upgrade_options": {
+        "wasm_memory_persistence": "enabled"
+      }
     },
     "otherland_client": {
-      "dependencies": ["cardinal"],
-      "source": ["src/otherland_client/dist"],
+      "dependencies": [
+        "cardinal"
+      ],
+      "source": [
+        "src/otherland_client/dist"
+      ],
       "type": "assets",
       "workspace": "otherland_client",
       "headers": {
@@ -22,8 +29,8 @@
     },
     "internet_identity": {
       "type": "custom",
-      "candid": "https://github.com/dfinity/internet-identity/releases/download/release-2026-03-09/internet_identity.did",
-      "wasm": "https://github.com/dfinity/internet-identity/releases/download/release-2026-03-09/internet_identity_dev.wasm.gz",
+      "candid": "https://github.com/dfinity/internet-identity/releases/download/release-2026-08-11/internet_identity.did",
+      "wasm": "https://github.com/dfinity/internet-identity/releases/download/release-2026-08-11/internet_identity_dev.wasm.gz",
       "frontend": {},
       "remote": {
         "id": {

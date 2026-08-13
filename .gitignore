@@ -3,6 +3,10 @@ node_modules/
 .dfx/
 src/otherland_client/dist/
 src/declarations/
+.vscode
+.mops
+.env
+*.local
 
 # Explicitly include
 !src/
@@ -10,7 +14,5 @@ src/declarations/
 !package.json
 !package-lock.json
 !tsconfig.json
-!.env
 !README.md
-.vscode
-.mops
+!.env.example

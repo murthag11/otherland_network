@@ -1,7 +1,4 @@
-import * as THREE from 'three';
-import RAPIER from '@dimforge/rapier3d-compat';
 import { avatarState } from "./avatar.js";
-import { viewerState, sceneObjects } from "./index.js";
 
 // Pre-approved functions
 export const preApprovedFunctions = {
@@ -73,38 +70,25 @@ export const preApprovedFunctions = {
     }
 };
 
-// Trigger Interaction function
+// Trigger Interaction function — whitelist only (no dynamic Function construction)
 export function triggerInteraction(point, object) {
-    document.getElementById("interactionHint").style.display = "none";
-    let actionFunction;
+    const hintEl = document.getElementById("interactionHint");
+    hintEl.style.display = "none";
 
-    if (typeof point.action === 'string') {
-        if (preApprovedFunctions[point.action]) {
-            actionFunction = function(content, object, preApprovedFunctions) {
-                preApprovedFunctions[point.action](content, object);
-            };
-        } else {
-            try {
-                actionFunction = new Function('content', 'object', 'preApprovedFunctions', point.action);
-            } catch (error) {
-                console.error('Error creating function from custom code:', error);
-                document.getElementById("interactionHint").innerHTML = "Invalid custom action";
-                return;
-            }
-        }
-    } else {
-        document.getElementById("interactionHint").innerHTML = "No action defined for interaction type";
-        console.log(`No action defined for interaction type: ${point.type}`);
+    if (typeof point.action !== 'string' || !preApprovedFunctions[point.action]) {
+        hintEl.textContent = typeof point.action === 'string'
+            ? "Action not allowed"
+            : "No action defined for interaction type";
+        console.log(`No approved action for interaction: ${point.action} (type: ${point.type})`);
         return;
     }
 
     try {
         console.log(`Interaction triggered: ${point.action} at ${object}`);
-        actionFunction(point.content, object, preApprovedFunctions);
-        
-        document.getElementById("interactionHint").innerHTML = point.action;
+        preApprovedFunctions[point.action](point.content, object);
+        hintEl.textContent = point.action;
     } catch (error) {
         console.error('Error executing interaction action:', error);
-        document.getElementById("interactionHint").innerHTML = "Error executing action";
+        hintEl.textContent = "Error executing action";
     }
 }

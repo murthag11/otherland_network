@@ -8,19 +8,45 @@ import { CANISTER_IDS } from './canisterIds.js';
 
 let cardinalAgentInstance = null;
 let cardinalActor = null;
+let cardinalAgentPrincipal = null;
+
+let userNodeAgentInstance = null;
+let userNodeActor = null;
+let userNodeAgentPrincipal = null;
+let userNodeActorCanisterId = null;
+
+/** Drop cached agents/actors so the next get*Actor() rebuilds with current identity/node. */
+export function invalidateActors() {
+    cardinalAgentInstance = null;
+    cardinalActor = null;
+    cardinalAgentPrincipal = null;
+    userNodeAgentInstance = null;
+    userNodeActor = null;
+    userNodeAgentPrincipal = null;
+    userNodeActorCanisterId = null;
+}
+
+function currentPrincipalText() {
+    const identity = getIdentity();
+    return identity ? identity.getPrincipal().toText() : null;
+}
 
 // Initialize cardinal agent actor with user identity
 export async function getCardinalActor() {
+    await authReady;
+
+    const principalText = currentPrincipalText();
+    if (cardinalAgentInstance && cardinalAgentPrincipal !== principalText) {
+        invalidateActors();
+    }
 
     // Create HTTP Agent with Internet Identity
     if (!cardinalAgentInstance) {
-
-        await authReady;
-
-        cardinalAgentInstance = new HttpAgent({ 
-            host: process.env.DFX_NETWORK === 'local' ? 'http://localhost:4943' : window.location.origin, 
-            identity: getIdentity() 
+        cardinalAgentInstance = new HttpAgent({
+            host: process.env.DFX_NETWORK === 'local' ? 'http://localhost:4943' : window.location.origin,
+            identity: getIdentity()
         });
+        cardinalAgentPrincipal = principalText;
 
         if (process.env.DFX_NETWORK === 'local') {
             try {
@@ -35,17 +61,14 @@ export async function getCardinalActor() {
 
     // Create actor for the cardinal canister
     if (!cardinalActor) {
-        cardinalActor = Actor.createActor(cardinalIdlFactory, { 
-            agent: cardinalAgentInstance, 
+        cardinalActor = Actor.createActor(cardinalIdlFactory, {
+            agent: cardinalAgentInstance,
             canisterId: CANISTER_IDS.CARDINAL
         });
     }
 
     return cardinalActor;
 }
-
-let userNodeAgentInstance = null;
-let userNodeActor = null;
 
 // Get user node actor for the current user's node
 export async function getUserNodeActor() {
@@ -55,13 +78,25 @@ export async function getUserNodeActor() {
         return null;
     }
 
-    if (!userNodeAgentInstance) {
-        await authReady;
+    await authReady;
 
-        userNodeAgentInstance = new HttpAgent({ 
-            host: process.env.DFX_NETWORK === 'local' ? 'http://localhost:4943' : window.location.origin, 
-            identity: getIdentity() 
+    const principalText = currentPrincipalText();
+    if (
+        userNodeAgentInstance &&
+        (userNodeAgentPrincipal !== principalText || userNodeActorCanisterId !== nodeSettings.nodeId)
+    ) {
+        userNodeAgentInstance = null;
+        userNodeActor = null;
+        userNodeAgentPrincipal = null;
+        userNodeActorCanisterId = null;
+    }
+
+    if (!userNodeAgentInstance) {
+        userNodeAgentInstance = new HttpAgent({
+            host: process.env.DFX_NETWORK === 'local' ? 'http://localhost:4943' : window.location.origin,
+            identity: getIdentity()
         });
+        userNodeAgentPrincipal = principalText;
 
         if (process.env.DFX_NETWORK === 'local') {
             try {
@@ -74,11 +109,12 @@ export async function getUserNodeActor() {
         }
     }
 
-    if (!userNodeActor) {
-        userNodeActor = Actor.createActor(userNodeIdlFactory, { 
-            agent: userNodeAgentInstance, 
-            canisterId: nodeSettings.nodeId 
+    if (!userNodeActor || userNodeActorCanisterId !== nodeSettings.nodeId) {
+        userNodeActor = Actor.createActor(userNodeIdlFactory, {
+            agent: userNodeAgentInstance,
+            canisterId: nodeSettings.nodeId
         });
+        userNodeActorCanisterId = nodeSettings.nodeId;
     }
 
     return userNodeActor;
@@ -330,10 +366,14 @@ export const nodeSettings = {
     // Export Node Configuration
     exportNodeConfig () {
 
-        // Calculate total size of all khets
+        // Calculate total size of all khets (metadata-only entries may omit gltfData)
         let totalSize = 0;
         for (const khet of Object.values(khetController.khets)) {
-            totalSize += khet.gltfData.byteLength;
+            if (khet?.gltfData?.byteLength) {
+                totalSize += khet.gltfData.byteLength;
+            } else if (typeof khet?.gltfDataSize === 'number') {
+                totalSize += khet.gltfDataSize;
+            }
         }
 
         // Export own TreeHouse
